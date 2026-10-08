@@ -52,7 +52,7 @@ export function open() {
 
 /* ======================= 3D: Ronie in a neon room ======================= */
 let renderer, composer, bloomComposer, scene, camera, mixer, model, head, neck, spine, dust, idleAction, jumpAction;
-const rest = new Map();
+const rest = new Map();                 // head/neck/spine: their animated pose, before the look/breathing offsets
 const facing = new THREE.Vector3(0, 0, 1);
 const target = new THREE.Vector3();
 const headHome = new THREE.Vector3();  // head position in the idle pose — the camera frames this and stays still
@@ -84,7 +84,8 @@ let jumping = false, jumpW = 0;
 // plus 'excited' and 'confused'. Each starts and ends in the idle pose, so they blend in and out cleanly.
 const IDLE_MOVES = ['idle_look', 'idle_sway', 'idle_stretch', 'idle_hand'];
 const gestures = {};
-let gesture = null, gestureW = 0, nextIdleMove = 0, lastIdleMove = '';
+// 'gesture' is the move currently blended in (gestureW); 'fading' is one being faded out after it was interrupted
+let gesture = null, gestureW = 0, playing = false, fading = null, fadingW = 0, nextIdleMove = 0, lastIdleMove = '';
 // Waking up: he waits further back in the room, then takes one huge leap to his spot.
 // The leap reuses the clip's biggest jump (crouch 6.6 s → take-off 7.35 s → landing 8.0 s → settled 8.8 s),
 // with forward travel and the body leaning into the jump on top. In the air the clip only moves his limbs:
@@ -905,6 +906,9 @@ function loadGestures(idleClip) {
   const loader = new GLTFLoader();
   loader.load(`models/ronie-anims.glb${new URL(import.meta.url).search}`, (g) => {
     for (const clip of g.animations) {
+      // only the skeleton's own bones: the file also carries the empty root nodes above them, which must keep
+      // the model's own placement and scale
+      clip.tracks = clip.tracks.filter((t) => t.name.startsWith('CC_Base_'));
       // a clip only animates the bones it moves; every other bone is held in the idle pose, so blending
       // it in never pulls an untouched limb towards the model's default pose
       const have = new Set(clip.tracks.map((t) => t.name));
@@ -926,25 +930,41 @@ function loadGestures(idleClip) {
 // play one of the moves (only when he's standing in his spot and not already busy)
 function playGesture(name) {
   const a = gestures[name];
-  if (!a || !MOTION || !awake || !landed || jumping) return false;
-  if (gesture && gesture !== gestures[name] && IDLE_MOVES.includes(name)) return false;  // don't cut a move short for an idle
-  if (gesture && gesture !== a) gesture.stop();
+  if (!a || !MOTION || !awake || !landed || leapW > 0.01 || jumping) return false;
+  if (playing && (IDLE_MOVES.includes(name) || a === gesture)) return false;   // an idle never cuts a move short
+  if (fading === a) { a.stop(); fading = null; fadingW = 0; }
+  if (gesture === a) {
+    // the same move is still fading out on its last frame (the idle pose, = its first frame): just run it again
+    a.reset(); a.play(); playing = true;
+    return true;
+  }
+  if (gesture) {
+    // whatever was blended in fades out underneath the new move instead of snapping away
+    if (fading) fading.stop();
+    fading = gesture; fadingW = gestureW;
+  }
   a.reset();
-  a.setEffectiveWeight(gestureW);
+  a.setEffectiveWeight(0);
   a.play();
-  gesture = a;
+  gesture = a; gestureW = 0; playing = true;
   return true;
 }
 
 function updateGestures(now, dt) {
-  if (gesture && gesture.time >= gesture.getClip().duration - 0.001) gesture = null;  // finished (held on its last frame, = idle)
-  gestureW += ((gesture ? 1 : 0) - gestureW) * Math.min(1, dt * (gesture ? 9 : 5));
-  for (const a of Object.values(gestures)) {
-    if (a === gesture) a.setEffectiveWeight(gestureW);
-    else if (a.isRunning() || a.enabled) { a.setEffectiveWeight(gesture ? 0 : gestureW); if (!gesture && gestureW < 0.01) a.stop(); }
+  if (gesture) {
+    // a finished move holds its last frame (which is the idle pose) while its weight fades out
+    if (playing && gesture.time >= gesture.getClip().duration - 0.001) playing = false;
+    gestureW += ((playing ? 1 : 0) - gestureW) * Math.min(1, dt * (playing ? 9 : 5));
+    gesture.setEffectiveWeight(gestureW);
+    if (!playing && gestureW < 0.005) { gesture.stop(); gesture = null; gestureW = 0; }
+  }
+  if (fading) {
+    fadingW *= Math.exp(-dt * 8);
+    fading.setEffectiveWeight(fadingW);
+    if (fadingW < 0.005) { fading.stop(); fading = null; fadingW = 0; }
   }
   // now and then, while he's just standing there, drift into one of the idle variations
-  if (!gesture && awake && landed && !jumping && now > nextIdleMove && Object.keys(gestures).length) {
+  if (!gesture && awake && landed && leapW < 0.01 && !jumping && now > nextIdleMove && Object.keys(gestures).length) {
     const pick = IDLE_MOVES.filter((n) => n !== lastIdleMove && gestures[n]);
     const name = pick[(Math.random() * pick.length) | 0];
     if (name && playGesture(name)) lastIdleMove = name;
@@ -1017,7 +1037,7 @@ function landingBurst() {
 }
 
 function startJump() {
-  if (!jumpAction || jumping || !MOTION || gesture) return;
+  if (!jumpAction || jumping || !MOTION || playing) return;
   jumping = true;
   jumpAction.time = JUMP_FROM;
   jumpAction.paused = false;
@@ -1051,6 +1071,8 @@ function loop(now) {
   updateFace(now, dt);
 
   if (model) {
+    // undo last frame's look/breathing offsets: put back the pose the animation itself produced. (The mixer
+    // only writes a bone when its value changes, so resetting to the bind pose here made bones snap to it.)
     for (const [b, q] of rest) b.quaternion.copy(q);
     if (mixer) {
       // the jump plays once, then blends back into the still idle pose
@@ -1060,9 +1082,10 @@ function loop(now) {
       leapW = placeForLeap(now);
       leapAction.setEffectiveWeight(leapW);
       updateGestures(now, dt);
-      idleAction.setEffectiveWeight(Math.max(0, 1 - jumpW - leapW - gestureW));
+      idleAction.setEffectiveWeight(Math.max(0, 1 - jumpW - leapW - gestureW - fadingW));
       mixer.update(dt);
     }
+    for (const [b, q] of rest) q.copy(b.quaternion);   // the animated pose, before this frame's offsets
     model.updateMatrixWorld(true);
     if (airK >= 0 && hipBone) {
       // in flight: move him so his hips trace a clean parabola from take-off height to landing height
