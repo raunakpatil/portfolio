@@ -41,4 +41,5 @@ blender -b --factory-startup --python tools/blender/ronie_anims.py -- path/to/sc
 ```
 
 Poses are written as world-space rotations on top of his idle pose, so edit the angle tables in that script.
-It also saves a `.blend` next to the output; `tools/blender/ronie_preview.py` renders poses from it to check them.
+It also saves a `.blend` next to the output; `tools/blender/ronie_preview.py` (body) and `ronie_hands_preview.py` (hands)
+render poses from it to check them. Fingers: each hand has a finger block (Index1-3) and a thumb, posed via `FL`/`FR`.

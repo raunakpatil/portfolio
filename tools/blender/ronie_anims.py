@@ -77,6 +77,34 @@ def apply(offs):
             d = offs[bone].get(ax, 0)
             if abs(d) > 1e-4:
                 rot_world(bone, ax, d, FEET_MID if bone == HIP else None)
+    for side in ('L', 'R'):
+        h = offs.get('F' + side)
+        if h: curl(side, h.get('f', 0), h.get('t', 0))
+
+# Hands: four fingers driven as one block by the Index1-3 chain, plus a thumb (Thumb1-3).
+# Pseudo-bones 'FL'/'FR' in a pose: {'f': finger curl, 't': thumb curl} in degrees. + closes towards a fist,
+# - opens past the relaxed idle curl. Curl axis = across the knuckles, from the palm plane (fingers × thumb).
+FING = {s: ([B(f'{s}_Index{i}') for i in (1, 2, 3)], [B(f'{s}_Thumb{i}') for i in (1, 2, 3)]) for s in ('L', 'R')}
+FINGER_BONES = [n for s in FING.values() for chain in s for n in chain]
+SPREAD = (1.0, 1.0, 0.8)                         # how a curl is shared along each chain (knuckle → tip)
+
+def rot_axis(name, axis, deg):
+    p = pb[name]; M = p.matrix.copy(); c = M.translation.copy(); sc = p.scale.copy()
+    p.matrix = Matrix.Translation(c) @ Matrix.Rotation(math.radians(deg), 4, axis) @ Matrix.Translation(-c) @ M
+    p.scale = sc
+    bpy.context.view_layer.update()
+
+def curl(side, fdeg, tdeg):
+    sign = 1 if side == 'R' else -1               # the hands are mirrored
+    idx, thb = FING[side]
+    for chain, deg in ((idx, fdeg), (thb, tdeg)):
+        if abs(deg) < 1e-3: continue
+        for n, share in zip(chain, SPREAD):
+            d_f = (pb[idx[0]].tail - pb[idx[0]].head).normalized()
+            d_t = (pb[thb[0]].tail - pb[thb[0]].head).normalized()
+            nrm = d_f.cross(d_t).normalized()
+            d = (pb[n].tail - pb[n].head).normalized()
+            rot_axis(n, nrm.cross(d).normalized(), sign * deg * share)
 
 LASTQ = {}
 KEY_ALL = set()
@@ -100,7 +128,7 @@ def make(name, length, keys, touched, legs_from_jump=False, step=2):
     KEY_ALL.clear(); KEY_ALL.update({0, int(round(length * FPS))})
     set_basis(BASE)
     FEET_MID = (pb[B('L_Foot')].head + pb[B('R_Foot')].head) / 2
-    names = set(touched) | ({HIP, PELVIS, WAIST, SP1, SP2} | set(LEGS) if legs_from_jump else set())
+    names = set(touched) | set(FINGER_BONES) | ({HIP, PELVIS, WAIST, SP1, SP2} | set(LEGS) if legs_from_jump else set())
     n = int(round(length * FPS))
     for f in list(range(0, n, step)) + [n]:
         t = f / FPS
@@ -117,48 +145,54 @@ def make(name, length, keys, touched, legs_from_jump=False, step=2):
 
 Z = {}
 # ---------------- idle variations ----------------
-look_l = {HEAD: {'up': 26, 'right': 4}, NK2: {'up': 8}, SP2: {'up': 6}}
-look_r = {HEAD: {'up': -24, 'right': 2, 'fwd': 3}, NK2: {'up': -8}, SP2: {'up': -6}}
-make('idle_look', 6.0, [(0, Z), (1.1, look_l), (2.3, {**look_l, HEAD: {'up': 30, 'right': 2}}), (3.3, look_r),
-                        (4.5, {**look_r, HEAD: {'up': -27, 'right': 0, 'fwd': 3}}), (5.6, Z), (6.0, Z)],
+look_l = {HEAD: {'up': 13, 'right': 4}, NK2: {'up': 19}, SP2: {'up': 7}, 'FL': {'f': 8, 't': 6}, 'FR': {'f': -6}}
+look_r = {HEAD: {'up': -12, 'right': 2, 'fwd': 3}, NK2: {'up': -18}, SP2: {'up': -7}, 'FL': {'f': -5}, 'FR': {'f': 10, 't': 8}}
+make('idle_look', 6.0, [(0, Z), (1.1, look_l), (2.3, {**look_l, HEAD: {'up': 15, 'right': 2}}), (3.3, look_r),
+                        (4.5, {**look_r, HEAD: {'up': -14, 'right': 0, 'fwd': 3}}), (5.6, Z), (6.0, Z)],
      [HEAD, NK2, SP2])
 
 sway_r = {HIP: {'fwd': 2.2}, SP1: {'fwd': -1.6}, NK2: {'fwd': -1.0}, HEAD: {'fwd': 1.5},
-          UA_R: {'fwd': -2}, UA_L: {'fwd': -2}}
+          UA_R: {'fwd': -2}, UA_L: {'fwd': -2}, 'FR': {'f': 14, 't': 10}, 'FL': {'f': -6}}
 sway_l = {HIP: {'fwd': -2.2}, SP1: {'fwd': 1.6}, NK2: {'fwd': 1.0}, HEAD: {'fwd': -1.5},
-          UA_R: {'fwd': 2}, UA_L: {'fwd': 2}}
+          UA_R: {'fwd': 2}, UA_L: {'fwd': 2}, 'FL': {'f': 14, 't': 10}, 'FR': {'f': -6}}
 make('idle_sway', 6.4, [(0, Z), (1.6, sway_r), (2.4, sway_r), (4.0, sway_l), (4.8, sway_l), (6.4, Z)],
      [HIP, SP1, NK2, HEAD, UA_L, UA_R])
 
-stretch = {SP2: {'right': 10}, NK2: {'right': 4}, HEAD: {'right': 16}, CL_L: {'fwd': 7, 'right': -6}, CL_R: {'fwd': -7, 'right': -6},
-           UA_L: {'fwd': 18, 'right': -24}, UA_R: {'fwd': -18, 'right': -24}, FA_L: {'right': 10}, FA_R: {'right': 10}}
-stretch2 = {**stretch, UA_L: {'fwd': 22, 'right': -30}, UA_R: {'fwd': -22, 'right': -30}, SP2: {'right': 12}, HEAD: {'right': 20}}
+spread = {'f': -28, 't': -32}
+stretch = {SP2: {'right': 10}, NK2: {'right': 9}, HEAD: {'right': 9}, CL_L: {'fwd': 7, 'right': -6}, CL_R: {'fwd': -7, 'right': -6},
+           UA_L: {'fwd': 18, 'right': -24}, UA_R: {'fwd': -18, 'right': -24}, FA_L: {'right': 10}, FA_R: {'right': 10},
+           'FL': spread, 'FR': spread}
+stretch2 = {**stretch, UA_L: {'fwd': 22, 'right': -30}, UA_R: {'fwd': -22, 'right': -30}, SP2: {'right': 12}, HEAD: {'right': 11},
+            NK2: {'right': 11}}
 make('idle_stretch', 5.6, [(0, Z), (1.1, stretch), (1.9, stretch2),
-                           (2.8, {HEAD: {'fwd': 16}, NK2: {'fwd': 5}}), (3.6, {HEAD: {'fwd': -16}, NK2: {'fwd': -5}}),
+                           (2.8, {HEAD: {'fwd': 7}, NK2: {'fwd': 12}, 'FL': {'f': 10}, 'FR': {'f': 10}}),
+                           (3.6, {HEAD: {'fwd': -7}, NK2: {'fwd': -12}}),
                            (4.6, Z), (5.6, Z)],
      [SP2, NK2, HEAD, CL_L, CL_R, UA_L, UA_R, FA_L, FA_R])
 
-check = {SP2: {'up': -5, 'right': -3}, HEAD: {'up': -16, 'right': -18}, NK2: {'right': -5},
+check = {SP2: {'up': -5, 'right': -3}, HEAD: {'up': -8, 'right': -11}, NK2: {'up': -8, 'right': -10},
          UA_R: {'right': 32, 'fwd': 14}, FA_R: {'right': 78}, HD_R: {'up': 0}}
-make('idle_hand', 5.6, [(0, Z), (1.0, check), (1.8, {**check, HD_R: {'fwd': 28}}), (2.6, {**check, HD_R: {'fwd': -22}}),
-                        (3.4, check), (4.5, Z), (5.6, Z)],
+make('idle_hand', 5.6, [(0, Z), (1.0, {**check, 'FR': {'f': -26, 't': -28}}),            # opens the hand…
+                        (1.8, {**check, HD_R: {'fwd': 28}, 'FR': {'f': 62, 't': 42}}),    # …makes a fist…
+                        (2.6, {**check, HD_R: {'fwd': -22}, 'FR': {'f': -24, 't': -26}}), # …opens again…
+                        (3.4, {**check, 'FR': {'f': 30, 't': 18}}), (4.5, Z), (5.6, Z)],  # …and relaxes
      [SP2, NK2, HEAD, UA_R, FA_R, HD_R])
 
-# ---------------- excited: a hop with both fists pumping ----------------
-arms_back = {UA_L: {'right': -14}, UA_R: {'right': -14}}
+fist = {'f': 64, 't': 44}
+arms_back = {UA_L: {'right': -14}, UA_R: {'right': -14}, 'FL': {'f': 20, 't': 10}, 'FR': {'f': 20, 't': 10}}
 arms_up = {UA_L: {'fwd': 115, 'right': 30}, UA_R: {'fwd': -115, 'right': 30}, FA_L: {'right': 25}, FA_R: {'right': 25},
-           SP2: {'right': 8}, HEAD: {'right': 14}}
+           SP2: {'right': 8}, HEAD: {'right': 7}, NK2: {'right': 7}, 'FL': fist, 'FR': fist}
 pump = {UA_L: {'right': 55, 'fwd': 10}, UA_R: {'right': 55, 'fwd': -10}, FA_L: {'right': 105}, FA_R: {'right': 105},
-        SP2: {'right': -4}, HEAD: {'right': 6}}
+        SP2: {'right': -4}, HEAD: {'right': 3}, NK2: {'right': 3}, 'FL': {'f': 70, 't': 48}, 'FR': {'f': 70, 't': 48}}
 make('excited', 2.2, [(0, Z), (0.45, arms_back), (0.8, arms_up), (1.05, arms_up), (1.35, pump), (1.6, pump), (2.2, Z)],
-     [SP2, HEAD, UA_L, UA_R, FA_L, FA_R], legs_from_jump=True, step=1)
+     [SP2, NK2, HEAD, UA_L, UA_R, FA_L, FA_R], legs_from_jump=True, step=1)
 
-# ---------------- confused: head tilt and a palms-up shrug ----------------
-shrug = {HEAD: {'fwd': 18, 'up': 8}, NK2: {'fwd': 6}, SP2: {'right': 4},
+palms = {'f': -26, 't': -34}
+shrug = {HEAD: {'fwd': 10, 'up': 4}, NK2: {'fwd': 14, 'up': 4}, SP2: {'right': 4},
          CL_L: {'fwd': 9}, CL_R: {'fwd': -9},
          UA_L: {'fwd': 4, 'right': 8}, UA_R: {'fwd': -4, 'right': 8}, FA_L: {'right': 75, 'up': 22}, FA_R: {'right': 75, 'up': -22},
-         HD_L: {'fwd': -55}, HD_R: {'fwd': 55}}
-hmm = {**shrug, HEAD: {'fwd': -12, 'up': -6, 'right': -6}, NK2: {'fwd': -4}}
+         HD_L: {'fwd': -55}, HD_R: {'fwd': 55}, 'FL': palms, 'FR': palms}
+hmm = {**shrug, HEAD: {'fwd': -6, 'up': -3, 'right': -3}, NK2: {'fwd': -9, 'up': -3, 'right': -3}, 'FL': {'f': -10, 't': -14}, 'FR': {'f': -10, 't': -14}}
 make('confused', 3.4, [(0, Z), (0.55, shrug), (1.2, shrug), (1.8, hmm), (2.5, hmm), (3.4, Z)],
      [HEAD, NK2, SP2, CL_L, CL_R, UA_L, UA_R, FA_L, FA_R, HD_L, HD_R])
 

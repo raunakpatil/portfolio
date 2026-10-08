@@ -1108,8 +1108,10 @@ function loop(now) {
     // +yaw turns towards the viewer's right, +pitch looks down
     const yaw = look.x * 0.75, pitch = look.y * 0.35;
     turn(spine, yaw * 0.25 + sway * 0.6, pitch * 0.15 + breathe + slump * 0.18);
-    turn(neck, yaw * 0.3 + sway * 0.3, pitch * 0.3 + breathe * 0.5 + slump * 0.25);
-    turn(head, yaw * 0.45 + sway * 0.4, pitch * 0.55 + slump * 0.5);
+    // the neck carries most of the turn: the helmet is skinned to both neck and head, so turning the head
+    // much further than the neck bends it
+    turn(neck, yaw * 0.5 + sway * 0.45, pitch * 0.5 + breathe * 0.5 + slump * 0.4);
+    turn(head, yaw * 0.25 + sway * 0.25, pitch * 0.35 + slump * 0.35);
     updateReflections();
   }
   renderWithGlow();
