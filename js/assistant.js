@@ -4,7 +4,6 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 
 const D = window.PORTFOLIO;
 const A = D.assistant;
@@ -52,6 +51,16 @@ const look = { x: 0, y: 0 };
 const ptr = { x: 0, y: 0 };
 const lights = {};
 
+// The site's skill-bar colours (same hues as the dashboard's skill matrix), used for R.A.I.'s neon room.
+const PALETTE = (() => {
+  const items = D.skills.items, n = items.length;
+  return items.map((_, i) => new THREE.Color().setHSL(((((75 - i * (330 / n)) % 360) + 360) % 360) / 360, 0.95, 0.55));
+})();
+const ENV_ONLY = 1;              // layer seen by the reflection camera but not by the viewer
+let cubeRT, cubeCam, backdrop, softbox, envTick = 0, wakeAt = 0;
+const bars = [];
+const barLights = [];
+
 function init3D() {
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -63,15 +72,38 @@ function init3D() {
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   scene = new THREE.Scene();
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
   camera = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
 
-  lights.hemi = new THREE.HemisphereLight(0xffffff, 0x1a1a1a, 0.5);
-  lights.key = new THREE.DirectionalLight(0xffffff, 2.4);
-  lights.orange = new THREE.PointLight(0xff7a1a, 0, 12, 1.6);
-  lights.cyan = new THREE.PointLight(0x38e8ff, 0, 12, 1.6);
-  scene.add(lights.hemi, lights.key, lights.orange, lights.cyan);
+  // Reflections: a cube camera photographs the neon room from R.A.I.'s chest a few times a second,
+  // and that becomes the environment his metal reflects (so the bars show up on his armour).
+  cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+  cubeCam = new THREE.CubeCamera(0.05, 40, cubeRT);
+  cubeCam.layers.enable(ENV_ONLY);
+  cubeCam.children.forEach((c) => c.layers.enable(ENV_ONLY));
+  scene.environment = cubeRT.texture;
+  // a dim studio around him, only visible in reflections: soft gradient walls + an overhead softbox
+  const sky = new THREE.SphereGeometry(14, 32, 16);
+  const cols = [];
+  for (let i = 0; i < sky.attributes.position.count; i++) {
+    const y = sky.attributes.position.getY(i) / 14;
+    const v = 0.012 + 0.05 * Math.max(0, y);
+    cols.push(v, v, v * 1.05);
+  }
+  sky.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+  backdrop = new THREE.Mesh(sky, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, toneMapped: false }));
+  backdrop.layers.set(ENV_ONLY);
+  softbox = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.4), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 1, 1).multiplyScalar(1.6), side: THREE.DoubleSide, toneMapped: false }));
+  softbox.layers.set(ENV_ONLY);
+  scene.add(backdrop, softbox);
+
+  lights.hemi = new THREE.HemisphereLight(0xffffff, 0x101010, 0.25);
+  lights.key = new THREE.DirectionalLight(0xffffff, 1.2);
+  scene.add(lights.hemi, lights.key);
+  // coloured fill lights, one per pair of palette colours, placed around him
+  for (let i = 0; i < 6; i++) {
+    const l = new THREE.PointLight(PALETTE[(i * 2) % PALETTE.length], 0, 9, 2);
+    barLights.push(l); scene.add(l);
+  }
 
   // drifting dust for depth
   const N = 260, pos = new Float32Array(N * 3);
@@ -148,6 +180,8 @@ function onModel(gltf) {
     if (f.lengthSq() > 1e-8) facing.copy(f.normalize());
   }
 
+  buildNeonRoom();
+
   mixer = new THREE.AnimationMixer(model);
   if (gltf.animations[0]) mixer.clipAction(gltf.animations[0]).play();
 
@@ -155,6 +189,85 @@ function onModel(gltf) {
   target.copy(lookAt);
   loading.hidden = true;
   showWake();
+}
+
+// Neon light bars in the site's palette, in a ring around R.A.I. The ones in front of him are
+// reflection-only (ENV_ONLY), so they light his chest without blocking the view.
+function haloTexture() {
+  const c = document.createElement('canvas'); c.width = 64; c.height = 256;
+  const x = c.getContext('2d');
+  const gx = x.createLinearGradient(0, 0, 64, 0);
+  gx.addColorStop(0, 'rgba(255,255,255,0)'); gx.addColorStop(0.5, 'rgba(255,255,255,1)'); gx.addColorStop(1, 'rgba(255,255,255,0)');
+  x.fillStyle = gx; x.fillRect(0, 0, 64, 256);
+  x.globalCompositeOperation = 'destination-in';
+  const gy = x.createLinearGradient(0, 0, 0, 256);
+  gy.addColorStop(0, 'rgba(0,0,0,0)'); gy.addColorStop(0.12, 'rgba(0,0,0,1)'); gy.addColorStop(0.88, 'rgba(0,0,0,1)'); gy.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = gy; x.fillRect(0, 0, 64, 256);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+function buildNeonRoom() {
+  const N = 22, R = 3.4;
+  const base = Math.atan2(facing.x, facing.z);
+  const halo = haloTexture();
+  for (let i = 0; i < N; i++) {
+    const ang = (i / N) * Math.PI * 2;                   // 0 = straight in front of him
+    const a = base + ang;
+    const col = PALETTE[i % PALETTE.length];
+    const h = 1.5 + ((Math.sin(i * 12.9898) * 43758.5453) % 1 + 1) % 1 * 1.9;
+    const g = new THREE.Group();
+    g.position.set(Math.sin(a) * R, h / 2, Math.cos(a) * R);
+    const core = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, h, 8), new THREE.MeshBasicMaterial({ color: col.clone(), toneMapped: false }));
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(0.6, h + 0.5), new THREE.MeshBasicMaterial({
+      map: halo, color: col.clone(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+    }));
+    g.add(core, glow);
+    // front arc (±75°) is reflection-only
+    const front = Math.cos(ang) > Math.cos((75 * Math.PI) / 180);
+    if (front) { core.layers.set(ENV_ONLY); glow.layers.set(ENV_ONLY); }
+    scene.add(g);
+    bars.push({ g, core, glow, col, phase: i * 1.7, order: i, level: 0 });
+  }
+  barLights.forEach((l, i) => {
+    const a = base + ((i + 0.5) / barLights.length) * Math.PI * 2;
+    l.position.set(Math.sin(a) * 2.3, 1.6, Math.cos(a) * 2.3);
+  });
+  softbox.position.copy(facing).multiplyScalar(1.8).add(new THREE.Vector3(0, 3.8, 0));
+  softbox.lookAt(0, 1.2, 0);
+}
+
+function updateNeon(now, dt) {
+  const t = now / 1000;
+  const sinceWake = awake ? (now - wakeAt) / 1000 : -1;
+  for (const b of bars) {
+    // asleep: barely-there embers; on wake they switch on one after another
+    const on = sinceWake >= 0 && sinceWake > b.order * 0.05;
+    const goal = on ? 1 : 0.04;
+    b.level += (goal - b.level) * Math.min(1, dt * (on ? 6 : 3));
+    const breathe = 0.78 + 0.22 * Math.sin(t * 1.1 + b.phase);
+    const lvl = b.level * breathe;
+    // on screen: rich colour (not blown out to white); reflections get a brighter copy (see updateReflections)
+    b.core.material.color.copy(b.col).multiplyScalar(0.12 + 0.95 * lvl);
+    b.glow.material.opacity = 0.6 * lvl;
+    b.glow.rotation.y = Math.atan2(camera.position.x - b.g.position.x, camera.position.z - b.g.position.z);
+  }
+  barLights.forEach((l, i) => { l.intensity = 9 * power * (0.85 + 0.15 * Math.sin(t * 1.1 + i)); });
+}
+
+// re-photograph the surroundings for reflections (every few frames is plenty)
+function updateReflections() {
+  if (!cubeCam || !model) return;
+  if (envTick++ % 3) return;
+  model.visible = false;
+  if (dust) dust.visible = false;
+  // the reflection camera sees HDR-bright tubes, so they read clearly on the metal
+  for (const b of bars) { b.core.material.color.multiplyScalar(4); b.glow.visible = false; }
+  cubeCam.position.set(lookAt.x, lookAt.y - 0.5, lookAt.z);
+  cubeCam.update(renderer, scene);
+  cubeRT.texture.needsPMREMUpdate = true;
+  for (const b of bars) { b.core.material.color.multiplyScalar(0.25); b.glow.visible = true; }
+  model.visible = true;
+  if (dust) dust.visible = true;
 }
 
 // rotate a bone by a rotation given in world space (works whatever the rig's local axes are)
@@ -197,9 +310,8 @@ function loop(now) {
 
   power += (powerGoal - power) * Math.min(1, dt * (MOTION ? 2.2 : 60));
   renderer.toneMappingExposure = 0.06 + 0.94 * power;
-  lights.key.intensity = 0.4 + 2.2 * power;
-  lights.orange.intensity = 14 * power;
-  lights.cyan.intensity = 9 * power;
+  lights.key.intensity = 0.3 + 1.1 * power;
+  if (bars.length) updateNeon(now, dt);
   if (dust) {
     dust.material.opacity = 0.55 * power;
     dust.rotation.y += dt * 0.02;
@@ -223,8 +335,6 @@ function loop(now) {
     camera.lookAt(target);
     _right.crossVectors(UP, facing); // the viewer's right, in world space
     lights.key.position.copy(camera.position).add(new THREE.Vector3(1.5, 2, 0));
-    lights.orange.position.copy(lookAt).addScaledVector(facing, -1.2).add(new THREE.Vector3(-1.4, 0.4, 0));
-    lights.cyan.position.copy(lookAt).addScaledVector(facing, -1.0).add(new THREE.Vector3(1.4, 0.2, 0));
 
     // follow the mouse: a little from the spine, more from the neck and head
     const k = awake ? 1 : 0.15;
@@ -237,6 +347,7 @@ function loop(now) {
     turn(spine, yaw * 0.25, pitch * 0.15);
     turn(neck, yaw * 0.3, pitch * 0.3);
     turn(head, yaw * 0.45, pitch * 0.55);
+    updateReflections();
   }
   renderer.render(scene, camera);
 }
@@ -249,6 +360,7 @@ function showWake() {
 function wake() {
   if (awake) return;
   awake = true;
+  wakeAt = performance.now();
   wakeBtn.hidden = true;
   powerGoal = 1;
   if (MOTION) { root.classList.add('rai-glitch-on'); setTimeout(() => root.classList.remove('rai-glitch-on'), 800); }
