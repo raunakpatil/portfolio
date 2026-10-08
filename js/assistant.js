@@ -80,9 +80,11 @@ const JUMP_FROM = 13.1, JUMP_TO = 15.3;  // seconds: crouch, one jump, land back
 let jumping = false, jumpW = 0;
 // Waking up: he waits further back in the room, then takes one huge leap to his spot.
 // The leap reuses the clip's biggest jump (crouch 6.6 s → take-off 7.35 s → landing 8.0 s → settled 8.8 s),
-// with a little extra arc, forward travel, and the body leaning into the jump on top.
-const LEAP_BACK = 2.0, LEAP_HEIGHT = 0.08;            // metres behind his spot, extra arc height
-const LEAP_DELAY = 0.9, LEAP_CROUCH = 0.6, LEAP_AIR = 0.75, LEAP_LAND = 0.9; // seconds after waking
+// with forward travel and the body leaning into the jump on top. In the air the clip only moves his limbs:
+// his hips follow a true ballistic arc (a parabola), so the flight reads like a real jump.
+const LEAP_BACK = 2.45, LEAP_APEX = 0.5;              // metres behind his spot; hip rise at the top of the arc
+const LEAP_DELAY = 0.9, LEAP_CROUCH = 0.6, LEAP_AIR = 0.72, LEAP_LAND = 0.9; // seconds after waking
+let hipBone = null, hipTakeoff = 0, hipLanding = 0, airK = -1; // hip heights (above his feet) at take-off and landing
 const modelQuat = new THREE.Quaternion(), _lean = new THREE.Quaternion();
 let leapAction = null, leapW = 0, landed = false, shake = 0, contact;
 const homePos = new THREE.Vector3();
@@ -286,6 +288,17 @@ function onModel(gltf) {
     leapAction.play();
     leapAction.paused = true;
     leapAction.time = 6.6;
+    // measure how high his hips are at the moment of take-off and of landing
+    hipBone = findBone(/CC_Base_Hip(_|$)/, /hip|pelvis/i);
+    if (hipBone) {
+      const hipAt = (time) => {
+        idleAction.setEffectiveWeight(0); leapAction.setEffectiveWeight(1); leapAction.time = time;
+        mixer.update(0); model.updateMatrixWorld(true);
+        return hipBone.getWorldPosition(new THREE.Vector3()).y - model.position.y;
+      };
+      hipTakeoff = hipAt(7.35); hipLanding = hipAt(8.0);
+      idleAction.setEffectiveWeight(1); leapAction.time = 6.6;
+    }
     leapAction.setEffectiveWeight(0);
     mixer.update(0);
   }
@@ -631,11 +644,13 @@ function updateCursorLight(dt) {
 
 // where he is during the wake-up leap, and which moment of the clip he's in
 const lerp = (a, b, k) => a + (b - a) * k;
+const _hipW = new THREE.Vector3();
 const smooth = (k) => k * k * (3 - 2 * k);
 function placeForLeap(now) {
   if (!model) return 0;
   const since = awake ? (now - wakeAt) / 1000 - LEAP_DELAY : -1;
-  let clipT = 6.6, prog = 0, lift = 0, w = 0, lean = 0;
+  let clipT = 6.6, prog = 0, w = 0, lean = 0;
+  airK = -1;
   if (!MOTION || since >= LEAP_CROUCH + LEAP_AIR + LEAP_LAND) prog = 1;   // done (or motion reduced: just be there)
   else if (since >= 0 && since < LEAP_CROUCH) {
     // wind-up: ease down into the crouch, leaning forward and rocking back a touch
@@ -647,7 +662,7 @@ function placeForLeap(now) {
     const k = (since - LEAP_CROUCH) / LEAP_AIR, u = 2 * k - 1;
     clipT = 7.675 + 0.325 * Math.sign(u) * Math.abs(u) ** 0.6;
     prog = -0.03 + 0.98 * k;                                  // steady forward speed, like a thrown body
-    lift = LEAP_HEIGHT * 4 * k * (1 - k);
+    airK = k;
     lean = lerp(0.2, -0.1, smooth(k));                        // dives forward, then leans back to brake
     w = 1;
   } else if (since >= LEAP_CROUCH + LEAP_AIR) {
@@ -660,13 +675,13 @@ function placeForLeap(now) {
     if (!landed) { landed = true; landingBurst(); }
   }
   model.position.copy(homePos).addScaledVector(facing, -LEAP_BACK * (1 - prog));
-  model.position.y += lift;
   // lean around his feet, about the viewer's left-right axis (+ tips him towards the camera)
   model.quaternion.copy(modelQuat).premultiply(_lean.setFromAxisAngle(_right.crossVectors(UP, facing), lean));
   if (contact) {
     contact.position.set(model.position.x, 0.003, model.position.z);
-    contact.scale.setScalar(1 - Math.min(0.5, lift * 0.5));
-    contact.material.opacity = 1 - Math.min(0.75, lift * 0.8);
+    const up = airK >= 0 ? 4 * LEAP_APEX * airK * (1 - airK) : 0;
+    contact.scale.setScalar(1 - Math.min(0.5, up * 0.5));
+    contact.material.opacity = 1 - Math.min(0.75, up * 0.8);
   }
   if (leapAction) leapAction.time = clipT;
   return w;
@@ -708,7 +723,7 @@ function loop(now) {
   if (tubes.length) updateTubes(now, dt);
 
   // fixed camera framing the idle pose — it doesn't chase him when he moves
-  const dist = 3.15 * Math.max(1, 1.05 / Math.max(camera.aspect, 0.3));
+  const dist = 2.7 * Math.max(1, 1.05 / Math.max(camera.aspect, 0.3));
   camera.position.copy(target).addScaledVector(facing, dist).add(new THREE.Vector3(0, 0.14, 0));
   camera.lookAt(target);
   if (shake > 0.002) {
@@ -736,6 +751,12 @@ function loop(now) {
       mixer.update(dt);
     }
     model.updateMatrixWorld(true);
+    if (airK >= 0 && hipBone) {
+      // in flight: move him so his hips trace a clean parabola from take-off height to landing height
+      const want = homePos.y + lerp(hipTakeoff, hipLanding, airK) + 4 * LEAP_APEX * airK * (1 - airK);
+      model.position.y += want - hipBone.getWorldPosition(_hipW).y;
+      model.updateMatrixWorld(true);
+    }
 
     const t = now / 1000;
     // asleep he slumps forward; after waking he lifts his head as the room lights up
