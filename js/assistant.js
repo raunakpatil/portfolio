@@ -58,6 +58,7 @@ const target = new THREE.Vector3();
 const headHome = new THREE.Vector3();  // head position in the idle pose — the camera frames this and stays still
 let power = 0;                          // room light: 0 = off, 1 = on (follows the tubes after waking)
 let slump = 1;                          // 1 = asleep, head down; 0 = upright
+let listen = 0, listenUntil = 0;        // while the visitor types he leans in a little and tilts his head
 const look = { x: 0, y: 0 };
 const ptr = { x: 0, y: 0 };
 const lights = {};
@@ -1256,11 +1257,13 @@ function loop(now) {
     const sway = MOTION ? Math.sin(t * 0.45) * 0.035 + Math.sin(t * 0.23 + 1) * 0.02 : 0;
     // +yaw turns towards the viewer's right, +pitch looks down
     const yaw = look.x * 0.75, pitch = look.y * 0.35;
-    turn(spine, yaw * 0.25 + sway * 0.6, pitch * 0.15 + breathe + slump * 0.18);
+    listen += ((now < listenUntil ? 1 : 0) - listen) * Math.min(1, dt * 3.5);
+    turn(spine, yaw * 0.25 + sway * 0.6, pitch * 0.15 + breathe + slump * 0.18 + listen * 0.06);
     // the neck carries most of the turn: the helmet is skinned to both neck and head, so turning the head
     // much further than the neck bends it
     turn(neck, yaw * 0.5 + sway * 0.45, pitch * 0.5 + breathe * 0.5 + slump * 0.4);
-    turn(head, yaw * 0.25 + sway * 0.25, pitch * 0.35 + slump * 0.35);
+    turn(head, yaw * 0.25 + sway * 0.25, pitch * 0.35 + slump * 0.35 + listen * 0.05);
+    if (listen > 0.002) addWorldRotation(head, _q.setFromAxisAngle(facing, -0.17 * listen));   // a curious head tilt
     updateReflections();
   }
   renderWithGlow();
@@ -1541,6 +1544,17 @@ function button(label, cls, onClick, delay) {
 }
 
 /* ======================= free chat ======================= */
+// a body move for an answer when the model didn't pick one: from what was asked, and what he said
+function moveFor(question, reply) {
+  if (/\b(thank|thanks|cheers|ty)\b/i.test(question)) return 'bow';
+  if (/^\s*(hi|hello|hey|yo|hiya|bye|goodbye|see you)\b/i.test(question)) return 'wave';
+  if (/\byou(.re| are)\b.*\b(cute|adorable|funny|hilarious|smart|great|cool|awesome|amazing|nice)\b/i.test(question)) return 'scratch';
+  if (/don.t know|not sure|no information|don.t have/i.test(reply)) return 'shake';
+  if (/project|built|builds|YouTube|ResRescue|TriviaFlux|Interdimensional/i.test(reply)) return 'present';
+  if (/certif|award|DIAT|\d+%/i.test(reply)) return 'flex';
+  return Math.random() < 0.5 ? 'nod' : null;
+}
+
 // "Ask me anything": questions go to Ronie's chat worker (worker/), a small AI model that only knows the facts
 // in data.js. The last few messages go along so follow-up questions work. If the worker can't answer (free daily
 // allowance used up, offline…), Ronie says so in character and offers the menu.
@@ -1571,6 +1585,7 @@ function showChat(id, step, offerEmail = false) {
   el.placeholder = 'Ask about his work, projects, skills…';
   el.setAttribute('aria-label', 'Your question for Ronie');
   el.autocomplete = 'off';
+  el.addEventListener('input', () => { listenUntil = performance.now() + 1400; });
   const send = document.createElement('button');
   send.type = 'submit';
   send.className = 'rai-send';
@@ -1602,6 +1617,7 @@ function showChat(id, step, offerEmail = false) {
     chatLog.push({ role: 'user', content: q });
     setFace('thinking');
     setIcon('dots', 30000);
+    playGesture('think');
     sayEl.classList.remove('done');
     sayEl.textContent = '…';
     const answer = await askRonie();
@@ -1611,6 +1627,8 @@ function showChat(id, step, offerEmail = false) {
       chatLog.push({ role: 'assistant', content: reply });
       // his expression and icon follow the answer: the model's pick, or what the answer is about
       const mood = FACES[answer.face] ? answer.face : 'happy';
+      const move = gestures[answer.move] ? answer.move : moveFor(q, reply);
+      if (move) playGesture(move);
       setFace(mood);
       // a "?" only when he's actually unsure; otherwise show what the answer is about
       const unsure = /don.t know|not sure|no information|don.t have/i.test(reply);
@@ -1644,6 +1662,7 @@ function showActions(id, step) {
     el.setAttribute('aria-label', inp.label);
     if (!inp.multiline) el.type = inp.type || 'text';
     if (inp.name === 'name') el.maxLength = 40;
+    el.addEventListener('input', () => { listenUntil = performance.now() + 1400; });
     if (inp.type === 'email') el.autocomplete = 'email';
     if (inp.name === 'name') el.autocomplete = 'name';
     if (inp.multiline) el.rows = 3;
