@@ -22,8 +22,9 @@
     clearInterval(el._glitch);
     if (!MOTION) { el.textContent = text; return; }
     const start = performance.now();
+    el._glitchBusy = true;
     el._glitch = setInterval(() => {
-      if (performance.now() - start >= duration) { clearInterval(el._glitch); el.textContent = text; return; }
+      if (performance.now() - start >= duration) { clearInterval(el._glitch); el._glitchBusy = false; el.textContent = text; return; }
       el.innerHTML = [...text].map((ch) => (/[^\s,.]/.test(ch) && Math.random() < percent
         ? `<span style="color:${color}">${esc(chars[(Math.random() * chars.length) | 0])}</span>`
         : esc(ch))).join('');
@@ -331,44 +332,76 @@
     });
   }
 
-  /* ---------- card 2: hours + gauge ---------- */
+  // Live total: `hours` on the `since` date, plus a fixed 4–6 h for every day after it
+  // (seeded by the date, so every visitor sees the same number), creeping up through today.
+  function liveHours(T) {
+    const DAY = 864e5;
+    const [lo, hi] = T.perDay || [4, 6];
+    const base = new Date(`${T.since}T00:00:00`);
+    const elapsed = Math.max(0, (Date.now() - base) / DAY);
+    const days = Math.floor(elapsed);
+    const perDay = (i) => lo + seeded(`${T.since}#${i}`)() * (hi - lo);
+    let total = T.hours;
+    for (let i = 0; i < days; i++) total += perDay(i);
+    const today = perDay(days) * (elapsed - days);
+    return { total: total + today, today };
+  }
+
+  /* ---------- card 2: hours dial ---------- */
   function initTime() {
     const T = D.time;
     const card = $('#card-time');
+    const num = $('#time-num'), unit = $('#time-unit'), todayEl = $('#time-today');
     $('#time-title').textContent = T.title;
-    $('#time-unit').textContent = T.unit;
-    const end = (e, right) => `<div class="time-end${right ? ' right' : ''}"><b>${esc(e.year)}</b><span>${esc(e.city)}<br>${fmtDeg(e.lat, 'N', 'S')}<br>${fmtDeg(e.lon, 'E', 'W')}</span></div>`;
-    $('#time-ends').innerHTML = end(T.start) + end(T.end, true);
-    const pct = clamp(T.hours / T.goal, 0, 1);
-    $('#time-goal').textContent = `${Math.round(pct * 100)}% of a ${T.goal.toLocaleString()}h goal`;
+    const endYear = T.end.year === 'now' ? new Date().getFullYear() : T.end.year;
+    const end = (e, side, year) => `<div class="time-end${side === 'end' ? ' right' : ''}" data-side="${side}"><b>${esc(year)}</b><span>${esc(e.city)}<br>${fmtDeg(e.lat, 'N', 'S')}<br>${fmtDeg(e.lon, 'E', 'W')}</span></div>`;
+    $('#time-ends').innerHTML = end(T.start, 'start', T.start.year) + end(T.end, 'end', endYear);
 
-    const CX = 150, CY = 155, R = 125;
-    const at = (p, r = R) => { const a = Math.PI + p * Math.PI; return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; };
-    const ticksEl = $('#gauge-ticks');
-    const N = 24;
-    ticksEl.innerHTML = Array.from({ length: N + 1 }, (_, i) => {
-      const [x, y] = at(i / N, 96);
-      return `<circle class="gauge-tick" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" data-p="${i / N}"/>`;
-    }).join('');
-    const ticks = $$('circle', ticksEl);
-    const fill = $('#gauge-fill');
-    const dot = $('#gauge-dot');
-    const num = $('#time-num');
+    // dial geometry: a big ring whose centre sits below the card; the glowing segment points up
+    const CX = 150, CY = 240, R = 150, MR = 112;
+    const pt = (deg, r) => { const a = (deg * Math.PI) / 180; return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; };
+    const [sx, sy] = pt(-122, R), [ex, ey] = pt(-58, R);
+    $$('.dial-seg', card).forEach((p) => p.setAttribute('d', `M ${sx.toFixed(1)} ${sy.toFixed(1)} A ${R} ${R} 0 0 1 ${ex.toFixed(1)} ${ey.toFixed(1)}`));
+    const MARK = { start: -142, end: -38 };
+    $$('.dial-marker', card).forEach((g) => {
+      const [x, y] = pt(MARK[g.dataset.side], MR);
+      g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`);
+    });
 
-    let start = null, done = false;
+    const fmt = (h) => Math.floor(h).toLocaleString();
+    const values = () => {
+      const { total, today } = liveHours(T);
+      return { total, today, start: T.start.hours || 0, end: total - (T.start.hours || 0) };
+    };
+    let side = '', counted = false;
+    function render(withGlitch) {
+      const v = values();
+      const value = side === 'start' ? v.start : side === 'end' ? v.end : v.total;
+      if (withGlitch) glitch(num, fmt(value), { percent: 0.8, duration: 700 }); else if (!num._glitchBusy) num.textContent = fmt(value);
+      unit.textContent = side === 'start' ? `Hours in ${T.start.region}` : side === 'end' ? `Hours in ${T.end.region}` : T.unit;
+      todayEl.textContent = side === 'start' ? `${T.start.year} — ${T.start.year + 1}` : `+${v.today.toFixed(1)} h today`;
+    }
+    const setSide = (s) => {
+      if (s === side) return;
+      side = s;
+      card.dataset.side = s;
+      if (counted) render(true);
+    };
+    $$('[data-side]', card).forEach((el) => {
+      el.addEventListener('pointerenter', () => setSide(el.dataset.side));
+      el.addEventListener('pointerleave', () => setSide(''));
+    });
+
+    // count up on first view, then keep the live number ticking
+    let start = null;
     onFrame(card, (now) => {
-      if (done) return;
+      if (counted) return;
       if (start === null) start = now;
       const k = MOTION ? easeOut(clamp((now - start) / 2400, 0, 1)) : 1;
-      num.textContent = Math.round(T.hours * k).toLocaleString();
-      const p = pct * k;
-      fill.style.strokeDasharray = `${p * 100} 100`;
-      const [x, y] = at(p);
-      dot.setAttribute('cx', x.toFixed(2)); dot.setAttribute('cy', y.toFixed(2));
-      ticks.forEach((tk) => tk.classList.toggle('on', +tk.dataset.p <= p));
-      if (k >= 1) { done = true; glitch(num, T.hours.toLocaleString()); }
+      num.textContent = fmt(values().total * k);
+      if (k >= 1) { counted = true; render(true); }
     });
-    card.addEventListener('pointerenter', () => { if (done) glitch(num, T.hours.toLocaleString()); });
+    setInterval(() => { if (counted && !document.hidden) render(false); }, 30000);
   }
 
   /* ---------- card 3: skill matrix ---------- */
@@ -658,6 +691,39 @@
     }
 
     const ptr = trackPointer(card);
+    // warp-speed stars streaming out of the tunnel's vanishing point
+    const starC = document.createElement('canvas');
+    starC.className = 'tunnel-stars';
+    starC.setAttribute('aria-hidden', 'true');
+    card.insertBefore(starC, $('.chat', card));
+    const STAR_COLORS = [null, null, null, null, null, '#ff9cf0', '#9cf6ff', '#e4ff9c'];
+    const newStar = (anyDepth) => {
+      let x = Math.random() * 2 - 1, y = Math.random() * 2 - 1;
+      if (Math.abs(x) < 0.12 && Math.abs(y) < 0.12) { x += Math.sign(x || 1) * 0.12; y += Math.sign(y || 1) * 0.12; }
+      return { x, y, z: anyDepth ? 0.05 + Math.random() * 0.95 : 1, c: STAR_COLORS[(Math.random() * STAR_COLORS.length) | 0] };
+    };
+    const stars = Array.from({ length: 160 }, () => newStar(true));
+    function drawStars(dt) {
+      const { ctx, w, h } = fit(starC);
+      ctx.clearRect(0, 0, w, h);
+      const vx = (w * ox) / 100, vy = (h * oy) / 100, k = Math.min(w, h) * 0.16;
+      const dz = dt * 0.00016 * MOTION * spd;
+      for (const st of stars) {
+        const pz = st.z;
+        st.z -= dz;
+        const sx = vx + (st.x / st.z) * k, sy = vy + (st.y / st.z) * k;
+        if (st.z <= 0.03 || sx < -20 || sx > w + 20 || sy < -20 || sy > h + 20) { Object.assign(st, newStar(false)); continue; }
+        const near = 1 - st.z;
+        const px = vx + (st.x / pz) * k, py = vy + (st.y / pz) * k;
+        ctx.globalAlpha = Math.min(1, near * near * 1.3);
+        ctx.strokeStyle = ctx.fillStyle = st.c || '#ffffff';
+        ctx.lineWidth = 0.6 + near * 1.6;
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(sx, sy); ctx.stroke(); // streak
+        ctx.beginPath(); ctx.arc(sx, sy, 0.3 + near * 1.2, 0, TAU); ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+    }
+
     let ox = 50, oy = 50, travelled = 0, spd = 1;
     onFrame(card, (now, dt) => {
       spd = lerp(spd, slowdown, 0.08);
@@ -678,6 +744,7 @@
       stage.style.perspectiveOrigin = `${ox}% ${oy}%`;
       fog.style.setProperty('--fx', `${ox}%`);
       fog.style.setProperty('--fy', `${oy}%`);
+      drawStars(dt);
       chat(now, dt);
     });
   }
@@ -785,90 +852,146 @@
 
     pinsEl.innerHTML = E.map((e, i) => `<button class="pin" type="button" data-i="${i}" style="--c:${colorOf(i)}" aria-label="${esc(e.org)}, ${esc(e.place)}"><i></i><span class="pin-label"><span class="pin-row">${PIN_ICON}${coords(e.lat, e.lon)}</span><span class="pin-more"><b>${esc(e.place)}</b><em>${esc(e.years)}</em><span>${esc(e.org)}</span></span></span></button>`).join('');
     const pins = $$('.pin', pinsEl);
+    // ---- the journey: every stop in order, then home to the first stop, fade out, repeat
+    const legs = E.map((_, i) => [i, (i + 1) % E.length]); // the last leg is the trip home
+    const HOME = D.homecoming || { years: 'Full circle', org: 'Back home · Nagpur', role: 'Every journey loops back to where it began' };
+    const HOLD = 2600, TRAVEL = 1800, HOME_HOLD = 3400, FADE = 1000;
+    const qb = (a, b, c, u) => (1 - u) * (1 - u) * a + 2 * (1 - u) * u * b + u * u * c;
+    let curves = [];
+
+    function buildCurves() {
+      curves = legs.map(([i, j], L) => {
+        const a = proj(E[i].lat, E[i].lon), b = proj(E[j].lat, E[j].lon);
+        const d = Math.hypot(b.x - a.x, b.y - a.y);
+        const home = L === legs.length - 1;
+        // outbound legs arc upwards; the trip home bows the other way so it doesn't retrace a route
+        const bend = (home ? 1 : -1) * (d * 0.3 + 12);
+        const c = { a, b, mx: (a.x + b.x) / 2, my: (a.y + b.y) / 2 + bend, i, j, pts: [] };
+        for (let s = 0; s <= 80; s++) { const u = s / 80; c.pts.push({ x: qb(a.x, c.mx, b.x, u), y: qb(a.y, c.my, b.y, u) }); }
+        return c;
+      });
+    }
+
     function layoutPins() {
+      buildCurves();
       const placed = [];
+      const linePts = curves.flatMap((c) => c.pts);
       const overlap = (a, b) => a.x < b.x + b.w + 4 && a.x + a.w + 4 > b.x && a.y < b.y + b.h + 4 && a.y + a.h + 4 > b.y;
+      const crossesLine = (r) => linePts.filter((p) => p.x > r.x - 3 && p.x < r.x + r.w + 3 && p.y > r.y - 3 && p.y < r.y + r.h + 3).length;
       pins.forEach((pin, i) => {
         const { x, y } = proj(E[i].lat, E[i].lon);
         pin.style.transform = `translate(${x}px, ${y}px)`;
         const lab = $('.pin-label', pin);
         const lw = lab.offsetWidth, lh = lab.offsetHeight;
-        const cands = [[12, -lh / 2], [-12 - lw, -lh / 2], [-lw / 2, 10], [-lw / 2, -10 - lh]];
+        // try spots all around the pin, near and a little further out
+        const cands = [];
+        for (const gap of [12, 26, 42]) {
+          cands.push([gap, -lh / 2], [-gap - lw, -lh / 2], [-lw / 2, gap], [-lw / 2, -gap - lh],
+            [gap, gap * 0.4], [gap, -lh - gap * 0.4], [-gap - lw, gap * 0.4], [-gap - lw, -lh - gap * 0.4]);
+        }
         let best = cands[0], bestScore = Infinity;
         for (const [dx, dy] of cands) {
           const r = { x: x + dx, y: y + dy, w: lw, h: lh };
-          let score = 0;
-          if (r.x < 6 || r.y < 36 || r.x + lw > W - 6 || r.y + lh > Hh - 80) score += 5;
-          for (const q of placed) if (overlap(r, q)) score += 3;
+          let score = Math.hypot(dx + lw / 2, dy + lh / 2) * 0.02; // prefer staying close to the pin
+          if (r.x < 6 || r.y < 36 || r.x + lw > W - 6 || r.y + lh > Hh - 80) score += 40;
+          for (const q of placed) if (overlap(r, q)) score += 25;
+          score += crossesLine(r) * 3; // keep labels off the journey lines
           if (score < bestScore) { bestScore = score; best = [dx, dy]; }
-          if (score === 0) break;
         }
         lab.style.transform = `translate(${best[0]}px, ${best[1]}px)`;
         placed.push({ x: x + best[0], y: y + best[1], w: lw, h: lh });
       });
     }
 
-    let active = 0, prev = 0, arcStart = 0, nextSwitch = 0, hovering = false;
-    function setActive(i, now) {
-      prev = active; active = i; arcStart = now;
-      pins.forEach((p, k) => p.classList.toggle('active', k === i));
-      const e = E[i];
-      info.style.setProperty('--c', colorOf(i));
-      info.innerHTML = `<span class="mi-years">${esc(e.years)}</span><b>${esc(e.org)}</b><span>${esc(e.role)} · ${esc(e.place)}</span>`;
+    function showInfo(e, c) {
+      info.style.setProperty('--c', c);
+      info.innerHTML = `<span class="mi-years">${esc(e.years)}</span><b>${esc(e.org)}</b><span>${esc(e.role)}${e.place ? ` · ${esc(e.place)}` : ''}</span>`;
       info.classList.remove('swap'); void info.offsetWidth; info.classList.add('swap');
     }
-    pins.forEach((p, i) => p.addEventListener('click', () => {
-      const now = performance.now();
-      if (i !== active) setActive(i, now);
-      nextSwitch = now + 9000;
-    }));
-    card.addEventListener('pointerenter', () => { hovering = true; });
+    const setPins = (visited, here) => pins.forEach((p, k) => {
+      p.classList.toggle('shown', visited.has(k));
+      p.classList.toggle('active', k === here);
+    });
+
+    // stage: 'hold' at a stop → 'travel' along a leg → … → 'home' (back at the start) → 'fade' → restart
+    let stage = null, at = 0, leg = 0, t = 0, visited = new Set(), hovering = false;
+    function arrive(k) {
+      visited.add(k); at = k; stage = 'hold'; t = 0;
+      setPins(visited, k);
+      showInfo(E[k], colorOf(k));
+    }
+    function restart() { visited = new Set(); arrive(0); }
+
+    pins.forEach((p, i) => p.addEventListener('click', () => { if (p.classList.contains('shown')) showInfo(E[i], colorOf(i)); }));
+    card.addEventListener('pointerenter', () => { hovering = true; });  // pause so the card can be read
     card.addEventListener('pointerleave', () => { hovering = false; });
     const ptr = trackPointer(card);
 
-    const qb = (a, b, c, u) => (1 - u) * (1 - u) * a + 2 * (1 - u) * u * b + u * u * c;
-    onFrame(card, (now) => {
+    function strokeLeg(ctx, c, u, alpha) {
+      const grad = ctx.createLinearGradient(c.a.x, c.a.y, c.b.x, c.b.y);
+      grad.addColorStop(0, colorOf(c.i)); grad.addColorStop(1, colorOf(c.j));
+      ctx.globalAlpha = alpha; ctx.strokeStyle = grad; ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      for (let s = 0; s <= 48; s++) {
+        const v = (s / 48) * u;
+        const x = qb(c.a.x, c.mx, c.b.x, v), y = qb(c.a.y, c.my, c.b.y, v);
+        if (s) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    onFrame(card, (now, dt) => {
       const f = fit(canvas);
       const { ctx } = f;
       W = f.w; Hh = f.h;
       const k = `${Math.round(W)}x${Math.round(Hh)}:${rings ? 1 : 0}`;
       if (k !== key) { key = k; buildDots(); layoutPins(); }
-      if (!nextSwitch) { setActive(0, now); prev = 0; nextSwitch = now + 4500; }
-      if (!hovering && now > nextSwitch && E.length > 1) { setActive((active + 1) % E.length, now); nextSwitch = now + 4500; }
+      if (!stage) restart();
+
+      // advance the journey (paused while hovered)
+      if (!hovering) t += dt;
+      if (stage === 'hold' && t > HOLD) { stage = 'travel'; leg = at; t = 0; pins.forEach((p) => p.classList.remove('active')); }
+      else if (stage === 'travel' && (t > TRAVEL || !MOTION)) {
+        if (leg === legs.length - 1) { stage = 'home'; t = 0; at = 0; setPins(visited, 0); showInfo(HOME, colorOf(0)); }
+        else arrive(legs[leg][1]);
+      }
+      else if (stage === 'home' && t > HOME_HOLD) { stage = 'fade'; t = 0; info.classList.add('fading'); pins.forEach((p) => p.classList.add('fading')); }
+      else if (stage === 'fade' && t > FADE) {
+        info.classList.remove('fading'); pins.forEach((p) => p.classList.remove('fading', 'shown', 'active'));
+        restart();
+      }
+
+      // where the traveller is right now
+      let head = proj(E[at].lat, E[at].lon), u = 1;
+      if (stage === 'travel') {
+        u = MOTION ? easeInOut(clamp(t / TRAVEL, 0, 1)) : 1;
+        const c = curves[leg];
+        head = { x: qb(c.a.x, c.mx, c.b.x, u), y: qb(c.a.y, c.my, c.b.y, u) };
+      }
+      const fade = stage === 'fade' ? 1 - clamp(t / FADE, 0, 1) : 1;
 
       ctx.clearRect(0, 0, W, Hh);
-      const ap = proj(E[active].lat, E[active].lon);
       if (base) ctx.drawImage(base, 0, 0, W, Hh);
       ctx.fillStyle = '#ffffff';
       for (const d of dots) {
         const dx = d.x - ptr.x, dy = d.y - ptr.y, m = dx * dx + dy * dy;
-        const ax = d.x - ap.x, ay = d.y - ap.y, am = ax * ax + ay * ay;
+        const ax = d.x - head.x, ay = d.y - head.y, am = ax * ax + ay * ay;
         let g = 0;
         if (m < 6400) g = 1 - m / 6400;
-        if (d.land && am < 1600) g = Math.max(g, (1 - am / 1600) * 0.5);
+        if (d.land && am < 1600) g = Math.max(g, (1 - am / 1600) * 0.5 * fade);
         if (!g) continue;
         ctx.globalAlpha = Math.min(1, g * 0.85);
         ctx.beginPath(); ctx.arc(d.x, d.y, DOT_R + g * 0.8, 0, TAU); ctx.fill();
       }
 
-      if (prev !== active) {
-        const a = proj(E[prev].lat, E[prev].lon), b = ap;
-        const u = MOTION ? easeInOut(clamp((now - arcStart) / 1400, 0, 1)) : 1;
-        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 - Math.hypot(b.x - a.x, b.y - a.y) * 0.35 - 12;
-        const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-        grad.addColorStop(0, colorOf(prev)); grad.addColorStop(1, colorOf(active));
-        ctx.globalAlpha = 0.9; ctx.strokeStyle = grad; ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        for (let s = 0; s <= 48; s++) {
-          const v = (s / 48) * u;
-          const x = qb(a.x, mx, b.x, v), y = qb(a.y, my, b.y, v);
-          if (s) ctx.lineTo(x, y); else ctx.moveTo(x, y);
-        }
-        ctx.stroke();
-        if (u < 1) {
-          ctx.globalAlpha = 1; ctx.fillStyle = '#fff';
-          ctx.beginPath(); ctx.arc(qb(a.x, mx, b.x, u), qb(a.y, my, b.y, u), 2.6, 0, TAU); ctx.fill();
-        }
+      // finished legs stay as a trail; the current leg draws itself
+      const done = stage === 'travel' ? leg : stage === 'hold' ? at : legs.length; // legs fully drawn
+      const finished = stage === 'hold' ? Math.max(0, visited.size - 1) : done;
+      for (let L = 0; L < finished; L++) strokeLeg(ctx, curves[L], 1, 0.55 * fade);
+      if (stage === 'travel') {
+        strokeLeg(ctx, curves[leg], u, 0.95);
+        ctx.globalAlpha = 1; ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(head.x, head.y, 2.8, 0, TAU); ctx.fill();
       }
       ctx.globalAlpha = 1;
     });

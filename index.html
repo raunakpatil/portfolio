@@ -47,20 +47,25 @@
           <div class="time-count">
             <span id="time-num">0</span>
             <small id="time-unit"></small>
+            <span class="time-today" id="time-today"></span>
           </div>
-          <svg class="gauge" viewBox="0 0 300 172" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+          <svg class="dial" viewBox="0 0 300 190" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
             <defs>
-              <linearGradient id="g-arc" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="280" y2="0">
-                <stop offset="0" stop-color="#ff6ad5"/>
-                <stop offset=".5" stop-color="#a78bfa"/>
-                <stop offset="1" stop-color="#5eead4"/>
+              <linearGradient id="dial-grad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#ff70f3"/>
+                <stop offset=".5" stop-color="#b48cff"/>
+                <stop offset="1" stop-color="#38ffb3"/>
               </linearGradient>
+              <filter id="dial-glow" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="6"/></filter>
             </defs>
-            <path class="gauge-track" d="M 25 155 A 125 125 0 0 1 275 155" pathLength="100"/>
-            <path class="gauge-fill" id="gauge-fill" d="M 25 155 A 125 125 0 0 1 275 155" pathLength="100"/>
-            <g id="gauge-ticks"></g>
-            <circle class="gauge-dot" id="gauge-dot" cx="25" cy="155" r="6"/>
-            <text class="gauge-goal" id="time-goal" x="150" y="152" text-anchor="middle"></text>
+            <circle class="dial-track" cx="150" cy="240" r="150"/>
+            <g class="dial-rot">
+              <path class="dial-seg dial-seg-glow" filter="url(#dial-glow)"/>
+              <path class="dial-seg"/>
+              <circle class="dial-dot" cx="150" cy="118" r="5.5"/>
+            </g>
+            <g class="dial-marker" data-side="start"><circle class="dial-hit" r="18"/><circle class="dial-mk" r="4.5"/></g>
+            <g class="dial-marker" data-side="end"><circle class="dial-hit" r="18"/><circle class="dial-mk" r="4.5"/></g>
           </svg>
           <div class="time-ends" id="time-ends"></div>
         </article>
