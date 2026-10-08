@@ -873,7 +873,7 @@
     // ---- the journey: every stop in order, then home to the first stop, fade out, repeat
     const legs = E.map((_, i) => [i, (i + 1) % E.length]); // the last leg is the trip home
     // HOLD at each stop, TRAVEL per leg; on the trip home the map glitches out, VANISH, sits empty for VOID, then restarts
-    const HOLD = 2600, TRAVEL = 1800, HOME_TRAVEL = 2400, VANISH = 325, VOID = 1300, APPEAR = 900;
+    const HOLD = 2600, TRAVEL = 1800, HOME_TRAVEL = 2400, VANISH = 165, VOID = 1300, APPEAR = 900;
     const qb = (a, b, c, u) => (1 - u) * (1 - u) * a + 2 * (1 - u) * u * b + u * u * c;
     let curves = [];
 
@@ -1001,12 +1001,12 @@
       }
       // glitch builds up over the second half of the trip home, peaks, then everything is gone
       let gi = 0;
-      if (onHomeLeg && MOTION) gi = clamp((t / legTime - 0.675) / 0.325, 0, 1); // last third of the trip home
+      if (onHomeLeg && MOTION) gi = clamp((t / legTime - 0.84) / 0.16, 0, 1); // last moments of the trip home
       if (stage === 'vanish') gi = 1;
       if (gi > 0 && !glitchingText) {
         glitchingText = true;
         card.classList.add('glitching');
-        scrambleText(HOME_TRAVEL * 0.325 + VANISH);
+        scrambleText(HOME_TRAVEL * 0.16 + VANISH);
       }
 
       // the map itself always stays — it only fades in once, when the page first loads
