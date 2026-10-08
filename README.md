@@ -59,3 +59,12 @@ npx -y -p node@22 -p wrangler@4 -- wrangler deploy
 ```
 
 Persona, rules and the model live in `worker/src/index.js`. Usage is visible in the Cloudflare dashboard → AI.
+
+### Ronie's voice
+With sound on (the default), Ronie speaks every line. Two male voices, both free:
+- **Kokoro** (`am_puck`) runs in the visitor's browser on computers with WebGPU: natural and expressive, no
+  server and no quota. The model (~300 MB) is fetched once in the background when he wakes, then cached.
+- **Deepgram Aura-1** (`arcas`) via the worker's `/speak` endpoint, for phones and the moments before Kokoro
+  has loaded. It uses the Workers AI free allowance (about 160 neurons per spoken reply).
+Change the Kokoro voice with `assistant.voice: { voice: 'am_michael' }` in data.js; the Aura speaker is in
+`worker/src/index.js`.
