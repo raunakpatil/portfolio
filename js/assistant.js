@@ -758,7 +758,7 @@ async function buildEmblem() {
 // Each eye morphs between a rounded box (circle ↔ bar), a happy ^ arc, a heart, a star and an ×, and can tilt.
 // Per eye: [half width, half height, corner radius, arc, heart, star, cross, tilt]  (units: visor height = 1;
 // tilt in radians, + lifts the outer corner)
-const EYE = (w, h, r = Math.min(w, h), o = {}) => [w, h, r, o.arc || 0, o.heart || 0, o.star || 0, o.cross || 0, o.tilt || 0];
+const EYE = (w, h, r = Math.min(w, h), o = {}) => [w, h, r, o.arc || 0, o.heart || 0, o.star || 0, o.cross || 0, o.tilt || 0, o.quest || 0];
 const O = (s) => EYE(s, s, s);
 const BAR = (w, h, tilt = 0) => EYE(w, h, h, { tilt });
 const ARC = (s) => EYE(s, s, s, { arc: 1 });
@@ -772,7 +772,7 @@ const FACES = {
   thinking:   { L: O(0.075), R: O(0.075), look: [0.07, 0.06] },
   curious:    { L: O(0.112), R: O(0.08), skew: -0.022, look: [0.03, 0.02] },
   surprised:  { L: O(0.125), R: O(0.125) },
-  confused:   { L: O(0.07), R: BAR(0.105, 0.04), skew: 0.045, look: [0.02, 0] },
+  confused:   { L: EYE(0.1, 0.1, 0.1, { quest: 1, tilt: 0.12 }), R: EYE(0.1, 0.1, 0.1, { quest: 1, tilt: -0.12 }), look: [0.02, 0] },
   sad:        { L: BAR(0.1, 0.045, -0.32), R: BAR(0.1, 0.045, -0.32), look: [0, -0.05] },
   shy:        { L: ARC(0.09), R: ARC(0.09), look: [-0.04, -0.05] },
   proud:      { L: ARC(0.105), R: ARC(0.105), look: [0, 0.04] },
@@ -803,8 +803,8 @@ function faceFor(id, step) {
 }
 
 /* ---- icon pack: glowing line icons drawn once into a small texture, shown on the visor ---- */
-// slot: 'emote' floats by the top corner (anime style), 'topic' sits below the eyes, 'cheeks' spans under them
-const ICON_SLOTS = { emote: { pos: [0.27, 0.33], size: 0.21 }, topic: { pos: [-0.035, -0.205], size: 0.23 }, cheeks: { pos: [-0.035, -0.035], size: 0.62 } };
+// slot: 'emote' floats by the top corner (anime style), 'topic' replaces both eyes, 'cheeks' spans under them
+const ICON_SLOTS = { emote: { pos: [0.27, 0.33], size: 0.21 }, topic: { pos: [0, 0], size: 0.24 }, cheeks: { pos: [-0.035, -0.035], size: 0.62 } };
 const PINK = [1, 0.45, 0.7], GOLD = [1, 0.85, 0.45], CYAN = [0.55, 0.95, 1], WHITE = [1, 0.97, 0.93];
 const ICONS = (() => {
   const L = (x, pts, close) => { x.beginPath(); pts.forEach(([a, b], i) => (i ? x.lineTo(a, b) : x.moveTo(a, b))); if (close) x.closePath(); x.stroke(); };
@@ -856,6 +856,7 @@ function setIcon(name, holdMs = 4500) {
   x.lineWidth = 15; x.lineCap = x.lineJoin = 'round';
   def.draw(x);
   if (icon.tex) icon.tex.needsUpdate = true;
+  if (def.slot === 'topic') holdMs = Math.min(holdMs, 3600);
   Object.assign(icon, { name, slot: def.slot, tint: def.tint, shownAt: performance.now(), hideAt: performance.now() + holdMs });
 }
 // a topic icon for a chat reply, from what it's about (used when the model doesn't pick one)
@@ -874,7 +875,8 @@ attribute float vis;
 varying vec2 vUv; varying float vVis;
 void main() { vUv = uv; vVis = vis; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const FACE_FRAG = `
-uniform vec4 uL, uR, uLx, uRx; uniform vec2 uLook, uCentre, uIconPos; uniform vec3 uIconTint;
+uniform vec4 uL, uR, uLx, uRx; uniform vec2 uLook, uCentre, uIconPos, uQ; uniform vec3 uIconTint;
+uniform float uIconEyes;                                // 1: the icon is drawn twice, in place of the eyes
 uniform float uAspect, uTime, uOn, uGlitch, uBright, uSkew, uIconSize, uIconAmt;
 uniform sampler2D uIcon;
 varying vec2 vUv; varying float vVis;
@@ -903,24 +905,45 @@ float sdStar(vec2 p, float r) {                        // Inigo Quilez's 5-point
   return length(p - ba * h) * sign(p.y * ba.x - p.x * ba.y);
 }
 float sdCross(vec2 p, float w, float t) { return min(sdBox(turn(p, 0.785398), vec2(w, t), t), sdBox(turn(p, -0.785398), vec2(w, t), t)); }
-// x: (heart, star, cross, tilt) — tilt already signed per eye
-float eye(vec2 p, vec4 e, vec4 x) {
+float sdSegment(vec2 p, vec2 a, vec2 b) { vec2 pa = p - a, ba = b - a; return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0)); }
+// a "?" about 2s tall: a hook (a ring with a gap at the lower left), a stem down to the middle, and a dot
+float sdQuestion(vec2 p, float s) {
+  float t = 0.11 * s, R = 0.36 * s;
+  vec2 c = vec2(0.0, 0.4 * s), q = p - c;
+  const float gap = -1.806, hw = 0.864;                // gap centred at -103°, ±49.5°
+  float a = atan(q.y, q.x) - gap;
+  a = mod(a + 3.14159265, 6.2831853) - 3.14159265;
+  float hook = abs(a) > hw ? abs(length(q) - R) - t
+    : min(length(q - R * vec2(cos(gap - hw), sin(gap - hw))), length(q - R * vec2(cos(gap + hw), sin(gap + hw)))) - t;
+  vec2 e0 = c + R * vec2(cos(gap + hw), sin(gap + hw));
+  float stem = min(sdSegment(p, e0, vec2(0.0, -0.06 * s)), sdSegment(p, vec2(0.0, -0.06 * s), vec2(0.0, -0.2 * s))) - t;
+  float dot0 = length(p - vec2(0.0, -0.5 * s)) - t * 1.25;
+  return min(min(hook, stem), dot0);
+}
+// x: (heart, star, cross, tilt) — tilt already signed per eye; qm: how much the eye is a "?"
+float eye(vec2 p, vec4 e, vec4 x, float qm) {
   p = turn(p, x.w);
   float d = sdBox(p, e.xy, min(e.z, min(e.x, e.y)));
   d = mix(d, sdArc(p + vec2(0.0, 0.035), e.x * 0.85, 0.026), e.w);
   if (x.x > 0.001) { float s = e.x * 2.0; d = mix(d, sdHeart((p + vec2(0.0, s * 0.55)) / s) * s, x.x); }
   if (x.y > 0.001) d = mix(d, sdStar(p + vec2(0.0, 0.01), e.x * 1.15), x.y);
   if (x.z > 0.001) d = mix(d, sdCross(p, e.x * 0.95, 0.024), x.z);
+  if (qm > 0.001) d = mix(d, sdQuestion(p, e.x * 1.05), qm);
   return d;
 }
 float faceAt(vec2 p) {
   vec2 c = uCentre + uLook;
-  return min(eye(p - (c + vec2(-0.2, uSkew)), uL, uLx), eye(p - (c + vec2(0.2, -uSkew)), uR, uRx));
+  return min(eye(p - (c + vec2(-0.2, uSkew)), uL, uLx, uQ.x), eye(p - (c + vec2(0.2, -uSkew)), uR, uRx, uQ.y));
 }
-float iconAt(vec2 p) {
-  vec2 q = (p - uIconPos) / uIconSize + 0.5;
+float iconOne(vec2 p, vec2 at) {
+  vec2 q = (p - at) / uIconSize + 0.5;
   if (q.x < 0.0 || q.y < 0.0 || q.x > 1.0 || q.y > 1.0) return 0.0;
   return texture2D(uIcon, q).a;
+}
+float iconAt(vec2 p) {
+  if (uIconEyes < 0.5) return iconOne(p, uIconPos);
+  vec2 c = uCentre + uLook;                             // follow the gaze, like the eyes they replace
+  return max(iconOne(p, c + vec2(-0.2, 0.0)), iconOne(p, c + vec2(0.2, 0.0)));
 }
 float glow(float d) { return smoothstep(0.008, -0.004, d) * 0.85 + 0.22 * exp(-max(d, 0.0) * 45.0); }
 void main() {
@@ -931,7 +954,7 @@ void main() {
   vec2 p = (uv - 0.5) * vec2(uAspect, 1.0);
   vec2 ca = vec2(0.007 + uGlitch * 0.025, 0.0);        // RGB fringing, like an old tube
   vec3 col = vec3(glow(faceAt(p + ca)), glow(faceAt(p)), glow(faceAt(p - ca)));
-  col *= vec3(1.0, 0.97, 0.93);
+  col *= vec3(1.0, 0.97, 0.93) * (1.0 - uIconEyes * uIconAmt);   // the eyes step aside for icon eyes
   if (uIconAmt > 0.001) col += vec3(iconAt(p + ca), iconAt(p), iconAt(p - ca)) * uIconTint * uIconAmt * 0.95;
   // AMOLED: the screen itself stays pure black; only the eyes and icons give off light, with the CRT look
   col *= 0.74 + 0.26 * sin(vUv.y * 6.2832 * 72.0);    // scanlines
@@ -956,11 +979,11 @@ async function buildFace() {
       vertexShader: FACE_VERT, fragmentShader: FACE_FRAG,
       uniforms: {
         uL: { value: new THREE.Vector4() }, uR: { value: new THREE.Vector4() },
-        uLx: { value: new THREE.Vector4() }, uRx: { value: new THREE.Vector4() },
+        uLx: { value: new THREE.Vector4() }, uRx: { value: new THREE.Vector4() }, uQ: { value: new THREE.Vector2() },
         uLook: { value: new THREE.Vector2() }, uCentre: { value: new THREE.Vector2(-0.035, 0.09) },
         uAspect: { value: sheet.aspect }, uTime: { value: 0 }, uOn: { value: 0 }, uGlitch: { value: 0 }, uBright: { value: 1 }, uSkew: { value: 0 },
         uIcon: { value: icon.tex }, uIconPos: { value: new THREE.Vector2() }, uIconSize: { value: 0.2 }, uIconAmt: { value: 0 },
-        uIconTint: { value: new THREE.Vector3(1, 1, 1) },
+        uIconTint: { value: new THREE.Vector3(1, 1, 1) }, uIconEyes: { value: 0 },
       },
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       polygonOffset: true, polygonOffsetFactor: -4,
@@ -991,11 +1014,11 @@ function updateFace(now, dt) {
   face.on = awake ? Math.min(1, Math.max(0, (since - 0.35) / (MOTION ? 0.7 : 0.01))) : 0;
   // morph towards the current expression
   const goal = FACES[face.name], k = 1 - Math.exp(-dt * 14);
-  for (let i = 0; i < 8; i++) { face.L[i] += (goal.L[i] - face.L[i]) * k; face.R[i] += (goal.R[i] - face.R[i]) * k; }
+  for (let i = 0; i < 9; i++) { face.L[i] += (goal.L[i] - face.L[i]) * k; face.R[i] += (goal.R[i] - face.R[i]) * k; }
   // blink every few seconds (not when the eyes are already closed or drawn as shapes)
   if (now > face.blinkAt) { face.blinkAt = now + 2200 + Math.random() * 3800; face.blinkT = now; }
   const bt = (now - face.blinkT) / 150;
-  const open = face.L[1] > 0.04 && face.L[3] < 0.5 && face.L[4] + face.L[5] + face.L[6] < 0.5;
+  const open = face.L[1] > 0.04 && face.L[3] < 0.5 && face.L[4] + face.L[5] + face.L[6] + face.L[8] < 0.5;
   const blink = open && MOTION && bt < 2 ? 1 - Math.abs(bt - 1) : 0;
   // while he speaks, the eyes bounce with the loudness of his voice; otherwise a little bob as the text types
   const loud = voiceLoudness();
@@ -1015,6 +1038,7 @@ function updateFace(now, dt) {
   // shapes + tilt (the tilt is mirrored, so + lifts both outer corners)
   u.uLx.value.set(face.L[4], face.L[5], face.L[6], -face.L[7]);
   u.uRx.value.set(face.R[4], face.R[5], face.R[6], face.R[7]);
+  u.uQ.value.set(face.L[8], face.R[8]);
   u.uLook.value.set(face.look[0] + jitter[0], face.look[1] + bounce + jitter[1]);
   face.skew += ((goal.skew || 0) - face.skew) * k;
   u.uSkew.value = face.skew;
@@ -1027,6 +1051,7 @@ function updateFace(now, dt) {
   u.uIconSize.value = slot.size * Math.max(0.05, pop);
   u.uIconPos.value.set(slot.pos[0], slot.pos[1] + (MOTION && icon.slot === 'emote' ? Math.sin(t * 2.6) * 0.012 : 0));
   u.uIconTint.value.fromArray(icon.tint);
+  u.uIconEyes.value = icon.slot === 'topic' ? 1 : 0;
   face.glitch *= Math.exp(-dt * 5);
   if (MOTION && Math.random() < dt * 0.08) face.glitch = Math.max(face.glitch, 0.5);  // the odd random glitch
   u.uGlitch.value = MOTION ? face.glitch : 0;
@@ -1522,7 +1547,7 @@ function react() {
 let confusedTimer = 0;
 function confused() {
   setFace('confused');
-  setIcon('question', 2600);
+  setIcon(null);
   playGesture('confused');
   clearTimeout(confusedTimer);
   confusedTimer = setTimeout(() => { const id = history[history.length - 1]; setFace(faceFor(id, A.steps[id])); }, 2600);
@@ -1633,7 +1658,8 @@ function showChat(id, step, offerEmail = false) {
       // a "?" only when he's actually unsure; otherwise show what the answer is about
       const unsure = /don.t know|not sure|no information|don.t have/i.test(reply);
       const picked = ICONS[answer.icon] && !(answer.icon === 'question' && !unsure) ? answer.icon : null;
-      setIcon(picked || iconFor(reply), 9000);
+      const shown = picked || iconFor(reply);
+      setIcon(mood === 'confused' && shown === 'question' ? null : shown, 9000);
       await typeLine(reply);
       setTimeout(() => { if (face.name === mood) setFace('neutral'); }, 2500);
       showChat(id, step);
