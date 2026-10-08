@@ -169,7 +169,7 @@ function init3D() {
   bloomComposer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, hdr));
   bloomComposer.renderToScreen = false;
   bloomComposer.addPass(new RenderPass(scene, camera));
-  bloomComposer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.95, 0.5, 0));
+  bloomComposer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.6, 0.45, 0));
   composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, hdr));
   composer.addPass(new RenderPass(scene, camera));
   const mix = new ShaderPass(new THREE.ShaderMaterial({
@@ -382,10 +382,10 @@ function updateTubes(now, dt) {
     const breathe = 0.86 + 0.14 * Math.sin(t * 1.1 + tb.phase);
     const lvl = tb.level * (tb.level > 0.9 ? breathe : 1);
     // off = dark core behind clear glass; on = HDR colour that the bloom turns into a neon glow
-    tb.coreMat.color.copy(OFF_CORE).lerp(_c.copy(tb.col).multiplyScalar(2.6), lvl);
+    tb.coreMat.color.copy(OFF_CORE).lerp(_c.copy(tb.col).multiplyScalar(1.5), lvl);
     total += tb.level;
     // farther tubes get a stronger light so they still reach him
-    if (tb.light) tb.light.intensity = 9 * Math.min(3, (tb.R / 2.6) ** 2) * lvl;
+    if (tb.light) tb.light.intensity = 6 * Math.min(3, (tb.R / 2.6) ** 2) * lvl;
   }
   // the room light comes up once the tubes are mostly on
   const roomGoal = awake && since > 0.55 ? 1 : 0;
