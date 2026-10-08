@@ -80,6 +80,11 @@ const _ray = new THREE.Raycaster(), _plane = new THREE.Plane(), _hit = new THREE
 const IDLE_AT = 12.8;                    // seconds: standing still
 const JUMP_FROM = 13.1, JUMP_TO = 15.3;  // seconds: crouch, one jump, land back in the idle pose
 let jumping = false, jumpW = 0;
+// Extra moves authored in Blender (models/ronie-anims.glb): idle variations he drifts into now and then,
+// plus 'excited' and 'confused'. Each starts and ends in the idle pose, so they blend in and out cleanly.
+const IDLE_MOVES = ['idle_look', 'idle_sway', 'idle_stretch', 'idle_hand'];
+const gestures = {};
+let gesture = null, gestureW = 0, nextIdleMove = 0, lastIdleMove = '';
 // Waking up: he waits further back in the room, then takes one huge leap to his spot.
 // The leap reuses the clip's biggest jump (crouch 6.6 s → take-off 7.35 s → landing 8.0 s → settled 8.8 s),
 // with forward travel and the body leaning into the jump on top. In the air the clip only moves his limbs:
@@ -303,6 +308,7 @@ function onModel(gltf) {
     }
     leapAction.setEffectiveWeight(0);
     mixer.update(0);
+    loadGestures(clip);
   }
   model.updateMatrixWorld(true);
   (head || model).getWorldPosition(headHome);
@@ -743,10 +749,11 @@ const FACES = {
   thinking:  { L: EYE(0.075, 0.075, 0.075), R: EYE(0.075, 0.075, 0.075), look: [0.07, 0.06] },
   surprised: { L: EYE(0.125, 0.125, 0.125), R: EYE(0.125, 0.125, 0.125) },
   sleepy:    { L: EYE(0.11, 0.016, 0.016), R: EYE(0.11, 0.016, 0.016) },
+  confused:  { L: EYE(0.07, 0.07, 0.07), R: EYE(0.105, 0.04, 0.04), skew: 0.045, look: [0.02, 0] },
 };
 const face = {
   name: 'sleepy', L: [...FACES.sleepy.L], R: [...FACES.sleepy.R], look: [0, 0],
-  glitch: 0, blinkAt: 0, blinkT: -1e9, talkUntil: 0, on: 0,
+  glitch: 0, blinkAt: 0, blinkT: -1e9, talkUntil: 0, on: 0, skew: 0,
 };
 function setFace(name) {
   if (!FACES[name] || name === face.name) return;
@@ -769,7 +776,7 @@ attribute float vis;
 varying vec2 vUv; varying float vVis;
 void main() { vUv = uv; vVis = vis; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const FACE_FRAG = `
-uniform vec4 uL, uR; uniform vec2 uHeart, uLook, uCentre; uniform float uAspect, uTime, uOn, uGlitch, uBright;
+uniform vec4 uL, uR; uniform vec2 uHeart, uLook, uCentre; uniform float uAspect, uTime, uOn, uGlitch, uBright, uSkew;
 varying vec2 vUv; varying float vVis;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
 float sdBox(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
@@ -790,7 +797,7 @@ float eye(vec2 p, vec4 e, float heart) {
 }
 float faceAt(vec2 p) {
   vec2 c = uCentre + uLook;
-  return min(eye(p - (c + vec2(-0.2, 0.0)), uL, uHeart.x), eye(p - (c + vec2(0.2, 0.0)), uR, uHeart.y));
+  return min(eye(p - (c + vec2(-0.2, uSkew)), uL, uHeart.x), eye(p - (c + vec2(0.2, -uSkew)), uR, uHeart.y));
 }
 float glow(float d) { return smoothstep(0.008, -0.004, d) * 0.85 + 0.22 * exp(-max(d, 0.0) * 45.0); }
 void main() {
@@ -824,7 +831,7 @@ async function buildFace() {
       uniforms: {
         uL: { value: new THREE.Vector4() }, uR: { value: new THREE.Vector4() }, uHeart: { value: new THREE.Vector2() },
         uLook: { value: new THREE.Vector2() }, uCentre: { value: new THREE.Vector2(-0.035, 0.09) },
-        uAspect: { value: sheet.aspect }, uTime: { value: 0 }, uOn: { value: 0 }, uGlitch: { value: 0 }, uBright: { value: 1 },
+        uAspect: { value: sheet.aspect }, uTime: { value: 0 }, uOn: { value: 0 }, uGlitch: { value: 0 }, uBright: { value: 1 }, uSkew: { value: 0 },
       },
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       polygonOffset: true, polygonOffsetFactor: -4,
@@ -874,6 +881,8 @@ function updateFace(now, dt) {
   u.uR.value.fromArray(squash(face.R));
   u.uHeart.value.set(face.L[4], face.R[4]);
   u.uLook.value.fromArray(face.look);
+  face.skew += ((goal.skew || 0) - face.skew) * k;
+  u.uSkew.value = face.skew;
   face.glitch *= Math.exp(-dt * 5);
   if (MOTION && Math.random() < dt * 0.08) face.glitch = Math.max(face.glitch, 0.5);  // the odd random glitch
   u.uGlitch.value = MOTION ? face.glitch : 0;
@@ -889,6 +898,58 @@ function updateEmblem(now) {
   const flick = since > 0.3 && since < 0.9 ? (Math.sin(since * 61) > 0.2 ? 1 : 0.25) : 1;
   const hum = 0.94 + 0.06 * Math.sin(now / 1000 * 2.1);
   emblemMat.color.setScalar((0.06 + 1.1 * power) * flick * hum);
+}
+
+/* ======================= extra moves ======================= */
+function loadGestures(idleClip) {
+  const loader = new GLTFLoader();
+  loader.load(`models/ronie-anims.glb${new URL(import.meta.url).search}`, (g) => {
+    for (const clip of g.animations) {
+      // a clip only animates the bones it moves; every other bone is held in the idle pose, so blending
+      // it in never pulls an untouched limb towards the model's default pose
+      const have = new Set(clip.tracks.map((t) => t.name));
+      for (const tr of idleClip.tracks) {
+        if (have.has(tr.name)) continue;
+        const v = tr.createInterpolant().evaluate(IDLE_AT);
+        clip.tracks.push(new tr.constructor(tr.name, [0], Array.from(v)));
+      }
+      const a = mixer.clipAction(clip);
+      a.setLoop(THREE.LoopOnce, 1);
+      a.clampWhenFinished = true;
+      a.setEffectiveWeight(0);
+      gestures[clip.name] = a;
+    }
+    nextIdleMove = performance.now() + 6000;
+  }, undefined, (err) => console.warn('extra moves not loaded', err));
+}
+
+// play one of the moves (only when he's standing in his spot and not already busy)
+function playGesture(name) {
+  const a = gestures[name];
+  if (!a || !MOTION || !awake || !landed || jumping) return false;
+  if (gesture && gesture !== gestures[name] && IDLE_MOVES.includes(name)) return false;  // don't cut a move short for an idle
+  if (gesture && gesture !== a) gesture.stop();
+  a.reset();
+  a.setEffectiveWeight(gestureW);
+  a.play();
+  gesture = a;
+  return true;
+}
+
+function updateGestures(now, dt) {
+  if (gesture && gesture.time >= gesture.getClip().duration - 0.001) gesture = null;  // finished (held on its last frame, = idle)
+  gestureW += ((gesture ? 1 : 0) - gestureW) * Math.min(1, dt * (gesture ? 9 : 5));
+  for (const a of Object.values(gestures)) {
+    if (a === gesture) a.setEffectiveWeight(gestureW);
+    else if (a.isRunning() || a.enabled) { a.setEffectiveWeight(gesture ? 0 : gestureW); if (!gesture && gestureW < 0.01) a.stop(); }
+  }
+  // now and then, while he's just standing there, drift into one of the idle variations
+  if (!gesture && awake && landed && !jumping && now > nextIdleMove && Object.keys(gestures).length) {
+    const pick = IDLE_MOVES.filter((n) => n !== lastIdleMove && gestures[n]);
+    const name = pick[(Math.random() * pick.length) | 0];
+    if (name && playGesture(name)) lastIdleMove = name;
+    nextIdleMove = now + 8000 + Math.random() * 7000;
+  }
 }
 
 // where he is during the wake-up leap, and which moment of the clip he's in
@@ -956,7 +1017,7 @@ function landingBurst() {
 }
 
 function startJump() {
-  if (!jumpAction || jumping || !MOTION) return;
+  if (!jumpAction || jumping || !MOTION || gesture) return;
   jumping = true;
   jumpAction.time = JUMP_FROM;
   jumpAction.paused = false;
@@ -998,7 +1059,8 @@ function loop(now) {
       jumpAction.setEffectiveWeight(jumpW);
       leapW = placeForLeap(now);
       leapAction.setEffectiveWeight(leapW);
-      idleAction.setEffectiveWeight(Math.max(0, 1 - jumpW - leapW));
+      updateGestures(now, dt);
+      idleAction.setEffectiveWeight(Math.max(0, 1 - jumpW - leapW - gestureW));
       mixer.update(dt);
     }
     model.updateMatrixWorld(true);
@@ -1155,11 +1217,27 @@ function go(id, push = true) {
   backBtn.hidden = !canGoBack() || !!step.send || id.endsWith('-completion');
   actions.innerHTML = '';
   if (step.send) compose(step.send);
-  setFace(faceFor(id, step));
+  clearTimeout(confusedTimer);
+  const mood = faceFor(id, step);
+  setFace(mood);
+  if (mood === 'excited' && playGesture('excited')) reacting = false;
+  else if (reacting) { reacting = false; startJump(); }
   typeLine(lineFor(id, step)).then(() => showActions(id, step));
 }
 
-function react() { startJump(); }
+let reacting = false;
+function react() {
+  // go() usually follows straight away and decides how to react; if it doesn't (a link), just hop
+  reacting = true;
+  setTimeout(() => { if (reacting) { reacting = false; startJump(); } }, 0);
+}
+let confusedTimer = 0;
+function confused() {
+  setFace('confused');
+  playGesture('confused');
+  clearTimeout(confusedTimer);
+  confusedTimer = setTimeout(() => { const id = history[history.length - 1]; setFace(faceFor(id, A.steps[id])); }, 2600);
+}
 
 // lines that just talk and move on by themselves aren't worth going "back" to
 const isInteractive = (id) => { const s = A.steps[id]; return !!(s && (s.input || s.choices || s.story)); };
@@ -1208,8 +1286,8 @@ function showActions(id, step) {
     actions.onsubmit = (e) => {
       e.preventDefault();
       const v = el.value.trim();
-      if (!v && !inp.optional) { err.textContent = 'I need something here first.'; el.focus(); return; }
-      if (inp.type === 'email' && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { err.textContent = "That doesn't look like an email address."; el.focus(); return; }
+      if (!v && !inp.optional) { err.textContent = 'I need something here first.'; el.focus(); confused(); return; }
+      if (inp.type === 'email' && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) { err.textContent = "That doesn't look like an email address."; el.focus(); confused(); return; }
       answers[inp.name] = v;
       if (inp.name === 'name') store.set('rai-name', v);
       react();

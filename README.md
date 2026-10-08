@@ -31,3 +31,14 @@ Change that version (one value, used on all three lines) whenever you publish, s
 DNS for raunakpatil.com (at GoDaddy):
 - `A` records for `@` → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
 - `CNAME` record `www` → `raunakpatil.github.io`
+
+## Ronie's extra moves (Blender)
+`models/ronie-anims.glb` holds Ronie's idle variations plus `excited` and `confused`, authored in Blender 5.2 by
+`tools/blender/ronie_anims.py` on the original model (unzip `3dmodel/sci-fi_o.b._robot_unit_th-icc02_animated.zip`):
+
+```
+blender -b --factory-startup --python tools/blender/ronie_anims.py -- path/to/scene.gltf models/ronie-anims.glb
+```
+
+Poses are written as world-space rotations on top of his idle pose, so edit the angle tables in that script.
+It also saves a `.blend` next to the output; `tools/blender/ronie_preview.py` renders poses from it to check them.
