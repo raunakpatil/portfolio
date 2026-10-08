@@ -286,9 +286,8 @@ main { padding: 0 var(--gap) var(--gap); }
 @keyframes pin-pop { 0% { transform: scale(0); } 60% { transform: scale(1.6); } }
 @keyframes label-in { from { opacity: 0; filter: blur(3px); } }
 .map-info.fading { opacity: 0; transition: opacity .9s; }
-/* the trip home: pins and their coordinates tear, jitter and split into pink/cyan, then vanish */
-.card-map.glitching .pin.shown .pin-label,
-.card-map.glitching .pin.shown i {
+/* the trip home: only the coordinates tear, jitter and split into pink/cyan, then vanish */
+.card-map.glitching .pin.shown .pin-label {
   animation: glitch-tear .16s steps(1, end) infinite;
   text-shadow: 1.5px 0 rgba(255, 0, 200, .85), -1.5px 0 rgba(0, 255, 249, .85);
 }
@@ -302,7 +301,8 @@ main { padding: 0 var(--gap) var(--gap); }
   80%  { translate: 3px 2px; clip-path: inset(34% 0 30% 0); opacity: .85; }
   100% { translate: 0 0; clip-path: inset(0 0 0 0); }
 }
-.card-map.glitch-out .pin { opacity: 0 !important; transition: opacity .45s steps(4, end); }
+.card-map.glitch-out .pin-label { opacity: 0 !important; transition: opacity .45s steps(4, end); }
+.card-map.glitch-out .pin { opacity: 0 !important; transition: opacity 1.2s ease; }
 .card-map.glitch-out .map-info { opacity: 0; transition: opacity 1.1s ease; }
 .pin i {
   position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
