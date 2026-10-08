@@ -476,11 +476,9 @@ main { padding: 0 var(--gap) var(--gap); }
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background: linear-gradient(90deg, rgba(12, 12, 12, .88) 0%, rgba(12, 12, 12, .72) 30%, rgba(12, 12, 12, 0) 52%);
 } /* keep `hidden` working on elements that set their own display */
-.rai::after { /* soft vignette + scanlines */
+.rai::after { /* soft vignette */
   content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
-  background:
-    repeating-linear-gradient(0deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 3px),
-    radial-gradient(ellipse 80% 80% at 50% 50%, transparent 55%, rgba(0, 0, 0, .55) 100%);
+  background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 55%, rgba(0, 0, 0, .55) 100%);
 }
 .rai-loading {
   position: absolute; left: 50%; top: 50%; z-index: 3; transform: translate(-50%, -50%);
@@ -488,14 +486,14 @@ main { padding: 0 var(--gap) var(--gap); }
   font-family: var(--mono); font-size: 12px; color: #8a8a8a; letter-spacing: .06em; text-align: center;
 }
 .rai-ascii {
-  margin: 0; font-family: var(--mono); font-size: 13px; line-height: 1; letter-spacing: .02em;
+  margin: 0; font-family: var(--mono); font-size: 12px; line-height: 1; letter-spacing: .02em;
   color: #ffb27a; text-shadow: 0 0 10px rgba(255, 122, 26, .35); pointer-events: none; user-select: none;
 }
 .rai-bootlog {
   min-height: 7.5em; margin: 0; font-family: var(--mono); font-size: 11px; line-height: 1.5;
   color: #6f6f6f; text-align: left; white-space: pre;
 }
-@media (max-width: 760px) { .rai-ascii { font-size: 9px; } .rai-bootlog { font-size: 10px; } }
+@media (max-width: 760px) { .rai-ascii { font-size: 8px; } .rai-bootlog { font-size: 10px; } }
 .rai-loading b { color: #38ffb3; font-weight: 500; }
 .rai-wake {
   position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; cursor: pointer;
