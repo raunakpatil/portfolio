@@ -65,6 +65,7 @@ const BG = new THREE.Color(0x0d0d0d);
 // the cursor is a little light source: it moves on a plane just in front of Ronie and lights his armour
 const cursor = { x: 0, y: 0, inside: false, level: 0 };
 let floorMat, tubeGlass, tubeMetal; // room materials that fade back while he's asleep
+let emblemMat = null;                  // the glowing R.O.N.I.E crest on his chest plate
 let smokeMat; const puffs = [];       // soft smoke, lit by the room's own lights
 let dustVel = null;                    // per-particle velocity, so dust can be pushed around by the mouse
 const cursorVel = new THREE.Vector3(), _prevCursor = new THREE.Vector3(); let cursorTracked = false;
@@ -307,6 +308,7 @@ function onModel(gltf) {
   target.set(headHome.x, headHome.y - 0.24, headHome.z); // headroom for his jump
   homePos.copy(model.position);
   modelQuat.copy(model.quaternion);
+  buildEmblem();
   placeForLeap(performance.now());
 
   buildTubes();
@@ -642,6 +644,88 @@ function updateCursorLight(dt) {
   cursorRing.visible = cursor.level > 0.02;
 }
 
+/* ======================= chest crest ======================= */
+// "R.O.N.I.E" across his chest plate with a big R in a shield below, Superman style. The plate is curved, so
+// the crest is a thin sheet baked to hug it (models/ronie-emblem.json: a grid of points on the plate, stored
+// in the space of the bone that carries the plate). It rides on that bone, so it moves with him.
+function emblemTexture() {
+  const S = 1024, c = document.createElement('canvas'); c.width = c.height = S;
+  const x = c.getContext('2d');
+  const font = '"Inter Tight", "Segoe UI", Arial, sans-serif';
+  const neon = (draw) => {
+    // a soft orange halo, then a bright warm core on top
+    x.save(); x.shadowColor = '#ff7a1a'; x.shadowBlur = 34; x.strokeStyle = x.fillStyle = '#ff8a3d'; draw(); x.restore();
+    x.save(); x.strokeStyle = x.fillStyle = '#ffe2c4'; draw(); x.restore();
+  };
+  const cx = 520;                                   // the plate's centre line on the texture
+  // name across the top of the plate
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = `800 88px ${font}`;
+  if ('letterSpacing' in x) x.letterSpacing = '10px';
+  neon(() => x.fillText('R.O.N.I.E', cx + 5, 182));
+  if ('letterSpacing' in x) x.letterSpacing = '0px';
+  // the shield: flat top with bevelled corners, sides running down to a point
+  const top = 262, bot = 762, w = 410;
+  const shield = () => {
+    x.beginPath();
+    x.moveTo(cx - w / 2, top + 70); x.lineTo(cx - w / 2 + 70, top); x.lineTo(cx + w / 2 - 70, top); x.lineTo(cx + w / 2, top + 70);
+    x.lineTo(cx, bot); x.closePath();
+  };
+  x.lineJoin = 'round'; x.lineWidth = 16;
+  neon(() => { shield(); x.stroke(); });
+  // the big R inside it
+  x.font = `900 300px ${font}`;
+  neon(() => x.fillText('R', cx, top + 200));
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4;
+  return t;
+}
+
+async function buildEmblem() {
+  try {
+    const v = new URL(import.meta.url).search;
+    const [data] = await Promise.all([
+      fetch(`models/ronie-emblem.json${v}`).then((r) => r.json()),
+      document.fonts ? document.fonts.load('900 100px "Inter Tight"').catch(() => {}) : null,
+    ]);
+    let bone = null;
+    model.traverse((o) => { if (!bone && o.isBone && o.name === data.bone) bone = o; });
+    if (!bone) return;
+    const { nx, ny } = data, pos = [], uv = [], index = [], at = new Int32Array(nx * ny).fill(-1);
+    data.pos.forEach((p, k) => {
+      if (!p) return;
+      at[k] = pos.length / 3;
+      pos.push(p[0], p[1], p[2]);
+      uv.push((k % nx) / (nx - 1), 1 - Math.floor(k / nx) / (ny - 1));
+    });
+    for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+      const a = at[j * nx + i], b = at[j * nx + i + 1], c = at[(j + 1) * nx + i], d = at[(j + 1) * nx + i + 1];
+      if (a >= 0 && b >= 0 && c >= 0) index.push(a, c, b);
+      if (b >= 0 && c >= 0 && d >= 0) index.push(b, c, d);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    geo.setIndex(index);
+    emblemMat = new THREE.MeshBasicMaterial({
+      map: emblemTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
+      side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, color: 0x000000,
+    });
+    const mesh = new THREE.Mesh(geo, emblemMat);
+    mesh.frustumCulled = false;
+    mesh.layers.enable(GLOW);                       // the neon blooms like the tubes
+    bone.add(mesh);
+  } catch (err) { console.warn('chest crest not loaded', err); }
+}
+
+// the crest is dark while he sleeps and powers up with the room, flickering on like the tubes
+function updateEmblem(now) {
+  if (!emblemMat) return;
+  const since = awake ? (now - wakeAt) / 1000 : -1;
+  const flick = since > 0.3 && since < 0.9 ? (Math.sin(since * 61) > 0.2 ? 1 : 0.25) : 1;
+  const hum = 0.94 + 0.06 * Math.sin(now / 1000 * 2.1);
+  emblemMat.color.setScalar((0.06 + 1.1 * power) * flick * hum);
+}
+
 // where he is during the wake-up leap, and which moment of the clip he's in
 const lerp = (a, b, k) => a + (b - a) * k;
 const _hipW = new THREE.Vector3();
@@ -737,6 +821,7 @@ function loop(now) {
   lights.moon.position.copy(facing).multiplyScalar(-4).add(new THREE.Vector3(-1.5, 3, 0));
   updateCursorLight(dt);
   updateAtmosphere(dt);
+  updateEmblem(now);
 
   if (model) {
     for (const [b, q] of rest) b.quaternion.copy(q);
