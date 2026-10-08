@@ -462,7 +462,7 @@ main { padding: 0 var(--gap) var(--gap); }
   .card-map-profile { min-height: 400px; }
 }
 
-/* ===================== R.A.I. — the assistant ===================== */
+/* ===================== Ronie — the assistant ===================== */
 .rai {
   position: relative; overflow: hidden; isolation: isolate;
   height: calc(100vh - var(--bar) - var(--gap)); height: calc(100dvh - var(--bar) - var(--gap)); min-height: 560px;
