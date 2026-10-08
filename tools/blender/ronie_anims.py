@@ -57,6 +57,15 @@ def rot_world(name, axis, deg, pivot=None):
 
 def ease(x): return 0.5 - 0.5 * math.cos(math.pi * max(0.0, min(1.0, x)))
 
+def mix(x, y, f):
+    """Blend two values; either may be a number or a per-joint tuple (a missing value counts as 0)."""
+    if isinstance(x, tuple) or isinstance(y, tuple):
+        size = len(x) if isinstance(x, tuple) else len(y)
+        x = x if isinstance(x, tuple) else (x,) * size
+        y = y if isinstance(y, tuple) else (y,) * size
+        return tuple(p * (1 - f) + q * f for p, q in zip(x, y))
+    return x * (1 - f) + y * f
+
 def offsets_at(keys, t):
     """keys: [(time, {bone: {axis: deg}})] → interpolated {bone: {axis: deg}} with ease in/out."""
     for (t0, a), (t1, b) in zip(keys, keys[1:]):
@@ -65,7 +74,7 @@ def offsets_at(keys, t):
             out = {}
             for bone in set(a) | set(b):
                 axes = set(a.get(bone, {})) | set(b.get(bone, {}))
-                out[bone] = {ax: a.get(bone, {}).get(ax, 0) * (1 - f) + b.get(bone, {}).get(ax, 0) * f for ax in axes}
+                out[bone] = {ax: mix(a.get(bone, {}).get(ax, 0), b.get(bone, {}).get(ax, 0), f) for ax in axes}
             return out
     return keys[-1][1] if t >= keys[-1][0] else keys[0][1]
 
@@ -96,26 +105,22 @@ def rot_axis(name, axis, deg):
     p.scale = sc
     bpy.context.view_layer.update()
 
-def curl(side, fdeg, tdeg):
-    sign = 1 if side == 'R' else -1               # the hands are mirrored
+def curl(side, f, t):
+    """Bend the finger block and thumb. f / t: one angle for all three joints, or a (knuckle, middle, tip) tuple.
+    Each joint bends about its own bone axis (fingers: local Z, thumb: local X) — measured on this rig to give
+    clean, untwisted motion. + closes, - opens. Checked on the right hand (the only one posed so far)."""
     idx, thb = FING[side]
-    for chain, deg in ((idx, fdeg), (thb, tdeg)):
-        if abs(deg) < 1e-3: continue
-        for n, share in zip(chain, SPREAD):
-            d_f = (pb[idx[0]].tail - pb[idx[0]].head).normalized()
-            d_t = (pb[thb[0]].tail - pb[thb[0]].head).normalized()
-            nrm = d_f.cross(d_t).normalized()
-            d = (pb[n].tail - pb[n].head).normalized()
-            rot_axis(n, nrm.cross(d).normalized(), sign * deg * share)
+    for chain, deg, a in ((idx, f, 2), (thb, -t if isinstance(t, (int, float)) else tuple(-x for x in t), 0)):
+        degs = deg if isinstance(deg, tuple) else tuple(deg * share for share in SPREAD)
+        for n, d in zip(chain, degs):
+            if abs(d) > 1e-3: rot_axis(n, pb[n].matrix.to_3x3().col[a].normalized(), d)
 
 def palm_to_camera(side, w):
     """Turn the hand so its palm faces the viewer and the hand continues the line of the forearm (w: 0..1)."""
     sign = 1 if side == 'R' else -1
     idx, thb = FING[side]
     hand, fore = (HD_R, FA_R) if side == 'R' else (HD_L, FA_L)
-    d_f = (pb[idx[0]].tail - pb[idx[0]].head).normalized()
-    d_t = (pb[thb[0]].tail - pb[thb[0]].head).normalized()
-    palm = (-sign * d_f.cross(d_t)).normalized()            # the side the fingers curl towards
+    palm = -sign * pb[idx[0]].matrix.to_3x3().col[0].normalized()   # fingers curl towards their local -X: the palm
     cx = (pb[hand].tail - pb[hand].head).normalized()
     cy = (palm - palm.dot(cx) * cx).normalized(); cz = cx.cross(cy)
     # the hand points halfway between the forearm's line and straight up, so the palm stays upright as it waves
@@ -223,7 +228,7 @@ make('confused', 3.4, [(0, Z), (0.55, shrug), (1.2, shrug), (1.8, hmm), (2.5, hm
 
 # ---------------- wave: the hello after the wake-up leap ----------------
 # right arm up and out, forearm upright, swinging side to side; a little lean away and a head tilt into it
-hello = {'palm': 1, 'f': -42, 't': -36}           # open hand, palm towards the viewer
+hello = {'palm': 1, 'f': (-30, -30, -25), 't': (-15, -15, -15)}   # open hand, thumb out, palm to the viewer
 up = {UA_R: {'fwd': -100, 'right': 14}, FA_R: {'fwd': -58},
       SP2: {'fwd': 4}, SP1: {'fwd': 2}, NK2: {'fwd': -7}, HEAD: {'fwd': -6}, UA_L: {'fwd': 6}, 'FR': hello}
 swing = lambda a, bob: {**up, FA_R: {'fwd': -58 + a}, SP1: {'fwd': 2, 'right': bob}}
