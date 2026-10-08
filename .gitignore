@@ -1,0 +1,10 @@
+# Local tooling
+.claude/
+
+# Original cover art — the site uses the small .webp copies
+img/covers/*.png
+
+# OS clutter
+Thumbs.db
+desktop.ini
+.DS_Store

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Portfolio</title>
+  <meta name="description" content="Portfolio — design, front-end development and case studies.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#dashboard"><span class="brand-full"></span><span class="brand-short"></span></a>
+    <nav class="tabs" aria-label="Main">
+      <span class="tabs-indicator" aria-hidden="true"></span>
+      <a href="#dashboard" data-route="dashboard">Dashboard</a>
+      <a href="#projects" data-route="projects">Projects</a>
+      <a href="#case-study" data-route="case-study">Case Study</a>
+    </nav>
+    <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Menu"><span></span><span></span></button>
+  </header>
+
+  <div class="menu" id="menu" hidden></div>
+
+  <main>
+    <!-- ============ DASHBOARD ============ -->
+    <section class="view" data-view="dashboard">
+      <div class="dash">
+        <article class="card card-hello" id="card-hello">
+          <canvas class="ascii" id="ascii" aria-hidden="true"></canvas>
+          <h1 class="hello-title" id="hello-title"></h1>
+          <p class="terminal" id="terminal"></p>
+        </article>
+
+        <article class="card card-time" id="card-time">
+          <div class="card-label">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor"/><path d="M8 8 L11 5.5" stroke="currentColor" stroke-linecap="round"/><circle cx="8" cy="8" r="1.2" fill="currentColor"/></svg>
+            <span id="time-title"></span>
+          </div>
+          <div class="time-count">
+            <span id="time-num">0</span>
+            <small id="time-unit"></small>
+          </div>
+          <svg class="gauge" viewBox="0 0 300 172" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+            <defs>
+              <linearGradient id="g-arc" gradientUnits="userSpaceOnUse" x1="20" y1="0" x2="280" y2="0">
+                <stop offset="0" stop-color="#ff6ad5"/>
+                <stop offset=".5" stop-color="#a78bfa"/>
+                <stop offset="1" stop-color="#5eead4"/>
+              </linearGradient>
+            </defs>
+            <path class="gauge-track" d="M 25 155 A 125 125 0 0 1 275 155" pathLength="100"/>
+            <path class="gauge-fill" id="gauge-fill" d="M 25 155 A 125 125 0 0 1 275 155" pathLength="100"/>
+            <g id="gauge-ticks"></g>
+            <circle class="gauge-dot" id="gauge-dot" cx="25" cy="155" r="6"/>
+            <text class="gauge-goal" id="time-goal" x="150" y="152" text-anchor="middle"></text>
+          </svg>
+          <div class="time-ends" id="time-ends"></div>
+        </article>
+
+        <article class="card card-skills" id="card-skills">
+          <div class="card-label">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13V8M6.5 13V4M10 13V7M13.5 13V2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+            <span id="skills-title"></span>
+          </div>
+          <div class="skills-body">
+            <div><h2 class="col-head">Skill</h2><ul class="skill-list" id="skill-list"></ul></div>
+            <div class="tools"><h2 class="col-head">Tool</h2><ul id="tool-list"></ul></div>
+          </div>
+          <div class="skills-foot">
+            <p class="skills-note" id="skills-note"></p>
+            <canvas id="skill-bars" aria-hidden="true"></canvas>
+          </div>
+        </article>
+
+        <article class="card card-tunnel" id="card-tunnel" data-link="#projects" tabindex="0" role="link" aria-label="Who am I? See my projects">
+          <div class="tunnel-stage" id="tunnel-stage"><div class="tunnel" id="tunnel"></div></div>
+          <div class="tunnel-fog" id="tunnel-fog"></div>
+          <div class="chat">
+            <div class="bubble" id="chat-q"></div>
+            <div class="answer"><span id="chat-a"></span></div>
+          </div>
+          <p class="tunnel-hint">Click a floating project · anywhere else for all projects</p>
+          <span class="card-go" aria-hidden="true">All projects ↗</span>
+        </article>
+
+        <article class="card card-map" id="card-map" data-link="#profile" tabindex="0" role="link" aria-label="My experience — open my profile">
+          <div class="card-label">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor"/><path d="M1.5 8h13M8 1.5c2 2 2.6 4 2.6 6.5S10 12.5 8 14.5M8 1.5C6 3.5 5.4 5.5 5.4 8s.6 4.5 2.6 6.5" fill="none" stroke="currentColor"/></svg>
+            <span>My experience</span>
+          </div>
+          <canvas class="map-canvas" aria-hidden="true"></canvas>
+          <div class="map-pins"></div>
+          <div class="map-info" aria-live="polite"></div>
+          <span class="card-go" aria-hidden="true">My profile ↗</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ PROJECTS ============ -->
+    <section class="view" data-view="projects" hidden>
+      <div class="page-head">
+        <h1 class="page-title">Projects</h1>
+        <div class="chips" id="chips" role="group" aria-label="Filter projects"></div>
+        <div class="viewby">
+          <span>View by</span>
+          <button type="button" data-mode="grid" aria-pressed="true" aria-label="Grid view">
+            <svg viewBox="0 0 16 16"><rect x="2" y="2" width="5" height="7" rx="1"/><rect x="9" y="2" width="5" height="4" rx="1"/><rect x="2" y="11" width="5" height="3" rx="1"/><rect x="9" y="8" width="5" height="6" rx="1"/></svg>
+          </button>
+          <button type="button" data-mode="list" aria-pressed="false" aria-label="List view">
+            <svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="1.6" rx=".8"/><rect x="2" y="7.2" width="12" height="1.6" rx=".8"/><rect x="2" y="11.4" width="12" height="1.6" rx=".8"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="pgrid" id="pgrid"></div>
+      <ol class="plist" id="plist" hidden></ol>
+      <div class="float-preview" id="float-preview" aria-hidden="true"></div>
+    </section>
+
+    <!-- ============ CASE STUDY ============ -->
+    <section class="view" data-view="case-study" hidden>
+      <div class="page-head"><h1 class="page-title">Case Study</h1><p class="page-hint">Hover a book to pull it out · click to read</p></div>
+      <div class="shelf-wrap"><div class="shelf" id="cases"></div></div>
+      <div class="page-head sub"><h2 class="section-title">Certificates &amp; courses</h2><p class="page-hint" id="certs-count"></p></div>
+      <ol class="certs" id="certs"></ol>
+    </section>
+
+    <!-- ============ MY PROFILE ============ -->
+    <section class="view" data-view="profile" hidden>
+      <div class="page-head"><h1 class="page-title">My Profile</h1></div>
+      <div class="profile">
+        <div class="traits" id="traits"></div>
+
+        <article class="persona" id="persona">
+          <div class="persona-inner">
+            <div class="persona-face persona-front card">
+              <div class="card-label">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5" r="2.6" fill="none" stroke="currentColor"/><path d="M3 14c.6-2.8 2.6-4.3 5-4.3s4.4 1.5 5 4.3" fill="none" stroke="currentColor"/></svg>
+                <span>User persona</span>
+              </div>
+              <div class="radar-wrap"><svg class="radar" id="radar" viewBox="0 0 320 300" role="img" aria-label="Self-assessed trait radar"></svg></div>
+              <div class="persona-foot">
+                <div><h3 class="persona-h"><i></i>Goal</h3><ul id="persona-goal"></ul></div>
+                <button class="flip-btn" type="button">Flip me</button>
+              </div>
+            </div>
+            <div class="persona-face persona-back">
+              <div class="card-label dark">
+                <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="5" r="2.6" fill="none" stroke="currentColor"/><path d="M3 14c.6-2.8 2.6-4.3 5-4.3s4.4 1.5 5 4.3" fill="none" stroke="currentColor"/></svg>
+                <span>User persona</span>
+              </div>
+              <div class="id-card">
+                <div class="id-photo"><img id="persona-photo" alt="" crossorigin="anonymous"></div>
+                <h3 id="persona-name"></h3>
+                <p class="id-role" id="persona-role"></p>
+                <p class="id-quote" id="persona-quote"></p>
+              </div>
+              <div class="persona-foot">
+                <div><h3 class="persona-h"><i></i>Mindset</h3><ul id="persona-mindset"></ul></div>
+                <button class="flip-btn" type="button">Flip me</button>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="card card-map card-map-profile">
+          <div class="card-label">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.5" fill="none" stroke="currentColor"/><path d="M1.5 8h13M8 1.5c2 2 2.6 4 2.6 6.5S10 12.5 8 14.5M8 1.5C6 3.5 5.4 5.5 5.4 8s.6 4.5 2.6 6.5" fill="none" stroke="currentColor"/></svg>
+            <span>My experience</span>
+          </div>
+          <canvas class="map-canvas" aria-hidden="true"></canvas>
+          <div class="map-pins"></div>
+          <div class="map-info" aria-live="polite"></div>
+        </article>
+
+        <section class="highlights" aria-labelledby="hl-title">
+          <h2 class="sr-only" id="hl-title"></h2>
+          <ul id="highlights"></ul>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <dialog class="modal" id="detail" aria-labelledby="detail-title">
+    <div class="modal-inner">
+      <button class="modal-close" type="button" aria-label="Close">&times;</button>
+      <div class="modal-media" id="detail-media"></div>
+      <div class="modal-body">
+        <div class="modal-meta" id="detail-meta"></div>
+        <h2 id="detail-title"></h2>
+        <p id="detail-desc"></p>
+        <div class="tags" id="detail-tags"></div>
+        <a class="modal-link" id="detail-link" target="_blank" rel="noopener">Visit project ↗</a>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="js/data.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
+  <script src="js/main.js" defer></script>
+</body>
+</html>

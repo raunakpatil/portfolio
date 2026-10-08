@@ -1,0 +1,1164 @@
+/* Portfolio — interactive pieces. Content lives in js/data.js */
+(() => {
+  'use strict';
+
+  const D = window.PORTFOLIO;
+  const $ = (s, r = document) => r.querySelector(s);
+  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const easeOut = (t) => 1 - Math.pow(1 - t, 4);
+  const easeInOut = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const TAU = Math.PI * 2;
+  const MOTION = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1;
+  const fmtDeg = (v, pos, neg) => `${Math.abs(v).toFixed(4)}° ${v >= 0 ? pos : neg}`;
+  const coords = (lat, lon) => `${fmtDeg(lat, 'N', 'S')} ${fmtDeg(lon, 'E', 'W')}`;
+  const GLYPHS = '!<>-_\\/[]{}=+*^?#$%&@ABCDEFGHJKLMNPQRSTUVWXYZ0123456789';
+  const randGlyph = () => GLYPHS[(Math.random() * GLYPHS.length) | 0];
+
+  // Scramble a share of the characters for a moment, then settle on the real text.
+  function glitch(el, text, { chars = '0123456789', percent = 0.3, duration = 800, speed = 50, color = 'rgba(255,255,255,.55)' } = {}) {
+    clearInterval(el._glitch);
+    if (!MOTION) { el.textContent = text; return; }
+    const start = performance.now();
+    el._glitch = setInterval(() => {
+      if (performance.now() - start >= duration) { clearInterval(el._glitch); el.textContent = text; return; }
+      el.innerHTML = [...text].map((ch) => (/[^\s,.]/.test(ch) && Math.random() < percent
+        ? `<span style="color:${color}">${esc(chars[(Math.random() * chars.length) | 0])}</span>`
+        : esc(ch))).join('');
+    }, speed);
+  }
+  const PIN_ICON = '<svg viewBox="0 0 10 10" aria-hidden="true"><path d="M5 9.5S1.5 6 1.5 4a3.5 3.5 0 0 1 7 0c0 2-3.5 5.5-3.5 5.5Z" fill="none" stroke="currentColor"/><circle cx="5" cy="4" r="1.1" fill="currentColor"/></svg>';
+
+  function seeded(str) {
+    let h = 2166136261;
+    for (const ch of String(str)) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); }
+    h |= 1;
+    return () => { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; return ((h >>> 0) % 10000) / 10000; };
+  }
+
+  /* ---------- shared animation loop: only runs components that are on screen ---------- */
+  const loops = [];
+  function onFrame(el, fn) {
+    const entry = { fn, visible: false };
+    new IntersectionObserver((es) => { entry.visible = es[es.length - 1].isIntersecting; }).observe(el);
+    loops.push(entry);
+  }
+  let prevT = performance.now();
+  function frame(now) {
+    const dt = Math.min(50, now - prevT);
+    prevT = now;
+    if (!document.hidden) for (const l of loops) if (l.visible) l.fn(now, dt);
+    requestAnimationFrame(frame);
+  }
+
+  function fit(canvas) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const { width, height } = canvas.getBoundingClientRect();
+    const w = Math.max(1, Math.round(width * dpr));
+    const h = Math.max(1, Math.round(height * dpr));
+    const changed = canvas.width !== w || canvas.height !== h;
+    if (changed) { canvas.width = w; canvas.height = h; }
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { ctx, w: width, h: height, changed };
+  }
+
+  function trackPointer(el) {
+    const p = { x: -9999, y: -9999, nx: 0, ny: 0, inside: false };
+    el.addEventListener('pointermove', (e) => {
+      const r = el.getBoundingClientRect();
+      p.x = e.clientX - r.left; p.y = e.clientY - r.top;
+      p.nx = (p.x / r.width) * 2 - 1; p.ny = (p.y / r.height) * 2 - 1;
+      p.inside = true;
+    });
+    el.addEventListener('pointerleave', () => { p.x = p.y = -9999; p.nx = p.ny = 0; p.inside = false; });
+    return p;
+  }
+
+  /* ---------- generated thumbnails (used when a project has no image) ---------- */
+  const KIND = { dashboard: 'dashboard', app: 'app', website: 'website', web: 'website', visual: 'visual', 'ai agents': 'ai', ai: 'ai', 'ai / ml': 'ai', ml: 'ai' };
+  const kindOf = (p) => KIND[String(p.category || '').toLowerCase()] || 'fun';
+
+  function thumb(p) {
+    if (p.image) return `<div class="thumb"><img src="${esc(p.image)}" alt="" loading="lazy"></div>`;
+    const rnd = seeded(p.title);
+    const [c1, c2] = p.colors || ['#7c5cff', '#22d3ee'];
+    const k = kindOf(p);
+    let m;
+    if (k === 'dashboard') {
+      const pts = Array.from({ length: 9 }, (_, i) => `${i * 12.5},${(6 + rnd() * 28).toFixed(1)}`).join(' ');
+      const bars = Array.from({ length: 12 }, () => `<i style="height:${(20 + rnd() * 80).toFixed(0)}%"></i>`).join('');
+      m = `<div class="m m-dash"><div class="m-side"><b></b><i></i><i></i><i></i><i></i></div><div class="m-body"><div class="m-kpis"><i></i><i></i><i></i></div><svg class="m-line" viewBox="0 0 100 40" preserveAspectRatio="none"><polyline points="${pts}"/></svg><div class="m-bars">${bars}</div></div></div>`;
+    } else if (k === 'app') {
+      const phone = (cls) => `<div class="m m-phone ${cls}"><div class="m-notch"></div><div class="m-hero"></div><div class="m-list"><i></i><i></i><i></i></div><div class="m-tab"><i></i><i></i><i></i></div></div>`;
+      m = phone('a') + phone('b');
+    } else if (k === 'website') {
+      m = `<div class="m m-browser"><div class="m-bar"><b></b><b></b><b></b></div><div class="m-site"><h4>${esc(p.title)}</h4><p></p><p class="s"></p><span class="m-cta"></span><div class="m-cards"><i></i><i></i><i></i></div></div></div>`;
+    } else if (k === 'ai') {
+      const lines = ['research', 'script', 'narrate', 'render', 'upload'];
+      m = `<div class="m m-term"><div class="m-bar"><b></b><b></b><b></b></div><div class="m-code">${lines.map((l, i) => `<p><span>›</span> agent.${l}()<em style="width:${(20 + rnd() * 35).toFixed(0)}%"></em>${i < 4 ? '<u>✓</u>' : '<s></s>'}</p>`).join('')}</div></div>`;
+    } else if (k === 'visual') {
+      m = `<div class="m m-poster"><div class="m-orb"></div><h4>${esc(p.title)}</h4><span>${esc(p.year)}</span></div>`;
+    } else {
+      const cells = Array.from({ length: 12 }, () => {
+        const r = rnd();
+        return `<i style="border-radius:${r < 0.33 ? '50%' : r < 0.66 ? '18%' : '50% 0'};opacity:${(0.35 + rnd() * 0.65).toFixed(2)}"></i>`;
+      }).join('');
+      m = `<div class="m m-fun">${cells}</div>`;
+    }
+    return `<div class="thumb t-${k}" style="--c1:${esc(c1)};--c2:${esc(c2)}">${m}</div>`;
+  }
+
+  /* ---------- detail modal ---------- */
+  const modal = $('#detail');
+  function openDetail(item) {
+    $('#detail-media').innerHTML = item.mediaHTML || thumb(item.thumbAs || item);
+    $('#detail-meta').innerHTML = [item.category, item.year].filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('');
+    $('#detail-title').textContent = item.title;
+    $('#detail-desc').textContent = item.description || '';
+    $('#detail-tags').innerHTML = (item.tags || []).map((t) => `<span>${esc(t)}</span>`).join('');
+    const link = $('#detail-link');
+    const has = item.link && item.link !== '#';
+    link.hidden = !has;
+    if (has) link.href = item.link;
+    modal.showModal();
+  }
+  $('.modal-close').addEventListener('click', () => modal.close());
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.close(); });
+
+  /* ---------- header, nav, menu ---------- */
+  function initChrome() {
+    document.title = `${D.name} — Portfolio`;
+    $('.brand-full').textContent = D.name;
+    $('.brand-short').textContent = D.shortName || D.name;
+
+    const links = $$('.tabs a');
+    const ind = $('.tabs-indicator');
+    const routes = [...links.map((a) => a.dataset.route), 'profile'];
+    const active = () => links.find((a) => a.classList.contains('active'));
+    const moveIndicator = () => {
+      const a = active();
+      ind.style.opacity = a ? '1' : '0';
+      if (!a) return;
+      ind.style.width = `${a.offsetWidth}px`;
+      ind.style.transform = `translateX(${a.offsetLeft - 3}px)`;
+    };
+    const go = () => {
+      const h = location.hash.slice(1);
+      const r = routes.includes(h) ? h : 'dashboard';
+      $$('.view').forEach((v) => { v.hidden = v.dataset.view !== r; });
+      links.forEach((a) => {
+        const on = a.dataset.route === r;
+        a.classList.toggle('active', on);
+        if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+      });
+      moveIndicator();
+      window.scrollTo(0, 0);
+    };
+    addEventListener('hashchange', go);
+    addEventListener('resize', moveIndicator);
+    document.fonts?.ready.then(moveIndicator);
+    go();
+
+    // menu
+    const btn = $('.menu-btn');
+    const menu = $('#menu');
+    menu.innerHTML = `
+      <p class="menu-bio">${esc(D.bio)}</p>
+      <nav class="menu-links"><a href="#profile">My Profile<span>→</span></a>${D.links.map((l) => `<a href="${esc(l.href)}" ${/^https?:/.test(l.href) ? 'target="_blank" rel="noopener"' : ''}>${esc(l.label)}<span>↗</span></a>`).join('')}</nav>
+      <div class="menu-meta"><span>Local time</span><span id="clock"></span></div>`;
+    const clock = $('#clock');
+    const tick = () => {
+      try {
+        clock.textContent = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: D.timezone, timeZoneName: 'short' }).format(new Date());
+      } catch { clock.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+    };
+    tick(); setInterval(tick, 30000);
+    const setOpen = (open) => { menu.hidden = !open; btn.setAttribute('aria-expanded', String(open)); };
+    btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(menu.hidden); });
+    document.addEventListener('click', (e) => { if (!menu.hidden && !menu.contains(e.target)) setOpen(false); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setOpen(false); });
+    addEventListener('hashchange', () => setOpen(false));
+  }
+
+  /* ---------- card 1: hello + ASCII ---------- */
+  function initHello() {
+    const H = D.hello;
+    const card = $('#card-hello');
+    const canvas = $('#ascii');
+    const term = $('#terminal');
+    $('#hello-title').innerHTML = H.greeting.map((w) => `<span>${esc(w)}</span>`).join('');
+
+    const ptr = trackPointer(card);
+    const RAMP = ' .:-=+*#%@';
+    const CW = 7, CH = 11;
+    let cols = 0, rows = 0, lum, zb, noise;
+    let A = 1, B = 0, t = 0;
+
+    let img = null, imgLum = null, imgKey = '';
+    if (H.asciiImage) {
+      const im = new Image();
+      if (/^https?:/.test(H.asciiImage)) im.crossOrigin = 'anonymous';
+      im.onload = () => { img = im; };
+      im.src = H.asciiImage;
+    }
+    function sampleImage(W, Hh) {
+      const key = `${cols}x${rows}`;
+      if (imgKey === key) return true;
+      try {
+        const c = document.createElement('canvas');
+        c.width = cols; c.height = rows;
+        const x = c.getContext('2d', { willReadFrequently: true });
+        const ta = W / Hh, ia = img.width / img.height;
+        let sx = 0, sy = 0, sw = img.width, sh = img.height;
+        if (ia > ta) { sw = sh * ta; sx = (img.width - sw) / 2; } else { sh = sw / ta; sy = (img.height - sh) * 0.3; }
+        x.drawImage(img, sx, sy, sw, sh, 0, 0, cols, rows);
+        const d = x.getImageData(0, 0, cols, rows).data;
+        imgLum = new Float32Array(cols * rows);
+        for (let i = 0; i < imgLum.length; i++) imgLum[i] = (0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) / 255;
+        imgKey = key;
+        return true;
+      } catch {
+        img = null; // tainted canvas (file://) — fall back to the torus
+        return false;
+      }
+    }
+
+    function torus(W, Hh) {
+      lum.fill(0); zb.fill(0);
+      const cA = Math.cos(A), sA = Math.sin(A), cB = Math.cos(B), sB = Math.sin(B);
+      const K2 = 5, K1 = Math.min(W, Hh) * K2 * 0.36 / 3;
+      const ox = W * 0.55, oy = Hh * 0.57;
+      for (let th = 0; th < TAU; th += 0.07) {
+        const ct = Math.cos(th), st = Math.sin(th);
+        const cx2 = 2 + ct, cy2 = st;
+        for (let ph = 0; ph < TAU; ph += 0.024) {
+          const cp = Math.cos(ph), sp = Math.sin(ph);
+          const x = cx2 * (cB * cp + sA * sB * sp) - cy2 * cA * sB;
+          const y = cx2 * (sB * cp - sA * cB * sp) + cy2 * cA * cB;
+          const ooz = 1 / (K2 + cA * cx2 * sp + cy2 * sA);
+          const c = ((ox + K1 * ooz * x) / CW) | 0;
+          const r = ((oy - K1 * ooz * y) / CH) | 0;
+          if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
+          const i = r * cols + c;
+          if (ooz > zb[i]) {
+            zb[i] = ooz;
+            const L = cp * ct * sB - cA * ct * sp - sA * st + cB * (cA * st - ct * sA * sp);
+            lum[i] = L > 0 ? L / 1.42 : 0.03;
+          }
+        }
+      }
+    }
+
+    // terminal: scramble-in, hold, repeat
+    let tStart = null, typed = false;
+    const text = H.terminal;
+    const STEP = 26;
+    function terminal(now) {
+      if (tStart === null) tStart = now;
+      const el = now - tStart;
+      const n = Math.floor(el / STEP);
+      if (n < text.length) {
+        const tail = Array.from({ length: Math.min(5, text.length - n) }, randGlyph).join('');
+        term.innerHTML = `${esc(text.slice(0, n))}<span class="scramble">${esc(tail)}</span>`;
+        typed = false;
+      } else if (!typed) {
+        term.innerHTML = `${esc(text.replace(/_$/, ''))}<span class="cursor">_</span>`;
+        typed = true;
+      }
+      if (el > text.length * STEP + 10000) tStart = now;
+    }
+
+    card.addEventListener('pointerenter', () => { if (typed) tStart = null; });
+
+    onFrame(card, (now, dt) => {
+      const { ctx, w, h } = fit(canvas);
+      const nc = Math.ceil(w / CW), nr = Math.ceil(h / CH);
+      if (nc !== cols || nr !== rows) {
+        cols = nc; rows = nr;
+        lum = new Float32Array(cols * rows); zb = new Float32Array(cols * rows);
+        noise = Float32Array.from({ length: cols * rows }, Math.random);
+      }
+      t += dt * MOTION;
+      A += dt * 0.0007 * MOTION; B += dt * 0.00035 * MOTION;
+
+      if (img && sampleImage(w, h)) {
+        for (let i = 0; i < lum.length; i++) {
+          const c = i % cols, r = (i / cols) | 0;
+          lum[i] = clamp(imgLum[i] + Math.sin(t * 0.002 + r * 0.35 + c * 0.05) * 0.06, 0, 1);
+        }
+      } else {
+        torus(w, h);
+      }
+
+      ctx.clearRect(0, 0, w, h);
+      ctx.font = `${CH - 1}px "JetBrains Mono", monospace`;
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#f2f2f2';
+      const R2 = 95 * 95;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const i = r * cols + c;
+          const v = lum[i];
+          const dx = c * CW - ptr.x, dy = r * CH - ptr.y;
+          const d2 = dx * dx + dy * dy;
+          const glow = d2 < R2 ? 1 - d2 / R2 : 0;
+          if (v < 0.05 && glow === 0) {
+            if (noise[i] > 0.975) { ctx.globalAlpha = 0.09; ctx.fillText('.', c * CW, r * CH); }
+            continue;
+          }
+          const idx = clamp(Math.round((v + glow * 0.45) * (RAMP.length - 1)), 1, RAMP.length - 1);
+          const ch = glow > 0.25 && Math.random() < glow * 0.25 ? randGlyph() : RAMP[idx];
+          ctx.globalAlpha = clamp(0.12 + v * 0.8 + glow * 0.45, 0, 1);
+          ctx.fillText(ch, c * CW, r * CH);
+        }
+      }
+      ctx.globalAlpha = 1;
+      terminal(now);
+    });
+  }
+
+  /* ---------- card 2: hours + gauge ---------- */
+  function initTime() {
+    const T = D.time;
+    const card = $('#card-time');
+    $('#time-title').textContent = T.title;
+    $('#time-unit').textContent = T.unit;
+    const end = (e, right) => `<div class="time-end${right ? ' right' : ''}"><b>${esc(e.year)}</b><span>${esc(e.city)}<br>${fmtDeg(e.lat, 'N', 'S')}<br>${fmtDeg(e.lon, 'E', 'W')}</span></div>`;
+    $('#time-ends').innerHTML = end(T.start) + end(T.end, true);
+    const pct = clamp(T.hours / T.goal, 0, 1);
+    $('#time-goal').textContent = `${Math.round(pct * 100)}% of a ${T.goal.toLocaleString()}h goal`;
+
+    const CX = 150, CY = 155, R = 125;
+    const at = (p, r = R) => { const a = Math.PI + p * Math.PI; return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; };
+    const ticksEl = $('#gauge-ticks');
+    const N = 24;
+    ticksEl.innerHTML = Array.from({ length: N + 1 }, (_, i) => {
+      const [x, y] = at(i / N, 96);
+      return `<circle class="gauge-tick" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.6" data-p="${i / N}"/>`;
+    }).join('');
+    const ticks = $$('circle', ticksEl);
+    const fill = $('#gauge-fill');
+    const dot = $('#gauge-dot');
+    const num = $('#time-num');
+
+    let start = null, done = false;
+    onFrame(card, (now) => {
+      if (done) return;
+      if (start === null) start = now;
+      const k = MOTION ? easeOut(clamp((now - start) / 2400, 0, 1)) : 1;
+      num.textContent = Math.round(T.hours * k).toLocaleString();
+      const p = pct * k;
+      fill.style.strokeDasharray = `${p * 100} 100`;
+      const [x, y] = at(p);
+      dot.setAttribute('cx', x.toFixed(2)); dot.setAttribute('cy', y.toFixed(2));
+      ticks.forEach((tk) => tk.classList.toggle('on', +tk.dataset.p <= p));
+      if (k >= 1) { done = true; glitch(num, T.hours.toLocaleString()); }
+    });
+    card.addEventListener('pointerenter', () => { if (done) glitch(num, T.hours.toLocaleString()); });
+  }
+
+  /* ---------- card 3: skill matrix ---------- */
+  function initSkills() {
+    const S = D.skills;
+    const card = $('#card-skills');
+    const list = $('#skill-list');
+    const canvas = $('#skill-bars');
+    const n = S.items.length;
+    const total = S.items.reduce((s, x) => s + x.score, 0);
+    const hueOf = (i) => (((75 - i * (330 / n)) % 360) + 360) % 360;
+
+    $('#skills-title').textContent = S.title;
+    list.innerHTML = S.items.map((s, i) => `<li data-i="${i}" style="--hue:hsl(${hueOf(i).toFixed(0)} 85% 65%)"><span>${esc(s.name)}</span><b class="badge">0</b></li>`).join('');
+    $('#tool-list').innerHTML = S.tools.map((t) => `<li data-tool="${esc(t)}">${esc(t)}</li>`).join('');
+    $('#skills-note').innerHTML = S.notes.map((x) => `// ${esc(x)}`).join('<br>');
+
+    const items = $$('li', list);
+    const badges = $$('.badge', list);
+    const toolList = $('#tool-list');
+    const toolEls = $$('li', toolList);
+    const usesTool = (i, tool) => (S.items[i].tools || []).includes(tool);
+    // hot = set of highlighted skill indices; hovering a skill lights its tools,
+    // hovering a tool lights every skill that uses it
+    let hot = new Set();
+    let hotKey = '';
+    const setHot = (skills, tools = null) => {
+      const key = [...skills].join(',') + '|' + (tools ? [...tools].join(',') : '');
+      if (key === hotKey) return;
+      hotKey = key;
+      hot = skills;
+      const lit = tools || new Set([...skills].flatMap((i) => S.items[i].tools || []));
+      list.classList.toggle('has-hot', hot.size > 0);
+      items.forEach((li, k) => li.classList.toggle('hot', hot.has(k)));
+      toolList.classList.toggle('has-hot', hot.size > 0 || lit.size > 0);
+      const colorOf = hot.size === 1 ? items[[...hot][0]].style.getPropertyValue('--hue') : '';
+      toolEls.forEach((li) => {
+        const on = lit.has(li.dataset.tool);
+        li.classList.toggle('hot', on);
+        li.style.setProperty('--hue', on && colorOf ? colorOf : '');
+      });
+    };
+    const none = () => setHot(new Set());
+    items.forEach((li, i) => {
+      li.addEventListener('pointerenter', () => setHot(new Set([i])));
+      li.addEventListener('pointerleave', none);
+    });
+    toolEls.forEach((li) => {
+      const tool = li.dataset.tool;
+      li.addEventListener('pointerenter', () => setHot(new Set(S.items.map((_, i) => i).filter((i) => usesTool(i, tool))), new Set([tool])));
+      li.addEventListener('pointerleave', none);
+    });
+
+    const GAP = 4, STEP = 3;
+    let segs = [];
+    const ptr = trackPointer(canvas);
+    canvas.addEventListener('pointermove', () => {
+      const s = segs.find((g) => ptr.x >= g.x && ptr.x <= g.x + g.w);
+      setHot(s ? new Set([s.i]) : new Set());
+    });
+    canvas.addEventListener('pointerleave', none);
+
+    let start = null, t = 0;
+    onFrame(card, (now, dt) => {
+      if (start === null) start = now;
+      const k = MOTION ? easeOut(clamp((now - start) / 1800, 0, 1)) : 1;
+      badges.forEach((b, i) => { b.textContent = Math.round(S.items[i].score * k); });
+      t += dt * MOTION;
+
+      const { ctx, w, h } = fit(canvas);
+      ctx.clearRect(0, 0, w, h);
+      const usable = w - GAP * (n - 1);
+      segs = [];
+      let x = 0;
+      for (let i = 0; i < n; i++) {
+        const sw = (usable * S.items[i].score) / total;
+        segs.push({ i, x, w: sw });
+        const h0 = hueOf(i), h1 = hueOf(i + 1);
+        const dh = ((h1 - h0 + 540) % 360) - 180; // shortest way round the hue wheel
+        ctx.globalAlpha = hot.size === 0 ? 0.92 : hot.has(i) ? 1 : 0.16;
+        for (let bx = x; bx < x + sw - 1; bx += STEP) {
+          const u = (bx - x) / sw;
+          const gx = bx / STEP;
+          const wave = 0.5 + 0.5 * Math.sin(t * 0.0016 + gx * 0.11 + i) * Math.cos(t * 0.0007 + gx * 0.037);
+          const bh = h * (0.22 + 0.78 * wave) * (0.4 + 0.6 * k);
+          ctx.fillStyle = `hsl(${(h0 + dh * u).toFixed(1)} 85% ${hot.has(i) ? 68 : 62}%)`;
+          ctx.fillRect(bx, h - bh, 2, bh);
+        }
+        x += sw + GAP;
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /* ---------- card 4: 3D tunnel ---------- */
+  function initTunnel() {
+    const card = $('#card-tunnel');
+    const stage = $('#tunnel-stage');
+    const tunnel = $('#tunnel');
+    const fog = $('#tunnel-fog');
+    const L = 2200, SPEED = 0.07, CELL = 120;
+    const walls = {};
+    for (const side of ['floor', 'ceil', 'left', 'right']) {
+      const w = document.createElement('div');
+      w.className = `wall wall-${side}`;
+      tunnel.appendChild(w);
+      walls[side] = w;
+    }
+
+    let W = 0, Hh = 0;
+    const layout = () => {
+      const r = stage.getBoundingClientRect();
+      W = r.width; Hh = r.height;
+      Object.assign(walls.floor.style, { width: `${W}px`, height: `${L}px`, left: '0px', top: `${Hh}px`, backgroundSize: `${W / 6}px ${CELL}px` });
+      Object.assign(walls.ceil.style, { width: `${W}px`, height: `${L}px`, left: '0px', top: `${-L}px`, backgroundSize: `${W / 6}px ${CELL}px` });
+      Object.assign(walls.left.style, { width: `${L}px`, height: `${Hh}px`, left: `${-L}px`, top: '0px', backgroundSize: `${CELL}px ${Hh / 4}px` });
+      Object.assign(walls.right.style, { width: `${L}px`, height: `${Hh}px`, left: `${W}px`, top: '0px', backgroundSize: `${CELL}px ${Hh / 4}px` });
+      items.forEach(place);
+    };
+
+    const sides = ['floor', 'right', 'ceil', 'left'];
+    const P = D.projects;
+    const N = Math.max(20, P.length);
+    const rnd = seeded('tunnel');
+    const items = [];
+    let slowdown = 1;
+    for (let i = 0; i < N; i++) {
+      const p = P[i % P.length];
+      const side = sides[i % 4];
+      const tall = kindOf(p) === 'app' || kindOf(p) === 'visual';
+      const across = tall ? 110 : 190, along = tall ? 180 : 125;
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'tcard';
+      el.setAttribute('aria-label', `Open ${p.title}`);
+      el.innerHTML = `<div class="tcard-in">${thumb(p)}</div>`;
+      el.addEventListener('click', () => openDetail(p));
+      el.addEventListener('pointerenter', () => { slowdown = 0.12; });
+      el.addEventListener('pointerleave', () => { slowdown = 1; });
+      const vertical = side === 'floor' || side === 'ceil';
+      el.style.width = `${vertical ? across : along}px`;
+      el.style.height = `${vertical ? along : across}px`;
+      walls[side].appendChild(el);
+      items.push({ el, side, across, along, off: rnd(), d: (i / N) * L });
+    }
+
+    function place(it) {
+      const span = (it.side === 'floor' || it.side === 'ceil' ? W : Hh) - it.across - 24;
+      const a = 12 + it.off * Math.max(0, span);
+      const d = it.d;
+      let x, y;
+      if (it.side === 'floor') { x = a; y = d; }
+      else if (it.side === 'ceil') { x = a; y = L - d - it.along; }
+      else if (it.side === 'right') { x = d; y = a; }
+      else { x = L - d - it.along; y = a; }
+      it.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
+      it.el.style.opacity = clamp((L - d) / 700, 0, 1).toFixed(3);
+    }
+
+    new ResizeObserver(layout).observe(stage);
+
+    // chat: the answer floats as a sparkling particle cloud and snaps into crisp text on hover
+    const T = D.tunnel;
+    $('#chat-q').textContent = T.question;
+    const pill = $('.answer');
+    const ans = $('#chat-a');
+    const pc = document.createElement('canvas');
+    pc.className = 'answer-particles';
+    pc.setAttribute('aria-hidden', 'true');
+    pill.appendChild(pc);
+    const SPREAD = 9, PSPEED = 0.5;
+    let parts = [], hovered = false, built = false, pw = 0, ph = 0, revealTimer = 0;
+    // shuffle-bag: every answer shows once before any repeats, and never twice in a row
+    let bag = [], last = -1;
+    const nextAnswer = () => {
+      if (!bag.length) {
+        bag = T.answers.map((_, i) => i).sort(() => Math.random() - 0.5);
+        if (bag[bag.length - 1] === last && bag.length > 1) [bag[0], bag[bag.length - 1]] = [bag[bag.length - 1], bag[0]];
+      }
+      last = bag.pop();
+      return T.answers[last];
+    };
+    ans.textContent = nextAnswer();
+    if (!MOTION) pill.classList.add('on');
+
+    function buildParticles() {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const cr = pc.getBoundingClientRect();
+      const tr = ans.getBoundingClientRect();
+      pw = cr.width; ph = cr.height;
+      if (!pw || !ph) return;
+      pc.width = Math.round(pw * dpr); pc.height = Math.round(ph * dpr);
+      const off = document.createElement('canvas');
+      off.width = pc.width; off.height = pc.height;
+      const o = off.getContext('2d', { willReadFrequently: true });
+      o.scale(dpr, dpr);
+      o.font = getComputedStyle(ans).font;
+      o.textBaseline = 'middle';
+      o.fillStyle = '#fff';
+      o.fillText(ans.textContent, tr.left - cr.left, tr.top - cr.top + tr.height / 2);
+      const data = o.getImageData(0, 0, off.width, off.height).data;
+      const step = 2;
+      const old = parts;
+      parts = [];
+      for (let y = 0; y < off.height; y += step) {
+        for (let x = 0; x < off.width; x += step) {
+          const a = data[(y * off.width + x) * 4 + 3];
+          if (a < 90) continue;
+          const src = old.length ? old[(Math.random() * old.length) | 0] : null;
+          const ox = x / dpr, oy = y / dpr;
+          parts.push({
+            x: src ? src.x : ox + (Math.random() - 0.5) * SPREAD * 2,
+            y: src ? src.y : oy + (Math.random() - 0.5) * SPREAD * 2,
+            ox, oy, op: 0, oa: a / 255, top: a / 255,
+            fa: Math.random() * TAU, fs: 0.4 + Math.random() * 0.8, ss: Math.random() * 3 + 1,
+          });
+        }
+      }
+      built = true;
+    }
+
+    function updateParticles(dt) {
+      const s = SPREAD, c = PSPEED, l = 5 * c, u = 0.6, dd = 1.3;
+      const tnow = Date.now() * 0.001;
+      for (const p of parts) {
+        if (hovered) {
+          const dx = p.ox - p.x, dy = p.oy - p.y, d = Math.hypot(dx, dy);
+          if (d > 0.1) { const m = Math.min(d, 3 * dt * 60); p.x += (dx / d) * m; p.y += (dy / d) * m; } else { p.x = p.ox; p.y = p.oy; }
+          p.op = Math.max(0, p.op - 5 * dt);
+          continue;
+        }
+        p.fa += dt * p.fs * (1 + Math.random() * dd);
+        const r = p.fs * 2000;
+        const ix = (Math.sin(tnow * p.fs + p.fa) * 1.2 + Math.sin((tnow + r) * 0.5) * 0.8 + (Math.random() - 0.5) * dd) * u;
+        const iy = (Math.cos(tnow * p.fs + p.fa * 1.5) * 0.6 + Math.cos((tnow + r) * 0.5) * 0.4 + (Math.random() - 0.5) * dd) * u;
+        const hx = p.ox + s * ix - p.x, hy = p.oy + s * iy - p.y;
+        const v = Math.min(1, Math.hypot(hx, hy) / (s * 1.5));
+        p.x += hx * l * dt + (Math.random() - 0.5) * c * v;
+        p.y += hy * l * dt + (Math.random() - 0.5) * c * v;
+        const away = Math.hypot(p.x - p.ox, p.y - p.oy);
+        if (away > s) {
+          const ang = Math.atan2(p.y - p.oy, p.x - p.ox), pull = (away - s) * 0.1;
+          p.x -= Math.cos(ang) * pull; p.y -= Math.sin(ang) * pull;
+        }
+        const S = p.top - p.op;
+        p.op += S * p.ss * dt * 3;
+        if (Math.abs(S) < 0.01) { p.top = Math.random() < 0.5 ? Math.random() * 0.1 * p.oa : p.oa * 3; p.ss = Math.random() * 3 + 1; }
+      }
+    }
+
+    function drawParticles() {
+      const ctx = pc.getContext('2d');
+      const dpr = pc.width / pw;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, pw, ph);
+      ctx.fillStyle = '#fff';
+      for (const p of parts) {
+        if (p.op <= 0.01) continue;
+        ctx.globalAlpha = Math.min(1, p.op);
+        ctx.fillRect(p.x, p.y, 1, 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    pill.addEventListener('pointerenter', () => {
+      // new answer on every hover: the cloud re-forms into the next line, then the text sharpens
+      ans.textContent = nextAnswer();
+      if (!MOTION) return;
+      buildParticles();
+      hovered = true;
+      clearTimeout(revealTimer);
+      revealTimer = setTimeout(() => { if (hovered) pill.classList.add('on'); }, 280);
+    });
+    pill.addEventListener('pointerleave', () => {
+      hovered = false;
+      clearTimeout(revealTimer);
+      if (MOTION) pill.classList.remove('on');
+    });
+    new ResizeObserver(() => { built = false; }).observe(pill);
+    document.fonts?.ready.then(() => { built = false; });
+
+    function chat(now, dt) {
+      if (!MOTION) return;
+      if (!built) buildParticles();
+      updateParticles(dt / 1000);
+      drawParticles();
+    }
+
+    const ptr = trackPointer(card);
+    let ox = 50, oy = 50, travelled = 0, spd = 1;
+    onFrame(card, (now, dt) => {
+      spd = lerp(spd, slowdown, 0.08);
+      const step = dt * SPEED * MOTION * spd;
+      travelled += step;
+      const g = travelled % CELL;
+      walls.floor.style.backgroundPosition = `0 ${-g}px`;
+      walls.ceil.style.backgroundPosition = `0 ${g}px`;
+      walls.right.style.backgroundPosition = `${-g}px 0`;
+      walls.left.style.backgroundPosition = `${g}px 0`;
+      for (const it of items) {
+        it.d -= step;
+        if (it.d < -it.along - 60) it.d += L + it.along;
+        place(it);
+      }
+      ox = lerp(ox, 50 - ptr.nx * 14, 0.06);
+      oy = lerp(oy, 50 - ptr.ny * 14, 0.06);
+      stage.style.perspectiveOrigin = `${ox}% ${oy}%`;
+      fog.style.setProperty('--fx', `${ox}%`);
+      fog.style.setProperty('--fy', `${oy}%`);
+      chat(now, dt);
+    });
+  }
+
+  /* ---------- card 5: dotted world map ---------- */
+  // Coastline rings, fetched once and shared by every map on the site.
+  let landPromise = null;
+  function loadLand() {
+    if (landPromise) return landPromise;
+    if (!window.topojson) return (landPromise = Promise.resolve(null));
+    landPromise = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json').then((r) => r.json()).then((topo) => {
+      const fc = topojson.feature(topo, topo.objects.land);
+      const out = [];
+      for (const f of fc.features) {
+        const g = f.geometry;
+        const list = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+        for (const poly of list) {
+          for (const ring of poly) {
+            // unwrap longitudes so rings crossing the antimeridian (e.g. Russia) stay continuous
+            let prev = ring[0][0], shift = 0, x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+            const pts = ring.map(([lon, lat]) => {
+              if (lon - prev > 180) shift -= 360; else if (prev - lon > 180) shift += 360;
+              prev = lon;
+              const x = lon + shift;
+              x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, lat); y1 = Math.max(y1, lat);
+              return [x, lat];
+            });
+            out.push({ pts, x0, x1, y0, y1 });
+          }
+        }
+      }
+      return out;
+    }).catch(() => null);
+    return landPromise;
+  }
+
+  function initMap(card) {
+    const canvas = $('.map-canvas', card);
+    const pinsEl = $('.map-pins', card);
+    const info = $('.map-info', card);
+    const E = D.experience;
+    const B = D.mapBounds || { w: -130, e: 160, n: 74, s: -46 };
+    const SP = 7; // dot pitch in px — smaller = more detailed coastline
+    const COLORS = ['#c6f432', '#b18cff', '#ff7ab6', '#5eead4', '#ffb547', '#7cc4ff'];
+    const colorOf = (i) => COLORS[i % COLORS.length];
+
+    let rings = null, dots = [], key = '', W = 0, Hh = 0, base = null;
+    const proj = (lat, lon) => ({ x: ((lon - B.w) / (B.e - B.w)) * W, y: ((B.n - lat) / (B.n - B.s)) * Hh });
+    loadLand().then((r) => { if (r) { rings = r; key = ''; } });
+
+    // Rasterise the coastline once per size, then test each dot against the pixels.
+    function buildDots() {
+      dots = [];
+      const cols = Math.floor(W / SP), rows = Math.floor(Hh / SP);
+      const ox = (W - (cols - 1) * SP) / 2, oy = (Hh - (rows - 1) * SP) / 2;
+      let land = null;
+      if (rings) {
+        const m = document.createElement('canvas');
+        m.width = Math.ceil(W); m.height = Math.ceil(Hh);
+        const mc = m.getContext('2d', { willReadFrequently: true });
+        mc.beginPath();
+        for (const ring of rings) {
+          if (ring.y1 < B.s || ring.y0 > B.n) continue;
+          for (const off of [-360, 0, 360]) {
+            if (ring.x1 + off < B.w || ring.x0 + off > B.e) continue;
+            ring.pts.forEach(([lon, lat], i) => {
+              const { x, y } = proj(lat, lon + off);
+              if (i) mc.lineTo(x, y); else mc.moveTo(x, y);
+            });
+            mc.closePath();
+          }
+        }
+        mc.fill('evenodd');
+        land = mc.getImageData(0, 0, m.width, m.height).data;
+      }
+      const hit = (x, y) => {
+        const xi = Math.round(x), yi = Math.round(y);
+        if (xi < 0 || yi < 0 || xi >= Math.ceil(W) || yi >= Math.ceil(Hh)) return 0;
+        return land[(yi * Math.ceil(W) + xi) * 4 + 3] > 0 ? 1 : 0;
+      };
+      const o = SP * 0.32;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const x = ox + c * SP, y = oy + r * SP;
+          if (!land) { dots.push({ x, y, land: false }); continue; }
+          // centre hit, or most of the cell is land — keeps thin coasts and small islands
+          const corners = hit(x - o, y - o) + hit(x + o, y - o) + hit(x - o, y + o) + hit(x + o, y + o);
+          if (hit(x, y) || corners >= 2) dots.push({ x, y, land: true });
+        }
+      }
+      // static layer, so each frame only redraws the few dots that glow
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      base = document.createElement('canvas');
+      base.width = Math.round(W * dpr); base.height = Math.round(Hh * dpr);
+      const bc = base.getContext('2d');
+      bc.scale(dpr, dpr);
+      bc.fillStyle = '#d9d9d9';
+      for (const d of dots) {
+        bc.globalAlpha = d.land ? 0.34 : 0.06;
+        bc.beginPath(); bc.arc(d.x, d.y, DOT_R, 0, TAU); bc.fill();
+      }
+    }
+    const DOT_R = 1.45;
+
+    pinsEl.innerHTML = E.map((e, i) => `<button class="pin" type="button" data-i="${i}" style="--c:${colorOf(i)}" aria-label="${esc(e.org)}, ${esc(e.place)}"><i></i><span class="pin-label"><span class="pin-row">${PIN_ICON}${coords(e.lat, e.lon)}</span><span class="pin-more"><b>${esc(e.place)}</b><em>${esc(e.years)}</em><span>${esc(e.org)}</span></span></span></button>`).join('');
+    const pins = $$('.pin', pinsEl);
+    function layoutPins() {
+      const placed = [];
+      const overlap = (a, b) => a.x < b.x + b.w + 4 && a.x + a.w + 4 > b.x && a.y < b.y + b.h + 4 && a.y + a.h + 4 > b.y;
+      pins.forEach((pin, i) => {
+        const { x, y } = proj(E[i].lat, E[i].lon);
+        pin.style.transform = `translate(${x}px, ${y}px)`;
+        const lab = $('.pin-label', pin);
+        const lw = lab.offsetWidth, lh = lab.offsetHeight;
+        const cands = [[12, -lh / 2], [-12 - lw, -lh / 2], [-lw / 2, 10], [-lw / 2, -10 - lh]];
+        let best = cands[0], bestScore = Infinity;
+        for (const [dx, dy] of cands) {
+          const r = { x: x + dx, y: y + dy, w: lw, h: lh };
+          let score = 0;
+          if (r.x < 6 || r.y < 36 || r.x + lw > W - 6 || r.y + lh > Hh - 80) score += 5;
+          for (const q of placed) if (overlap(r, q)) score += 3;
+          if (score < bestScore) { bestScore = score; best = [dx, dy]; }
+          if (score === 0) break;
+        }
+        lab.style.transform = `translate(${best[0]}px, ${best[1]}px)`;
+        placed.push({ x: x + best[0], y: y + best[1], w: lw, h: lh });
+      });
+    }
+
+    let active = 0, prev = 0, arcStart = 0, nextSwitch = 0, hovering = false;
+    function setActive(i, now) {
+      prev = active; active = i; arcStart = now;
+      pins.forEach((p, k) => p.classList.toggle('active', k === i));
+      const e = E[i];
+      info.style.setProperty('--c', colorOf(i));
+      info.innerHTML = `<span class="mi-years">${esc(e.years)}</span><b>${esc(e.org)}</b><span>${esc(e.role)} · ${esc(e.place)}</span>`;
+      info.classList.remove('swap'); void info.offsetWidth; info.classList.add('swap');
+    }
+    pins.forEach((p, i) => p.addEventListener('click', () => {
+      const now = performance.now();
+      if (i !== active) setActive(i, now);
+      nextSwitch = now + 9000;
+    }));
+    card.addEventListener('pointerenter', () => { hovering = true; });
+    card.addEventListener('pointerleave', () => { hovering = false; });
+    const ptr = trackPointer(card);
+
+    const qb = (a, b, c, u) => (1 - u) * (1 - u) * a + 2 * (1 - u) * u * b + u * u * c;
+    onFrame(card, (now) => {
+      const f = fit(canvas);
+      const { ctx } = f;
+      W = f.w; Hh = f.h;
+      const k = `${Math.round(W)}x${Math.round(Hh)}:${rings ? 1 : 0}`;
+      if (k !== key) { key = k; buildDots(); layoutPins(); }
+      if (!nextSwitch) { setActive(0, now); prev = 0; nextSwitch = now + 4500; }
+      if (!hovering && now > nextSwitch && E.length > 1) { setActive((active + 1) % E.length, now); nextSwitch = now + 4500; }
+
+      ctx.clearRect(0, 0, W, Hh);
+      const ap = proj(E[active].lat, E[active].lon);
+      if (base) ctx.drawImage(base, 0, 0, W, Hh);
+      ctx.fillStyle = '#ffffff';
+      for (const d of dots) {
+        const dx = d.x - ptr.x, dy = d.y - ptr.y, m = dx * dx + dy * dy;
+        const ax = d.x - ap.x, ay = d.y - ap.y, am = ax * ax + ay * ay;
+        let g = 0;
+        if (m < 6400) g = 1 - m / 6400;
+        if (d.land && am < 1600) g = Math.max(g, (1 - am / 1600) * 0.5);
+        if (!g) continue;
+        ctx.globalAlpha = Math.min(1, g * 0.85);
+        ctx.beginPath(); ctx.arc(d.x, d.y, DOT_R + g * 0.8, 0, TAU); ctx.fill();
+      }
+
+      if (prev !== active) {
+        const a = proj(E[prev].lat, E[prev].lon), b = ap;
+        const u = MOTION ? easeInOut(clamp((now - arcStart) / 1400, 0, 1)) : 1;
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 - Math.hypot(b.x - a.x, b.y - a.y) * 0.35 - 12;
+        const grad = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
+        grad.addColorStop(0, colorOf(prev)); grad.addColorStop(1, colorOf(active));
+        ctx.globalAlpha = 0.9; ctx.strokeStyle = grad; ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        for (let s = 0; s <= 48; s++) {
+          const v = (s / 48) * u;
+          const x = qb(a.x, mx, b.x, v), y = qb(a.y, my, b.y, v);
+          if (s) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+        }
+        ctx.stroke();
+        if (u < 1) {
+          ctx.globalAlpha = 1; ctx.fillStyle = '#fff';
+          ctx.beginPath(); ctx.arc(qb(a.x, mx, b.x, u), qb(a.y, my, b.y, u), 2.6, 0, TAU); ctx.fill();
+        }
+      }
+      ctx.globalAlpha = 1;
+    });
+  }
+
+  /* ---------- projects page ---------- */
+  function initProjects() {
+    const P = D.projects;
+    const cats = ['All', ...new Set(P.map((p) => p.category))];
+    const chips = $('#chips');
+    const grid = $('#pgrid');
+    const list = $('#plist');
+    const preview = $('#float-preview');
+    let filter = 'All', mode = 'grid';
+
+    chips.innerHTML = cats.map((c) => `<button class="chip" type="button" data-cat="${esc(c)}" aria-pressed="${c === 'All'}">${esc(c)}<b>${c === 'All' ? P.length : P.filter((p) => p.category === c).length}</b></button>`).join('');
+    chips.addEventListener('click', (e) => {
+      const b = e.target.closest('.chip');
+      if (!b) return;
+      filter = b.dataset.cat;
+      $$('.chip', chips).forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
+      render();
+    });
+    $$('.viewby button').forEach((b) => b.addEventListener('click', () => {
+      mode = b.dataset.mode;
+      $$('.viewby button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      render();
+    }));
+
+    const SPANS = [4, 2, 2, 4, 3, 3];
+    function render() {
+      const items = P.filter((p) => filter === 'All' || p.category === filter);
+      grid.hidden = mode !== 'grid';
+      list.hidden = mode !== 'list';
+      if (mode === 'grid') {
+        let acc = 0;
+        grid.innerHTML = items.map((p, i) => {
+          let span = SPANS[i % SPANS.length];
+          if (i === items.length - 1 && (acc % 6) + span < 6) span = 6 - (acc % 6);
+          acc += span;
+          return `<article class="pcard" style="--span:${span};animation-delay:${i * 50}ms"><button class="pcard-btn" type="button" data-i="${P.indexOf(p)}"><div class="pcard-top"><span>${esc(p.category)}</span><span>${esc(p.year)}</span></div><div class="pcard-media">${thumb(p)}</div><div class="pcard-bot"><h3>${esc(p.title)}</h3><span class="discover">Discover →</span></div></button></article>`;
+        }).join('');
+      } else {
+        list.innerHTML = items.map((p, i) => `<li><button type="button" data-i="${P.indexOf(p)}" style="animation-delay:${i * 35}ms"><span class="idx">${String(i + 1).padStart(2, '0')}</span><span class="t">${esc(p.title)}</span><span class="c">${esc(p.category)}</span><span class="yr">${esc(p.year)}</span><span class="ar">↗</span></button></li>`).join('');
+      }
+    }
+    const open = (e) => { const b = e.target.closest('[data-i]'); if (b) openDetail(P[+b.dataset.i]); };
+    grid.addEventListener('click', open);
+    list.addEventListener('click', open);
+
+    let shown = -1;
+    list.addEventListener('pointermove', (e) => {
+      const b = e.target.closest('[data-i]');
+      if (!b) { preview.classList.remove('show'); shown = -1; return; }
+      const i = +b.dataset.i;
+      if (i !== shown) { preview.innerHTML = thumb(P[i]); shown = i; }
+      preview.style.transform = `translate(${e.clientX + 24}px, ${e.clientY - 100}px)`;
+      preview.classList.add('show');
+    });
+    list.addEventListener('pointerleave', () => { preview.classList.remove('show'); shown = -1; });
+    render();
+  }
+
+  /* ---------- case study page: a shelf of 3D books ---------- */
+  // Generated cover (used until the real cover image exists at c.cover).
+  function coverHTML(c, i) {
+    const rnd = seeded(c.title);
+    const [c1, c2] = c.colors || ['#eee', '#222'];
+    const v = i % 4;
+    let art = '';
+    if (v === 0) { // sun over a hill
+      art = `<i class="ca-sun" style="background:${esc(c.spine)}"></i><i class="ca-hill" style="background:${esc(c2)}"></i>`;
+    } else if (v === 1) { // punched-hole pattern
+      art = Array.from({ length: 14 }, () => { const sz = 6 + rnd() * 22; return `<i class="ca-dot" style="left:${(8 + rnd() * 80).toFixed(1)}%;top:${(30 + rnd() * 55).toFixed(1)}%;width:${sz.toFixed(1)}cqw;height:${sz.toFixed(1)}cqw;background:${esc(c2)}"></i>`; }).join('');
+    } else if (v === 2) { // stacked, evening-out blocks
+      art = Array.from({ length: 6 }, (_, k) => `<i class="ca-block" style="bottom:${12 + k * 9}%;width:${(70 - Math.abs(2.5 - k) * (8 - k) * 1.5).toFixed(0)}%;background:${k % 2 ? esc(c2) : esc(c.ink)}"></i>`).join('');
+    } else { // scattered dots gathering into clusters
+      const centers = [[30, 52], [68, 62], [44, 80]];
+      art = Array.from({ length: 36 }, (_, k) => { const [cx, cy] = centers[k % 3]; const r = 4 + rnd() * 14; const a = rnd() * TAU; return `<i class="ca-dot" style="left:${(cx + Math.cos(a) * r).toFixed(1)}%;top:${(cy + Math.sin(a) * r * 0.7).toFixed(1)}%;width:4cqw;height:4cqw;background:${['#e8553b', esc(c2), '#2f9e6b'][k % 3]}"></i>`; }).join('');
+    }
+    return `<div class="cover" style="--c1:${esc(c1)};--c2:${esc(c2)};--spine:${esc(c.spine)};--ink:${esc(c.ink)};--title:${esc(c.coverInk || c.spine)}">
+      <div class="cover-art">${art}</div>
+      <p class="cover-kicker">Case study ${String(i + 1).padStart(2, '0')} · ${esc(c.year)}</p>
+      <h3 class="cover-title">${esc(c.coverTitle || c.title)}</h3>
+      <p class="cover-by">${esc(D.name)}</p>
+      ${c.cover ? `<img class="cover-img" src="${esc(c.cover)}" alt="" onerror="this.remove()">` : ''}
+      <span class="grain"></span>
+    </div>`;
+  }
+
+  function initCases() {
+    const C = D.caseStudies;
+    const el = $('#cases');
+    el.innerHTML = C.map((c, i) => `<button class="book" type="button" data-i="${i}" aria-label="${esc(c.title)}" style="--spine:${esc(c.spine)};--ink:${esc(c.ink)};animation-delay:${i * 90}ms">
+      <div class="book-3d">
+        <div class="book-face book-front">${coverHTML(c, i)}</div>
+        <div class="book-face book-spine"><span class="spine-no">${String(i + 1).padStart(2, '0')}</span><span class="spine-title">${esc(c.title)}</span><span class="spine-year">${esc(c.year)}</span><span class="grain"></span></div>
+        <div class="book-face book-pages"></div>
+        <div class="book-face book-back"><span class="grain"></span></div>
+      </div>
+    </button>`).join('');
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-i]');
+      if (!b) return;
+      const i = +b.dataset.i;
+      const c = C[i];
+      if (c.link && c.link !== '#') window.open(c.link, '_blank', 'noopener');
+      else openDetail({ ...c, category: 'Case Study', mediaHTML: `<div class="modal-cover" style="--spine:${esc(c.spine)}">${coverHTML(c, i)}</div>` });
+    });
+  }
+
+  /* ---------- certificates: library cards ---------- */
+  function initCerts() {
+    const C = D.certifications || [];
+    const el = $('#certs');
+    $('#certs-count').textContent = `${C.length} credentials`;
+    const STRIPES = ['#e8553b', '#2f6fd6', '#1c1c1c', '#c6a700', '#2f9e6b', '#b18cff', '#ff7ab6'];
+    el.innerHTML = C.map((c, i) => `<li class="cert" style="--stripe:${STRIPES[i % STRIPES.length]};animation-delay:${i * 50}ms">
+      <div class="cert-top"><span>No. ${String(i + 1).padStart(3, '0')}</span><span>${esc(c.date)}</span></div>
+      <h3>${esc(c.title)}</h3>
+      <p class="cert-issuer">${esc(c.issuer)}</p>
+      ${c.id ? `<p class="cert-id">ID ${esc(c.id)}</p>` : ''}
+      <div class="cert-skills">${(c.skills || []).map((x) => `<span>${esc(x)}</span>`).join('')}</div>
+      ${c.url ? `<a class="cert-link" href="${esc(c.url)}" target="_blank" rel="noopener">Show credential ↗</a>` : ''}
+    </li>`).join('');
+  }
+
+  /* ---------- my profile page ---------- */
+  const ICONS = {
+    chip: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><rect x="9.5" y="9.5" width="5" height="5" rx="1"/><path d="M9 3v3M15 3v3M9 18v3M15 18v3M3 9h3M3 15h3M18 9h3M18 15h3"/></svg>',
+    code: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M10 9.5 7.5 12l2.5 2.5M14 9.5l2.5 2.5-2.5 2.5"/></svg>',
+    shield: '<svg viewBox="0 0 24 24"><path d="M12 3 5 6v5.5c0 4.2 2.9 7.9 7 9.5 4.1-1.6 7-5.3 7-9.5V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>',
+    people: '<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.3"/><path d="M15.5 14.2c2.3.1 4.3 1.6 4.9 4.3"/></svg>',
+  };
+  const SHAPES = [
+    '<svg viewBox="0 0 24 24"><path d="M12 5 20 19H4Z"/></svg>',
+    '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>',
+    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5"/></svg>',
+    '<svg viewBox="0 0 24 24"><path d="M12 4.5 19.5 12 12 19.5 4.5 12Z"/></svg>',
+  ];
+
+  function initProfile() {
+    const P = D.profile;
+    if (!P) return;
+
+    $('#traits').innerHTML = P.traits.map((t, i) => `<article class="trait" style="animation-delay:${i * 60}ms">
+      <span class="trait-icon">${ICONS[t.icon] || ICONS.code}</span>
+      <p>${esc(t.text)}</p>
+      <div class="trait-tags">${t.tags.map((x) => `<span>${esc(x)}</span>`).join('')}</div>
+      <h2>${esc(t.title)}</h2>
+    </article>`).join('');
+
+    // persona — radar chart
+    const pe = P.persona;
+    const svg = $('#radar');
+    const n = pe.traits.length, CX = 160, CY = 158, R = 104;
+    const pt = (i, r) => { const a = -Math.PI / 2 + (i * TAU) / n; return [CX + r * Math.cos(a), CY + r * Math.sin(a)]; };
+    const hue = (i) => ['#ff6ad5', '#c6f432', '#5eead4', '#7c8cff', '#ffb547'][i % 5];
+    const rings = [0.2, 0.4, 0.6, 0.8, 1].map((k) => `<circle cx="${CX}" cy="${CY}" r="${(R * k).toFixed(1)}" class="r-ring"/>`).join('');
+    const axes = pe.traits.map((_, i) => { const [x, y] = pt(i, R); return `<line x1="${CX}" y1="${CY}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="r-axis"/>`; }).join('');
+    const scale = [20, 40, 60, 80, 100].map((v) => `<text x="${(CX - (R * v) / 100).toFixed(1)}" y="${CY + 3}" class="r-scale">${v}</text>`).join('');
+    const vpts = pe.traits.map((t, i) => pt(i, (R * t.value) / 100));
+    const edges = vpts.map((p, i) => { const q = vpts[(i + 1) % n]; return `<line x1="${p[0].toFixed(1)}" y1="${p[1].toFixed(1)}" x2="${q[0].toFixed(1)}" y2="${q[1].toFixed(1)}" stroke="${hue(i)}" class="r-edge"/>`; }).join('');
+    const spokes = vpts.map((p, i) => `<line x1="${CX}" y1="${CY}" x2="${p[0].toFixed(1)}" y2="${p[1].toFixed(1)}" stroke="${hue(i)}" class="r-spoke"/>`).join('');
+    const nodes = vpts.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.2" fill="${hue(i)}" class="r-node"><title>${esc(pe.traits[i].label)}: ${pe.traits[i].value}</title></circle>`).join('');
+    const labels = pe.traits.map((t, i) => {
+      const [x, y] = pt(i, R + 20);
+      const anchor = Math.abs(x - CX) < 8 ? 'middle' : x < CX ? 'end' : 'start';
+      return `<text x="${x.toFixed(1)}" y="${(y + 4).toFixed(1)}" text-anchor="${anchor}" class="r-label">${esc(t.label)}</text>`;
+    }).join('');
+    svg.innerHTML = `<defs><radialGradient id="r-fill" cx="50%" cy="50%" r="60%"><stop offset="0" stop-color="#7c8cff" stop-opacity=".05"/><stop offset="1" stop-color="#ff6ad5" stop-opacity=".32"/></radialGradient></defs>
+      ${rings}${axes}${scale}
+      <g class="r-shape" style="transform-origin:${CX}px ${CY}px"><polygon points="${vpts.map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ')}" fill="url(#r-fill)"/>${spokes}${edges}${nodes}</g>
+      ${labels}`;
+    new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) svg.classList.add('in'); }).observe(svg);
+
+    const list = (el, items) => { $(el).innerHTML = items.map((x) => `<li>${esc(x)}</li>`).join(''); };
+    list('#persona-goal', pe.goal);
+    list('#persona-mindset', pe.mindset);
+    $('#persona-name').textContent = D.name;
+    $('#persona-role').textContent = pe.role;
+    $('#persona-quote').textContent = `“${pe.quote}”`;
+    const photo = $('#persona-photo');
+    const photoBox = photo.parentElement;
+    if (pe.photo) {
+      photo.onerror = () => { photo.remove(); photoBox.classList.add('no-photo'); };
+      photo.src = pe.photo;
+    } else { photo.remove(); photoBox.classList.add('no-photo'); }
+    const persona = $('#persona');
+    $$('.flip-btn', persona).forEach((b) => b.addEventListener('click', () => {
+      persona.classList.toggle('flipped');
+    }));
+
+    $('#hl-title').textContent = P.highlightsTitle || 'Highlights';
+    $('#highlights').innerHTML = P.highlights.map((h, i) => `<li class="hl" style="animation-delay:${i * 70}ms">
+      <span class="hl-shape">${SHAPES[i % SHAPES.length]}</span>
+      <div><h3>${esc(h.title)}</h3><p class="hl-sub">${esc(h.sub)}</p><p>${esc(h.text)}</p></div>
+    </li>`).join('');
+  }
+
+  /* ---------- global: glowing RGB cursor trail ---------- */
+  function initCursorTrail() {
+    if (!MOTION || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;
+    const NS = 'http://www.w3.org/2000/svg';
+    const LEN = 15, FLOW = 0.5;
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'cursor-trail');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.innerHTML = '<defs><linearGradient id="trail-grad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%"/><stop offset="50%"/><stop offset="100%"/></linearGradient></defs><path stroke="url(#trail-grad)"/>';
+    document.body.appendChild(svg);
+    const path = svg.querySelector('path');
+    const stops = [...svg.querySelectorAll('stop')];
+    const mouse = { x: 0, y: 0 };
+    let pts = null, running = false;
+
+    const smooth = (p) => { // Catmull-Rom → cubic Bézier, so the trail reads as one smooth stroke
+      let d = `M${p[0].x.toFixed(1)},${p[0].y.toFixed(1)}`;
+      for (let i = 0; i < p.length - 1; i++) {
+        const a = p[i - 1] || p[i], b = p[i], c = p[i + 1], e = p[i + 2] || c;
+        d += ` C${(b.x + (c.x - a.x) / 6).toFixed(1)},${(b.y + (c.y - a.y) / 6).toFixed(1)} ${(c.x - (e.x - b.x) / 6).toFixed(1)},${(c.y - (e.y - b.y) / 6).toFixed(1)} ${c.x.toFixed(1)},${c.y.toFixed(1)}`;
+      }
+      return d;
+    };
+    function step() {
+      for (let i = pts.length - 1; i > 0; i--) {
+        pts[i].x += (pts[i - 1].x - pts[i].x) * FLOW;
+        pts[i].y += (pts[i - 1].y - pts[i].y) * FLOW;
+      }
+      pts[0].x = mouse.x; pts[0].y = mouse.y;
+      const t = Date.now() / 1000;
+      stops.forEach((s, k) => s.setAttribute('stop-color', `hsl(${(t * 120 + k * 120) % 360},100%,60%)`));
+      path.setAttribute('d', smooth(pts));
+      const tail = pts[pts.length - 1];
+      if (Math.hypot(tail.x - mouse.x, tail.y - mouse.y) < 0.5) { running = false; path.setAttribute('d', ''); return; }
+      requestAnimationFrame(step);
+    }
+    addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'mouse') return;
+      mouse.x = e.clientX; mouse.y = e.clientY;
+      if (!pts) pts = Array.from({ length: LEN }, () => ({ x: mouse.x, y: mouse.y }));
+      if (!running) { running = true; requestAnimationFrame(step); }
+    }, { passive: true });
+    document.addEventListener('pointerleave', () => { pts = null; path.setAttribute('d', ''); });
+  }
+
+  /* ---------- global: wavy burst on click ---------- */
+  function initClickWaves() {
+    if (!MOTION) return;
+    const NS = 'http://www.w3.org/2000/svg';
+    const SIZE = 65, DUR = 800, STROKE = 2;
+    addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse' || e.button !== 0) return;
+      const svg = document.createElementNS(NS, 'svg');
+      svg.setAttribute('class', 'click-wave');
+      svg.setAttribute('viewBox', `0 0 ${SIZE} ${SIZE}`);
+      svg.style.left = `${e.clientX}px`;
+      svg.style.top = `${e.clientY}px`;
+      const c = SIZE / 2, g = SIZE * 0.05;
+      svg.innerHTML = [45, 90, 135, 180].map((deg) => {
+        const r = (deg * Math.PI) / 180, n = r + Math.PI / 2;
+        const x1 = c + SIZE * 0.1 * Math.cos(r), y1 = c - SIZE * 0.1 * Math.sin(r);
+        const x2 = c + SIZE * 0.5 * Math.cos(r), y2 = c - SIZE * 0.5 * Math.sin(r);
+        const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+        return `<path d="M ${x1} ${y1} Q ${mx + g * Math.cos(n)} ${my - g * Math.sin(n)} ${mx} ${my} T ${x2} ${y2}"/>`;
+      }).join('');
+      document.body.appendChild(svg);
+      svg.querySelectorAll('path').forEach((p) => {
+        const L = p.getTotalLength();
+        p.animate([
+          { strokeDasharray: `1 ${L}`, strokeDashoffset: 0, strokeWidth: STROKE },
+          { strokeDasharray: `${L * 0.6} ${L}`, strokeDashoffset: -L * 0.4, strokeWidth: STROKE, offset: 0.6 },
+          { strokeDasharray: `${L} ${L}`, strokeDashoffset: -L, strokeWidth: 0 },
+        ], { duration: DUR, easing: 'cubic-bezier(.25,.46,.45,.94)', fill: 'forwards' });
+      });
+      setTimeout(() => svg.remove(), DUR + 50);
+    });
+  }
+
+  // Dashboard cards that open another page ("Who are you?" → Projects, the map → My Profile).
+  // Clicks on the floating project cards in the tunnel keep opening their own popups.
+  function initCardLinks() {
+    $$('[data-link]').forEach((card) => {
+      const go = () => { location.hash = card.dataset.link; };
+      card.addEventListener('click', (e) => { if (!e.target.closest('.tcard, a, .modal')) go(); });
+      card.addEventListener('keydown', (e) => {
+        if ((e.key === 'Enter' || e.key === ' ') && e.target === card) { e.preventDefault(); go(); }
+      });
+    });
+  }
+
+  initChrome();
+  initCardLinks();
+  initCursorTrail();
+  initClickWaves();
+  initHello();
+  initTime();
+  initSkills();
+  initTunnel();
+  $$('.card-map').forEach(initMap);
+  initProjects();
+  initCases();
+  initCerts();
+  initProfile();
+  requestAnimationFrame(frame);
+})();
