@@ -35,6 +35,28 @@ const OFFTOPIC = [
 ];
 const nope = () => NOPE[Math.floor(Math.random() * NOPE.length)];
 
+// Ronie's server voice: Deepgram Aura (a natural male voice). Computers that can run it use the Kokoro voice in the
+// browser instead (free, no quota); this is for phones and for the first moments before Kokoro has loaded.
+const VOICE_MODEL = '@cf/deepgram/aura-1', VOICE_SPEAKER = 'arcas';
+async function speak(env, body, cors) {
+  const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+  if (!text) return json({ error: 'bad request' }, 400, cors);
+  try {
+    const out = await env.AI.run(VOICE_MODEL, { text, speaker: VOICE_SPEAKER, encoding: 'mp3' });
+    let bytes = null;
+    if (out instanceof ReadableStream) bytes = new Uint8Array(await new Response(out).arrayBuffer());
+    else if (out instanceof ArrayBuffer) bytes = new Uint8Array(out);
+    else if (ArrayBuffer.isView(out)) bytes = new Uint8Array(out.buffer, out.byteOffset, out.byteLength);
+    else if (out && typeof out.audio === 'string') bytes = Uint8Array.from(atob(out.audio), (c) => c.charCodeAt(0));
+    if (!bytes || !bytes.length) return json({ error: 'empty' }, 502, cors);
+    // label WAV ("RIFF…") and MP3 correctly so every browser decodes it
+    const wav = bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46;
+    return new Response(bytes, { headers: { ...cors, 'Content-Type': wav ? 'audio/wav' : 'audio/mpeg', 'Cache-Control': 'no-store' } });
+  } catch {
+    return json({ error: 'unavailable' }, 503, cors);
+  }
+}
+
 const json = (body, status, headers) => new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json' } });
 
 export default {
@@ -47,17 +69,20 @@ export default {
       Vary: 'Origin',
     };
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
-    if (request.method !== 'POST' || new URL(request.url).pathname !== '/chat') return json({ error: 'not found' }, 404, cors);
+    const path = new URL(request.url).pathname;
+    if (request.method !== 'POST' || (path !== '/chat' && path !== '/speak')) return json({ error: 'not found' }, 404, cors);
     if (!ALLOWED.includes(origin)) return json({ error: 'forbidden' }, 403, cors);
 
-    // a few questions a minute per visitor keeps the free allowance for everyone
-    if (env.LIMITER) {
-      const { success } = await env.LIMITER.limit({ key: request.headers.get('CF-Connecting-IP') || 'anon' });
+    // a few requests a minute per visitor keeps the free allowance for everyone
+    const limiter = path === '/speak' ? env.VOICE_LIMITER : env.LIMITER;
+    if (limiter) {
+      const { success } = await limiter.limit({ key: request.headers.get('CF-Connecting-IP') || 'anon' });
       if (!success) return json({ error: 'slow down' }, 429, cors);
     }
 
     let body;
     try { body = await request.json(); } catch { return json({ error: 'bad request' }, 400, cors); }
+    if (path === '/speak') return speak(env, body, cors);
     const messages = (Array.isArray(body.messages) ? body.messages : [])
       .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
       .slice(-8)

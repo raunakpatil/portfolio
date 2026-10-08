@@ -869,7 +869,9 @@ function updateFace(now, dt) {
   const open = face.L[1] > 0.04 && face.L[3] < 0.5 && face.L[4] < 0.5;
   const blink = open && MOTION && bt < 2 ? 1 - Math.abs(bt - 1) : 0;
   // a little bounce while he talks
-  const talk = MOTION && now < face.talkUntil ? Math.abs(Math.sin(t * 17)) : 0;
+  // while he speaks, the eyes bounce with the loudness of his voice; otherwise a little bob as the text types
+  const loud = voiceLoudness();
+  const talk = !MOTION ? 0 : voiceSrc ? loud : now < face.talkUntil ? Math.abs(Math.sin(t * 17)) : 0;
   // eyes follow the mouse; an expression can add its own glance
   const g = goal.look || [0, 0];
   face.look[0] += (look.x * 0.07 + g[0] - face.look[0]) * k;
@@ -1054,7 +1056,7 @@ function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
-  if (view.hidden || document.hidden) return;
+  if (view.hidden || document.hidden) { if (voiceSrc) stopVoice(); return; }   // left the page: stop talking
   resize();
   if (tubes.length) updateTubes(now, dt);
 
@@ -1154,12 +1156,14 @@ function wake() {
   wakeAt = performance.now();
   wakeBtn.hidden = true;
   face.name = 'surprised';
+  // waking him is a click, so the browser lets him speak; start fetching the natural voice right away
+  if (soundOn) { audioCtx().resume?.(); loadKokoro(); }
   // the tubes flicker on, the room light rises, he lifts his head, leaps to his spot and starts talking
   setTimeout(() => { panel.hidden = false; go(A.start); }, MOTION ? (LEAP_DELAY + LEAP_CROUCH + LEAP_AIR + 0.45) * 1000 : 0);
 }
 
 /* ======================= sound (optional typing blips) ======================= */
-let soundOn = store.get('rai-sound') === 'on';
+let soundOn = store.get('rai-sound') !== 'off';   // on unless the visitor switched it off
 let audio = null;
 function syncSound() {
   soundBtn.setAttribute('aria-pressed', String(soundOn));
@@ -1176,8 +1180,90 @@ function buzz() {
     src.connect(f).connect(g).connect(audio.destination); src.start();
   } catch { /* no audio */ }
 }
+/* ======================= voice ======================= */
+// With sound on, Ronie says every line he types. Computers that can run it get Kokoro, a small, natural and
+// expressive voice model that runs in the browser (no server, no quota). Phones — and everyone in the first moments
+// before Kokoro has loaded — get the quick MeloTTS voice from the chat worker (very cheap on the free allowance).
+const VOICE = { lib: 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js', model: 'onnx-community/Kokoro-82M-v1.0-ONNX', voice: 'am_puck', speed: 1.04, ...(A.voice || {}) };
+const speakUrl = A.chatUrl ? A.chatUrl.replace(/\/chat$/, '/speak') : '';
+let kokoro = null, kokoroLoading = null, voiceToken = 0, voiceSrc = null, voiceAnalyser = null, voiceLevel = 0;
+const voiceData = new Uint8Array(256);
+const audioCtx = () => (audio ||= new (window.AudioContext || window.webkitAudioContext)());
+
+function loadKokoro() {
+  if (kokoroLoading) return kokoroLoading;
+  kokoroLoading = (async () => {
+    // only where it runs well: a desktop browser with a GPU (WebGPU)
+    if (!('gpu' in navigator) || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return null;
+    if (!(await navigator.gpu.requestAdapter().catch(() => null))) return null;
+    const { KokoroTTS } = await import(VOICE.lib);
+    kokoro = await KokoroTTS.from_pretrained(VOICE.model, { dtype: 'fp32', device: 'webgpu' });
+    return kokoro;
+  })().catch((err) => { console.warn('natural voice unavailable, using the quick one', err); return null; });
+  return kokoroLoading;
+}
+
+function stopVoice() {
+  voiceToken++;
+  if (voiceSrc) { try { voiceSrc.stop(); } catch { /* already stopped */ } voiceSrc = null; }
+}
+
+// play one chunk of audio through an analyser (so his eyes can move with his voice); resolves when it ends
+function playVoice(buffer, my) {
+  return new Promise((resolve) => {
+    if (my !== voiceToken) return resolve();
+    const ctx = audioCtx();
+    if (!voiceAnalyser) { voiceAnalyser = ctx.createAnalyser(); voiceAnalyser.fftSize = 256; voiceAnalyser.connect(ctx.destination); }
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    src.connect(voiceAnalyser);
+    src.onended = () => { if (voiceSrc === src) voiceSrc = null; resolve(); };
+    voiceSrc = src;
+    src.start();
+  });
+}
+
+// how loud he's speaking right now (0..1), smoothed — drives the eye bounce
+function voiceLoudness() {
+  if (!voiceSrc || !voiceAnalyser) { voiceLevel *= 0.8; return voiceLevel; }
+  voiceAnalyser.getByteTimeDomainData(voiceData);
+  let sum = 0;
+  for (let i = 0; i < voiceData.length; i++) { const v = (voiceData[i] - 128) / 128; sum += v * v; }
+  voiceLevel += (Math.min(1, Math.sqrt(sum / voiceData.length) * 5) - voiceLevel) * 0.5;
+  return voiceLevel;
+}
+
+async function speak(text) {
+  stopVoice();
+  if (!soundOn || !text) return;
+  const my = voiceToken;
+  const said = text.replace(/R\.O\.N\.I\.E\./g, 'Ronie').replace(/\s+/g, ' ').trim();
+  try {
+    if (kokoro) {
+      // sentence by sentence: the next one is generated while this one plays, so he starts talking quickly
+      const parts = said.match(/[^.!?…]+[.!?…]+["')\]]*|[^.!?…]+$/g) || [said];
+      const make = (s) => kokoro.generate(s.trim(), { voice: VOICE.voice, speed: VOICE.speed });
+      let next = make(parts[0]);
+      for (let i = 0; i < parts.length; i++) {
+        const out = await next;
+        if (my !== voiceToken) return;
+        next = i + 1 < parts.length ? make(parts[i + 1]) : null;
+        const ctx = audioCtx(), buf = ctx.createBuffer(1, out.audio.length, out.sampling_rate);
+        buf.copyToChannel(out.audio, 0);
+        await playVoice(buf, my);
+      }
+      return;
+    }
+    if (!speakUrl) return;
+    const r = await fetch(speakUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: said }) });
+    if (!r.ok || my !== voiceToken) return;
+    const buf = await audioCtx().decodeAudioData(await r.arrayBuffer());
+    await playVoice(buf, my);
+  } catch { /* no voice this time — the text is still there */ }
+}
+
 function blip() {
-  if (!soundOn) return;
+  if (!soundOn || speakUrl || kokoro) return;   // when Ronie has a voice, the typing blips step aside
   try {
     audio ||= new (window.AudioContext || window.webkitAudioContext)();
     const o = audio.createOscillator(), g = audio.createGain();
@@ -1217,6 +1303,7 @@ function lineFor(id, step) {
 function typeLine(text) {
   const my = ++typingToken;
   sayEl.classList.remove('done');
+  speak(text);
   if (!MOTION) { sayEl.textContent = text; return Promise.resolve(); }
   return new Promise((resolve) => {
     let i = 0;
@@ -1462,7 +1549,12 @@ function init() {
   const saved = store.get('rai-name');
   if (saved) answers.name = saved;
   syncSound();
-  soundBtn.addEventListener('click', () => { soundOn = !soundOn; store.set('rai-sound', soundOn ? 'on' : 'off'); syncSound(); if (soundOn) blip(); });
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    store.set('rai-sound', soundOn ? 'on' : 'off');
+    syncSound();
+    if (soundOn) { audioCtx().resume?.(); loadKokoro(); blip(); } else stopVoice();
+  });
   wakeBtn.addEventListener('click', wake);
   backBtn.addEventListener('click', () => {
     if (!canGoBack()) return;
