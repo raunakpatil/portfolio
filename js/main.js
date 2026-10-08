@@ -390,7 +390,7 @@
       const value = side === 'start' ? v.start : side === 'end' ? v.end : v.total;
       if (withGlitch) glitch(num, fmt(value), { percent: 0.8, duration: 700 }); else if (!num._glitchBusy) num.textContent = fmt(value);
       unit.textContent = side === 'start' ? `Hours in ${T.start.region}` : side === 'end' ? `Hours in ${T.end.region}` : T.unit;
-      todayEl.textContent = side === 'start' ? `${T.start.year} — ${T.start.year + 1}` : `+${v.today.toFixed(1)} h today`;
+      todayEl.textContent = side === 'start' ? `${T.start.year} — ${T.start.year + 1}` : '';
     }
     const setSide = (s) => {
       if (s === side) return;
@@ -398,10 +398,17 @@
       card.dataset.side = s;
       if (counted) render(true);
     };
+    // cycles total → India → UK every 3 s on its own; hovering a marker takes over until the mouse leaves
+    const CYCLE = ['', 'start', 'end'];
+    let hovered = false;
     $$('[data-side]', card).forEach((el) => {
-      el.addEventListener('pointerenter', () => setSide(el.dataset.side));
-      el.addEventListener('pointerleave', () => setSide(''));
+      el.addEventListener('pointerenter', () => { hovered = true; setSide(el.dataset.side); });
+      el.addEventListener('pointerleave', () => { hovered = false; });
     });
+    setInterval(() => {
+      if (!counted || hovered || document.hidden || !card.offsetWidth) return;
+      setSide(CYCLE[(CYCLE.indexOf(side) + 1) % CYCLE.length]);
+    }, 3000);
 
     // count up on first view, then keep the live number ticking
     let start = null;
@@ -865,9 +872,8 @@
     const pins = $$('.pin', pinsEl);
     // ---- the journey: every stop in order, then home to the first stop, fade out, repeat
     const legs = E.map((_, i) => [i, (i + 1) % E.length]); // the last leg is the trip home
-    const HOME = D.homecoming || { org: 'Back home · Nagpur', role: 'Every journey loops back to where it began' };
     // HOLD at each stop, TRAVEL per leg; on the trip home the map glitches out, VANISH, sits empty for VOID, then restarts
-    const HOLD = 2600, TRAVEL = 1800, HOME_TRAVEL = 2400, VANISH = 650, VOID = 1300, APPEAR = 900;
+    const HOLD = 2600, TRAVEL = 1800, HOME_TRAVEL = 2400, VANISH = 325, VOID = 1300, APPEAR = 900;
     const qb = (a, b, c, u) => (1 - u) * (1 - u) * a + 2 * (1 - u) * u * b + u * u * c;
     let curves = [];
 
@@ -978,7 +984,6 @@
       if (stage === 'hold' && t > HOLD) {
         stage = 'travel'; leg = at; t = 0;
         pins.forEach((p) => p.classList.remove('active'));
-        if (leg === legs.length - 1) showInfo(HOME, colorOf(0));
       } else if (stage === 'travel' && (t > travelTime || !MOTION)) {
         if (homeLeg) { stage = 'vanish'; t = 0; card.classList.add('glitch-out'); }
         else arrive(legs[leg][1]);
@@ -996,12 +1001,12 @@
       }
       // glitch builds up over the second half of the trip home, peaks, then everything is gone
       let gi = 0;
-      if (onHomeLeg && MOTION) gi = clamp((t / legTime - 0.35) / 0.65, 0, 1);
+      if (onHomeLeg && MOTION) gi = clamp((t / legTime - 0.675) / 0.325, 0, 1); // last third of the trip home
       if (stage === 'vanish') gi = 1;
       if (gi > 0 && !glitchingText) {
         glitchingText = true;
         card.classList.add('glitching');
-        scrambleText(HOME_TRAVEL * 0.65 + VANISH);
+        scrambleText(HOME_TRAVEL * 0.325 + VANISH);
       }
 
       // the map itself always stays — it only fades in once, when the page first loads

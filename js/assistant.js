@@ -60,6 +60,7 @@ const ENV_ONLY = 1;              // layer seen by the reflection camera but not 
 let cubeRT, cubeCam, backdrop, softbox, envTick = 0, wakeAt = 0;
 const bars = [];
 const barLights = [];
+const OFF_TUBE = new THREE.Color(0x141414), _lit = new THREE.Color();
 
 function init3D() {
   try {
@@ -240,18 +241,20 @@ function updateNeon(now, dt) {
   const t = now / 1000;
   const sinceWake = awake ? (now - wakeAt) / 1000 : -1;
   for (const b of bars) {
-    // asleep: barely-there embers; on wake they switch on one after another
+    // asleep: completely off; on wake they switch on one after another
     const on = sinceWake >= 0 && sinceWake > b.order * 0.05;
-    const goal = on ? 1 : 0.04;
+    const goal = on ? 1 : 0;
     b.level += (goal - b.level) * Math.min(1, dt * (on ? 6 : 3));
     const breathe = 0.78 + 0.22 * Math.sin(t * 1.1 + b.phase);
     const lvl = b.level * breathe;
-    // on screen: rich colour (not blown out to white); reflections get a brighter copy (see updateReflections)
-    b.core.material.color.copy(b.col).multiplyScalar(0.12 + 0.95 * lvl);
+    // off = a dark, unlit glass tube; on = rich colour (reflections get a brighter copy, see updateReflections)
+    b.core.material.color.copy(OFF_TUBE).lerp(_lit.copy(b.col).multiplyScalar(1.07), lvl);
     b.glow.material.opacity = 0.6 * lvl;
     b.glow.rotation.y = Math.atan2(camera.position.x - b.g.position.x, camera.position.z - b.g.position.z);
   }
-  barLights.forEach((l, i) => { l.intensity = 9 * power * (0.85 + 0.15 * Math.sin(t * 1.1 + i)); });
+  // the coloured lights only exist once he's awake (they ramp up with the tubes)
+  const lit = bars.reduce((sum, b) => sum + b.level, 0) / bars.length;
+  barLights.forEach((l, i) => { l.intensity = 9 * lit * (0.85 + 0.15 * Math.sin(t * 1.1 + i)); });
 }
 
 // re-photograph the surroundings for reflections (every few frames is plenty)
@@ -261,11 +264,11 @@ function updateReflections() {
   model.visible = false;
   if (dust) dust.visible = false;
   // the reflection camera sees HDR-bright tubes, so they read clearly on the metal
-  for (const b of bars) { b.core.material.color.multiplyScalar(4); b.glow.visible = false; }
+  for (const b of bars) { b.core.material.color.multiplyScalar(1 + 3 * b.level); b.glow.visible = false; }
   cubeCam.position.set(lookAt.x, lookAt.y - 0.5, lookAt.z);
   cubeCam.update(renderer, scene);
   cubeRT.texture.needsPMREMUpdate = true;
-  for (const b of bars) { b.core.material.color.multiplyScalar(0.25); b.glow.visible = true; }
+  for (const b of bars) { b.core.material.color.multiplyScalar(1 / (1 + 3 * b.level)); b.glow.visible = true; }
   model.visible = true;
   if (dust) dust.visible = true;
 }
