@@ -79,13 +79,20 @@ def offsets_at(keys, t):
     return keys[-1][1] if t >= keys[-1][0] else keys[0][1]
 
 FEET_MID = None
+REACH_TARGET = {}
 def apply(offs):
-    for bone in ORDER:
-        if bone not in offs: continue
+    def turn(bone):
         for ax in ('up', 'right', 'fwd'):
             d = offs[bone].get(ax, 0)
             if abs(d) > 1e-4:
                 rot_world(bone, ax, d, FEET_MID if bone == HIP else None)
+    for bone in ORDER:
+        if bone in offs and bone not in (HD_L, HD_R): turn(bone)
+    for side in ('L', 'R'):
+        r = offs.get('R' + side)
+        if r and r.get('w', 0) > 1e-3 and side in REACH_TARGET: reach(side, REACH_TARGET[side], r['w'])
+    for bone in (HD_L, HD_R):
+        if bone in offs: turn(bone)
     for side in ('L', 'R'):
         h = offs.get('F' + side)
         if h and FINGERS: curl(side, h.get('f', 0), h.get('t', 0))
@@ -132,6 +139,45 @@ def palm_to_camera(side, w):
     axis, ang = q.to_axis_angle()
     if abs(ang) > 1e-4: rot_axis(hand, axis, math.degrees(ang))
 
+# ---- reaching: put a wrist on a point (analytic two-bone IK, elbow bent towards a pole), blended by weight.
+# Joints are measured head to head (shoulder → elbow → wrist): this rig's bone tails don't point at their children.
+mwi = arm.matrix_world.inverted()
+wvec = lambda x, y, z: mw3.inverted() @ Vector((x, y, z))         # a world-space offset (metres) in armature space
+REACH_POLE = {'R': (-1.0, 0.7, -0.6), 'L': (1.0, 0.7, -0.6)}       # default: elbows point out, back and down
+# up at the face the elbow drops down and in front, so the forearm comes up to it (not across the chest)
+REACH_POLE_FACE = {'R': (-0.35, -0.5, -1.0), 'L': (0.35, -0.5, -1.0)}
+# wrist targets, as offsets (world metres, he faces -Y) from a bone that moves with him
+REACH = {
+    'chin':    (HEAD, (-0.03, -0.21, -0.17)),
+    'face':    (HEAD, (-0.02, -0.27, -0.04)),
+    'scratch': (HEAD, (-0.21, 0.09, -0.04)),
+    'chest':   (SP2, (-0.02, -0.30, 0.02)),
+}
+def reach(side, where, w):
+    UA, FA, HD = (UA_R, FA_R, HD_R) if side == 'R' else (UA_L, FA_L, HD_L)
+    bone, off = REACH[where]
+    T = pb[bone].head + wvec(*off)
+    fk = {n: pb[n].rotation_quaternion.copy() for n in (UA, FA)}
+    S, E, W = pb[UA].head.copy(), pb[FA].head.copy(), pb[HD].head.copy()
+    a, b = (E - S).length, (W - E).length
+    d = max(abs(a - b) + 1e-3, min(a + b - 1e-3, (T - S).length))
+    n = (T - S).normalized(); T = S + n * d
+    x = (a * a - b * b + d * d) / (2 * d); h = math.sqrt(max(0.0, a * a - x * x))
+    pole = wvec(*(REACH_POLE_FACE if where in ('chin', 'face') else REACH_POLE)[side]).normalized()
+    perp = (pole - n * pole.dot(n)).normalized()
+    E2 = S + n * x + perp * h
+    q = (E - S).normalized().rotation_difference((E2 - S).normalized())
+    axis, ang = q.to_axis_angle()
+    if abs(ang) > 1e-5: rot_axis(UA, axis, math.degrees(ang))
+    E, W = pb[FA].head.copy(), pb[HD].head.copy()
+    q = (W - E).normalized().rotation_difference((T - E).normalized())
+    axis, ang = q.to_axis_angle()
+    if abs(ang) > 1e-5: rot_axis(FA, axis, math.degrees(ang))
+    if w < 0.999:
+        ik = {n: pb[n].rotation_quaternion.copy() for n in (UA, FA)}
+        for n in (UA, FA): pb[n].rotation_quaternion = fk[n].slerp(ik[n], max(0.0, w))
+        bpy.context.view_layer.update()
+
 LASTQ = {}
 KEY_ALL = set()
 def key(names, f):
@@ -145,9 +191,11 @@ def key(names, f):
         pb[n].keyframe_insert('location', frame=f)
         if f in KEY_ALL: pb[n].keyframe_insert('scale', frame=f)
 
-def make(name, length, keys, touched, legs_from_jump=False, step=2, fingers=None):
+def make(name, length, keys, touched, legs_from_jump=False, step=2, fingers=None, reach_to=None):
     global FINGERS
     keep = FINGERS
+    REACH_TARGET.clear()
+    if reach_to: REACH_TARGET.update(reach_to)
     if fingers is not None: FINGERS = fingers
     act = bpy.data.actions.new(name)
     act.use_fake_user = True
@@ -235,6 +283,51 @@ swing = lambda a, bob: {**up, FA_R: {'fwd': -58 + a}, SP1: {'fwd': 2, 'right': b
 make('wave', 2.7, [(0, Z), (0.35, up), (0.6, swing(-24, 2)), (0.85, swing(20, -1)), (1.1, swing(-24, 2)),
                    (1.35, swing(20, -1)), (1.6, swing(-22, 2)), (1.85, swing(16, -1)), (2.1, up), (2.7, Z)],
      [SP1, SP2, NK2, HEAD, UA_R, FA_R, HD_R, UA_L], fingers=True)
+
+# ---------------- conversational moves (the chat picks one per reply) ----------------
+ARM_R = [CL_R, UA_R, FA_R, HD_R]
+ARM_L = [CL_L, UA_L, FA_L, HD_L]
+nod = lambda d: {HEAD: {'right': d}, NK2: {'right': d * 0.4}}
+make('nod', 1.7, [(0, Z), (0.25, nod(-15)), (0.5, nod(3)), (0.78, nod(-12)), (1.05, nod(1)), (1.7, Z)], [HEAD, NK2])
+
+shk = lambda d: {HEAD: {'up': d}, NK2: {'up': d * 0.5}}
+make('shake', 1.9, [(0, Z), (0.25, shk(16)), (0.55, shk(-16)), (0.85, shk(13)), (1.15, shk(-9)), (1.9, Z)], [HEAD, NK2])
+
+think = {HEAD: {'fwd': 8, 'right': -6}, NK2: {'fwd': 4}, SP2: {'right': -3}, 'RR': {'w': 1}, HD_R: {'right': -20}}
+make('think', 3.6, [(0, Z), (0.6, think), (2.0, {**think, HEAD: {'fwd': 10, 'right': -4, 'up': 4}}), (2.9, think), (3.6, Z)],
+     [HEAD, NK2, SP2, *ARM_R], reach_to={'R': 'chin'})
+
+point = {UA_R: {'right': 72, 'fwd': 12}, FA_R: {'right': 14}, SP2: {'up': -6}, HEAD: {'right': -4}}
+make('point', 2.3, [(0, Z), (0.45, point), (0.62, {**point, UA_R: {'right': 80, 'fwd': 12}}), (0.8, point), (1.7, point), (2.3, Z)],
+     [HEAD, SP2, *ARM_R])
+
+lb = lambda k: {SP2: {'right': 4 + 6 * k}, HEAD: {'right': 9 + 7 * k}, NK2: {'right': 4}, CL_L: {'fwd': 5 * k}, CL_R: {'fwd': -5 * k}}
+make('laugh', 2.6, [(0, Z), (0.3, lb(1)), (0.45, lb(0)), (0.6, lb(1)), (0.75, lb(0)), (0.9, lb(1)), (1.05, lb(0.3)),
+                    (1.45, {SP2: {'right': -8}, SP1: {'right': -4}, HEAD: {'right': -10}}), (1.9, {SP2: {'right': -6}, HEAD: {'right': -8}}), (2.6, Z)],
+     [SP1, SP2, NK2, HEAD, CL_L, CL_R])
+
+bow = {SP1: {'right': -14}, SP2: {'right': -16}, NK2: {'right': -4}, HEAD: {'right': -12}, UA_L: {'right': 8}, UA_R: {'right': 8}}
+make('bow', 2.4, [(0, Z), (0.6, bow), (1.3, bow), (2.4, Z)], [SP1, SP2, NK2, HEAD, UA_L, UA_R])
+
+ta = {UA_L: {'fwd': 38, 'right': 28}, UA_R: {'fwd': -38, 'right': 28}, FA_L: {'right': 35}, FA_R: {'right': 35},
+      HD_L: {'fwd': -45}, HD_R: {'fwd': 45}, SP2: {'right': 5}, HEAD: {'right': 6}}
+make('present', 2.6, [(0, Z), (0.5, ta), (1.8, {**ta, UA_L: {'fwd': 42, 'right': 30}, UA_R: {'fwd': -42, 'right': 30}}), (2.6, Z)],
+     [SP2, HEAD, *ARM_L, *ARM_R])
+
+sc = lambda k: {HEAD: {'right': -10, 'fwd': 8}, NK2: {'fwd': 5}, 'RR': {'w': 1}, HD_R: {'fwd': 10 * k}}
+make('scratch', 3.2, [(0, Z), (0.6, sc(0)), (0.8, sc(1)), (1.0, sc(-1)), (1.2, sc(1)), (1.4, sc(-1)), (1.6, sc(1)), (1.8, sc(0)),
+                      (2.5, sc(0)), (3.2, Z)], [HEAD, NK2, *ARM_R], reach_to={'R': 'scratch'})
+
+fp = lambda u: {'RR': {'w': 1}, HEAD: {'right': -14, 'up': u}, NK2: {'right': -5}, SP2: {'right': -5}}
+make('facepalm', 2.8, [(0, Z), (0.45, fp(0)), (1.0, fp(5)), (1.3, fp(-5)), (1.6, fp(4)), (1.9, fp(0)), (2.8, Z)],
+     [HEAD, NK2, SP2, *ARM_R], reach_to={'R': 'face'})
+
+flex = {UA_R: {'fwd': -88, 'right': 10}, FA_R: {'fwd': -95}, HEAD: {'up': -22}, NK2: {'up': -8}, SP2: {'right': 5, 'up': -4}}
+make('flex', 2.6, [(0, Z), (0.5, flex), (0.8, {**flex, UA_R: {'fwd': -93, 'right': 10}}), (1.1, flex), (1.9, flex), (2.6, Z)],
+     [HEAD, NK2, SP2, *ARM_R])
+
+chest = {'RR': {'w': 1}, HEAD: {'right': -4, 'fwd': 4}, SP2: {'right': 2}}
+make('chest', 2.4, [(0, Z), (0.5, chest), (1.7, chest), (2.4, Z)], [HEAD, SP2, *ARM_R], reach_to={'R': 'chest'})
 
 # drop the source clip; export only the skeleton and the new actions
 bpy.data.actions.remove(src_action)
