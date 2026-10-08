@@ -89,7 +89,8 @@ function init3D() {
   const loader = new GLTFLoader();
   loader.setMeshoptDecoder(MeshoptDecoder);
   loader.load(A.model.src, onModel, (e) => {
-    if (e.total) loadPct.textContent = `${Math.round((e.loaded / e.total) * 100)}%`;
+    // servers may gzip the model, so loaded can overshoot total — cap at 99% until it's actually parsed
+    if (e.total) loadPct.textContent = `${Math.min(99, Math.round((e.loaded / e.total) * 100))}%`;
   }, () => {
     loading.textContent = "My 3D body didn't load — but I can still talk.";
     showWake();
