@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=20261009000525">
+  <link rel="stylesheet" href="css/style.css?v=20261009001430">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -201,7 +201,7 @@
     <section class="view" data-view="assistant" hidden>
       <div class="rai" id="rai">
         <canvas class="rai-canvas" id="rai-canvas" aria-hidden="true"></canvas>
-        <div class="rai-loading" id="rai-loading" aria-live="polite">Booting R.A.I.… <b id="rai-load-pct">0%</b></div>
+        <div class="rai-loading" id="rai-loading" aria-live="polite"><pre class="rai-ascii" id="rai-ascii" aria-hidden="true"></pre><p>Booting R.A.I.… <b id="rai-load-pct">0%</b></p><pre class="rai-bootlog" id="rai-bootlog" aria-hidden="true"></pre></div>
         <button class="rai-wake" id="rai-wake" type="button" hidden><span>[CLICK] TO WAKE R.A.I.</span></button>
         <div class="rai-panel" id="rai-panel" hidden>
           <button class="rai-back" id="rai-back" type="button" hidden>← Back</button>
@@ -232,8 +232,8 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261009000525"></script>
+  <script src="js/data.js?v=20261009001430"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
-  <script src="js/main.js?v=20261009000525" defer></script>
+  <script src="js/main.js?v=20261009001430" defer></script>
 </body>
 </html>
