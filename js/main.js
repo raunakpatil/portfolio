@@ -148,7 +148,7 @@
 
     const links = $$('.tabs a');
     const ind = $('.tabs-indicator');
-    const routes = [...links.map((a) => a.dataset.route), 'profile'];
+    const routes = [...links.map((a) => a.dataset.route), 'profile', 'assistant'];
     const active = () => links.find((a) => a.classList.contains('active'));
     const moveIndicator = () => {
       const a = active();
@@ -168,6 +168,15 @@
       });
       moveIndicator();
       window.scrollTo(0, 0);
+      document.body.dataset.route = r;
+      // R.A.I. (three.js + the robot) only loads when someone actually opens it
+      if (r === 'assistant') {
+        import('./assistant.js').then((m) => m.open()).catch((err) => {
+          console.error('Assistant failed to load', err);
+          const l = document.getElementById('rai-loading');
+          if (l) l.textContent = "R.A.I. couldn't start on this browser. Try refreshing.";
+        });
+      }
     };
     addEventListener('hashchange', go);
     addEventListener('resize', moveIndicator);

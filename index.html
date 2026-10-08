@@ -14,6 +14,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <script type="importmap">
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    } }
+  </script>
 </head>
 <body>
   <header class="topbar">
@@ -33,10 +39,11 @@
     <!-- ============ DASHBOARD ============ -->
     <section class="view" data-view="dashboard">
       <div class="dash">
-        <article class="card card-hello" id="card-hello">
+        <article class="card card-hello" id="card-hello" data-link="#assistant" tabindex="0" role="link" aria-label="Hello Stranger — talk to R.A.I., my assistant">
           <canvas class="ascii" id="ascii" aria-hidden="true"></canvas>
           <h1 class="hello-title" id="hello-title"></h1>
           <p class="terminal" id="terminal"></p>
+          <span class="card-go" aria-hidden="true">Talk to R.A.I. ↗</span>
         </article>
 
         <article class="card card-time" id="card-time">
@@ -189,6 +196,26 @@
           <h2 class="sr-only" id="hl-title"></h2>
           <ul id="highlights"></ul>
         </section>
+      </div>
+    </section>
+
+    <!-- ============ R.A.I. — ASSISTANT ============ -->
+    <section class="view" data-view="assistant" hidden>
+      <div class="rai" id="rai">
+        <canvas class="rai-canvas" id="rai-canvas" aria-hidden="true"></canvas>
+        <div class="rai-loading" id="rai-loading" aria-live="polite">Booting R.A.I.… <b id="rai-load-pct">0%</b></div>
+        <button class="rai-wake" id="rai-wake" type="button" hidden><span>[CLICK] TO WAKE R.A.I.</span></button>
+        <div class="rai-panel" id="rai-panel" hidden>
+          <button class="rai-back" id="rai-back" type="button" hidden>← Back</button>
+          <p class="rai-say" id="rai-say" aria-live="polite"></p>
+          <form class="rai-actions" id="rai-actions" novalidate></form>
+        </div>
+        <div class="rai-progress" aria-hidden="true"><i id="rai-progress"></i></div>
+        <a class="rai-close" href="#dashboard" aria-label="Close and go back to the dashboard">&times;</a>
+        <button class="rai-sound" id="rai-sound" type="button" aria-pressed="false" aria-label="Typing sounds">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path class="rai-wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="rai-x" d="m16 9 6 6m0-6-6 6"/></svg>
+        </button>
+        <p class="rai-credit" id="rai-credit"></p>
       </div>
     </section>
   </main>
