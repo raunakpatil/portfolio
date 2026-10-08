@@ -120,7 +120,7 @@ function init3D() {
     loading.textContent = "My 3D body didn't load on this device — but I can still talk.";
     return false;
   }
-  renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.setPixelRatio(quality.ratio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.shadowMap.enabled = true;
@@ -574,7 +574,7 @@ function updateTubes(now, dt) {
 // re-photograph the surroundings for reflections (every few frames is plenty)
 function updateReflections() {
   if (!cubeCam || !model) return;
-  if (envTick++ % 3) return;
+  if (envTick++ % 6) return;
   model.visible = false;
   if (dust) dust.visible = false;
   // reflections are switched off while the room is photographed — otherwise the glass, floor and metal
@@ -606,13 +606,27 @@ function turn(bone, yaw, pitch) {
   addWorldRotation(bone, _q);
 }
 
+// Render resolution adapts to the device: it starts at up to 1.5× the CSS size and steps down when frames come
+// slowly (and back up when there's headroom). The glow pass runs at half that — it's a blur anyway.
+const quality = { max: Math.min(1.5, window.devicePixelRatio || 1), ratio: Math.min(1.5, window.devicePixelRatio || 1), frames: 0, time: 0, dirty: false };
+function adaptQuality(dt) {
+  quality.frames++; quality.time += dt;
+  if (quality.time < 2) return;
+  const ms = (quality.time / quality.frames) * 1000;
+  quality.frames = 0; quality.time = 0;
+  const next = ms > 24 ? Math.max(0.75, quality.ratio - 0.25) : ms < 15 ? Math.min(quality.max, quality.ratio + 0.125) : quality.ratio;
+  if (next !== quality.ratio) { quality.ratio = next; quality.dirty = true; }
+}
 function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   if (!w || !h) return;
   const s = renderer.getSize(new THREE.Vector2());
-  if (s.x !== w || s.y !== h) {
+  if (s.x !== w || s.y !== h || quality.dirty) {
+    quality.dirty = false;
+    renderer.setPixelRatio(quality.ratio);
     renderer.setSize(w, h, false);
-    for (const c of [composer, bloomComposer]) { c.setPixelRatio(renderer.getPixelRatio()); c.setSize(w, h); }
+    composer.setPixelRatio(quality.ratio); composer.setSize(w, h);
+    bloomComposer.setPixelRatio(quality.ratio * 0.5); bloomComposer.setSize(w, h);
   }
   camera.aspect = w / h;
   // leave room for the dialogue: robot sits right of centre on wide screens, higher up on phones
@@ -739,18 +753,33 @@ async function buildEmblem() {
 
 /* ======================= CRT face ======================= */
 // Two glowing eyes drawn by a shader on a sheet baked over his visor (models/ronie-visor.json, in head-bone
-// space). Each eye is a shape that morphs between a rounded box (circle ↔ bar), a happy ^ arc and a heart.
-// Per eye: [half width, half height, corner radius, arc amount, heart amount]  (units: visor height = 1)
-const EYE = (w, h, r, arc = 0, heart = 0) => [w, h, r, arc, heart];
+// space), plus one small icon at a time (an "emote" by the top corner, a topic icon below the eyes, or blush).
+// Each eye morphs between a rounded box (circle ↔ bar), a happy ^ arc, a heart, a star and an ×, and can tilt.
+// Per eye: [half width, half height, corner radius, arc, heart, star, cross, tilt]  (units: visor height = 1;
+// tilt in radians, + lifts the outer corner)
+const EYE = (w, h, r = Math.min(w, h), o = {}) => [w, h, r, o.arc || 0, o.heart || 0, o.star || 0, o.cross || 0, o.tilt || 0];
+const O = (s) => EYE(s, s, s);
+const BAR = (w, h, tilt = 0) => EYE(w, h, h, { tilt });
+const ARC = (s) => EYE(s, s, s, { arc: 1 });
 const FACES = {
-  neutral:   { L: EYE(0.095, 0.095, 0.095), R: EYE(0.095, 0.095, 0.095) },
-  happy:     { L: EYE(0.1, 0.1, 0.1, 1), R: EYE(0.1, 0.1, 0.1, 1) },
-  excited:   { L: EYE(0.11, 0.11, 0.11, 0, 1), R: EYE(0.11, 0.11, 0.11, 0, 1) },
-  wink:      { L: EYE(0.11, 0.02, 0.02), R: EYE(0.095, 0.095, 0.095) },
-  thinking:  { L: EYE(0.075, 0.075, 0.075), R: EYE(0.075, 0.075, 0.075), look: [0.07, 0.06] },
-  surprised: { L: EYE(0.125, 0.125, 0.125), R: EYE(0.125, 0.125, 0.125) },
-  sleepy:    { L: EYE(0.11, 0.016, 0.016), R: EYE(0.11, 0.016, 0.016) },
-  confused:  { L: EYE(0.07, 0.07, 0.07), R: EYE(0.105, 0.04, 0.04), skew: 0.045, look: [0.02, 0] },
+  neutral:    { L: O(0.095), R: O(0.095) },
+  happy:      { L: ARC(0.1), R: ARC(0.1) },
+  laugh:      { L: ARC(0.112), R: ARC(0.112), bounce: 1 },
+  love:       { L: EYE(0.11, 0.11, 0.11, { heart: 1 }), R: EYE(0.11, 0.11, 0.11, { heart: 1 }) },
+  excited:    { L: EYE(0.118, 0.118, 0.118, { star: 1 }), R: EYE(0.118, 0.118, 0.118, { star: 1 }), bounce: 0.5 },
+  wink:       { L: BAR(0.11, 0.02), R: O(0.095) },
+  thinking:   { L: O(0.075), R: O(0.075), look: [0.07, 0.06] },
+  curious:    { L: O(0.112), R: O(0.08), skew: -0.022, look: [0.03, 0.02] },
+  surprised:  { L: O(0.125), R: O(0.125) },
+  confused:   { L: O(0.07), R: BAR(0.105, 0.04), skew: 0.045, look: [0.02, 0] },
+  sad:        { L: BAR(0.1, 0.045, -0.32), R: BAR(0.1, 0.045, -0.32), look: [0, -0.05] },
+  shy:        { L: ARC(0.09), R: ARC(0.09), look: [-0.04, -0.05] },
+  proud:      { L: ARC(0.105), R: ARC(0.105), look: [0, 0.04] },
+  smug:       { L: BAR(0.105, 0.045, 0.1), R: BAR(0.105, 0.045, 0.1), look: [0.05, 0] },
+  nervous:    { L: O(0.085), R: O(0.085), jitter: 1 },
+  determined: { L: BAR(0.105, 0.06, 0.3), R: BAR(0.105, 0.06, 0.3) },
+  dizzy:      { L: EYE(0.1, 0.1, 0.1, { cross: 1 }), R: EYE(0.1, 0.1, 0.1, { cross: 1 }) },
+  sleepy:     { L: BAR(0.11, 0.016), R: BAR(0.11, 0.016) },
 };
 const face = {
   name: 'sleepy', L: [...FACES.sleepy.L], R: [...FACES.sleepy.R], look: [0, 0],
@@ -772,14 +801,84 @@ function faceFor(id, step) {
   return 'neutral';
 }
 
+/* ---- icon pack: glowing line icons drawn once into a small texture, shown on the visor ---- */
+// slot: 'emote' floats by the top corner (anime style), 'topic' sits below the eyes, 'cheeks' spans under them
+const ICON_SLOTS = { emote: { pos: [0.27, 0.33], size: 0.21 }, topic: { pos: [-0.035, -0.205], size: 0.23 }, cheeks: { pos: [-0.035, -0.035], size: 0.62 } };
+const PINK = [1, 0.45, 0.7], GOLD = [1, 0.85, 0.45], CYAN = [0.55, 0.95, 1], WHITE = [1, 0.97, 0.93];
+const ICONS = (() => {
+  const L = (x, pts, close) => { x.beginPath(); pts.forEach(([a, b], i) => (i ? x.lineTo(a, b) : x.moveTo(a, b))); if (close) x.closePath(); x.stroke(); };
+  const C = (x, cx, cy, r, a0 = 0, a1 = Math.PI * 2) => { x.beginPath(); x.arc(cx, cy, r, a0, a1); x.stroke(); };
+  const R = (x, a, b, w, h, r) => { x.beginPath(); x.roundRect(a, b, w, h, r); x.stroke(); };
+  const T = (x, s, size = 190) => { x.font = `900 ${size}px "Inter Tight", Arial, sans-serif`; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(s, 128, 136); };
+  const star = (x, cx, cy, r1, r2, n = 4) => {
+    x.beginPath();
+    for (let i = 0; i < n * 2; i++) { const a = (i / (n * 2)) * Math.PI * 2 - Math.PI / 2, r = i % 2 ? r2 : r1; x.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+    x.closePath(); x.stroke();
+  };
+  return {
+    heart: { slot: 'emote', tint: PINK, draw: (x) => { x.beginPath(); x.moveTo(128, 210); x.bezierCurveTo(30, 140, 40, 50, 128, 92); x.bezierCurveTo(216, 50, 226, 140, 128, 210); x.stroke(); } },
+    sparkle: { slot: 'emote', tint: GOLD, draw: (x) => { star(x, 110, 140, 92, 22); star(x, 200, 60, 38, 10); } },
+    star: { slot: 'emote', tint: GOLD, draw: (x) => star(x, 128, 136, 100, 42, 5) },
+    question: { slot: 'emote', tint: CYAN, draw: (x) => T(x, '?', 210) },
+    exclamation: { slot: 'emote', tint: GOLD, draw: (x) => T(x, '!', 210) },
+    idea: { slot: 'emote', tint: GOLD, draw: (x) => { C(x, 128, 112, 58, Math.PI * 0.8, Math.PI * 2.2); L(x, [[100, 170], [156, 170]]); L(x, [[108, 200], [148, 200]]); L(x, [[128, 22], [128, 6]]); L(x, [[48, 60], [34, 46]]); L(x, [[208, 60], [222, 46]]); } },
+    sweat: { slot: 'emote', tint: CYAN, draw: (x) => { x.beginPath(); x.moveTo(128, 40); x.bezierCurveTo(128, 40, 70, 130, 82, 170); x.arc(128, 165, 48, Math.PI * 0.9, Math.PI * 0.1, true); x.bezierCurveTo(186, 130, 128, 40, 128, 40); x.stroke(); } },
+    music: { slot: 'emote', tint: CYAN, draw: (x) => { L(x, [[92, 190], [92, 60], [196, 40], [196, 170]]); L(x, [[92, 88], [196, 68]]); C(x, 70, 192, 24); C(x, 174, 172, 24); } },
+    zzz: { slot: 'emote', tint: CYAN, draw: (x) => { L(x, [[40, 120], [110, 120], [40, 200], [110, 200]]); L(x, [[140, 50], [216, 50], [140, 130], [216, 130]]); } },
+    dots: { slot: 'emote', tint: WHITE, draw: (x) => { for (const cx of [62, 128, 194]) C(x, cx, 140, 16); } },
+    blush: { slot: 'cheeks', tint: PINK, draw: (x) => { for (const cx of [44, 212]) for (const d of [-14, 6, 26]) L(x, [[cx + d - 8, 150], [cx + d + 6, 128]]); } },
+    briefcase: { slot: 'topic', tint: WHITE, draw: (x) => { R(x, 30, 84, 196, 130, 18); L(x, [[96, 84], [96, 56], [160, 56], [160, 84]]); L(x, [[30, 140], [226, 140]]); } },
+    mail: { slot: 'topic', tint: WHITE, draw: (x) => { R(x, 28, 62, 200, 140, 14); L(x, [[34, 70], [128, 146], [222, 70]]); } },
+    cap: { slot: 'topic', tint: WHITE, draw: (x) => { L(x, [[128, 50], [236, 100], [128, 150], [20, 100]], true); L(x, [[70, 124], [70, 180], [186, 180], [186, 124]]); L(x, [[236, 100], [236, 170]]); } },
+    code: { slot: 'topic', tint: CYAN, draw: (x) => { L(x, [[84, 70], [30, 132], [84, 194]]); L(x, [[172, 70], [226, 132], [172, 194]]); L(x, [[146, 54], [110, 210]]); } },
+    chip: { slot: 'topic', tint: CYAN, draw: (x) => { R(x, 64, 64, 128, 128, 14); R(x, 100, 100, 56, 56, 6); for (const v of [92, 128, 164]) { L(x, [[v, 64], [v, 30]]); L(x, [[v, 192], [v, 226]]); L(x, [[64, v], [30, v]]); L(x, [[192, v], [226, v]]); } } },
+    chart: { slot: 'topic', tint: CYAN, draw: (x) => { L(x, [[30, 30], [30, 220], [226, 220]]); L(x, [[76, 190], [76, 140]]); L(x, [[124, 190], [124, 96]]); L(x, [[172, 190], [172, 60]]); } },
+    play: { slot: 'topic', tint: [1, 0.5, 0.45], draw: (x) => { R(x, 22, 52, 212, 152, 40); L(x, [[106, 92], [170, 128], [106, 164]], true); } },
+    pin: { slot: 'topic', tint: PINK, draw: (x) => { x.beginPath(); x.moveTo(128, 226); x.bezierCurveTo(60, 140, 54, 110, 54, 96); x.arc(128, 96, 74, Math.PI, 0); x.bezierCurveTo(202, 110, 196, 140, 128, 226); x.stroke(); C(x, 128, 96, 24); } },
+    speech: { slot: 'topic', tint: WHITE, draw: (x) => { x.beginPath(); x.roundRect(26, 40, 204, 136, 30); x.moveTo(70, 176); x.lineTo(54, 222); x.lineTo(110, 176); x.stroke(); for (const cx of [86, 128, 170]) C(x, cx, 108, 8); } },
+    trophy: { slot: 'topic', tint: GOLD, draw: (x) => { L(x, [[72, 40], [184, 40], [178, 110]]); C(x, 128, 104, 52, 0, Math.PI); L(x, [[72, 40], [78, 110]]); C(x, 64, 76, 26, Math.PI * 0.5, Math.PI * 1.5); C(x, 192, 76, 26, -Math.PI * 0.5, Math.PI * 0.5); L(x, [[128, 156], [128, 190]]); L(x, [[86, 214], [170, 214]]); L(x, [[100, 190], [156, 190]]); } },
+    rocket: { slot: 'topic', tint: WHITE, draw: (x) => { x.beginPath(); x.moveTo(128, 22); x.bezierCurveTo(180, 60, 176, 130, 160, 170); x.lineTo(96, 170); x.bezierCurveTo(80, 130, 76, 60, 128, 22); x.stroke(); C(x, 128, 90, 18); L(x, [[96, 150], [62, 196], [100, 186]]); L(x, [[160, 150], [194, 196], [156, 186]]); L(x, [[114, 196], [128, 234], [142, 196]]); } },
+    shield: { slot: 'topic', tint: CYAN, draw: (x) => { x.beginPath(); x.moveTo(128, 26); x.lineTo(210, 58); x.bezierCurveTo(210, 140, 176, 196, 128, 226); x.bezierCurveTo(80, 196, 46, 140, 46, 58); x.closePath(); x.stroke(); L(x, [[92, 128], [118, 156], [168, 98]]); } },
+    coffee: { slot: 'topic', tint: GOLD, draw: (x) => { L(x, [[46, 100], [56, 210], [170, 210], [180, 100]], true); C(x, 186, 146, 30, -Math.PI * 0.5, Math.PI * 0.5); for (const v of [84, 114, 144]) L(x, [[v, 80], [v - 10, 60], [v, 40]]); } },
+    wave: { slot: 'emote', tint: GOLD, draw: (x) => { R(x, 84, 96, 92, 120, 40); for (const [a, h] of [[96, 64], [118, 48], [140, 52], [162, 70]]) L(x, [[a, 110], [a, h]]); L(x, [[84, 150], [56, 118]]); for (const r of [40, 66]) C(x, 196, 70, r, -Math.PI * 0.45, -Math.PI * 0.05); } },
+  };
+})();
+const icon = { name: null, slot: 'emote', tint: WHITE, shownAt: -1e9, hideAt: 0, tex: null, canvas: null };
+// show an icon (by name) for a while; null hides the current one
+function setIcon(name, holdMs = 4500) {
+  const def = name && ICONS[name];
+  if (!def) { icon.hideAt = Math.min(icon.hideAt, performance.now()); return; }
+  if (!icon.canvas) { icon.canvas = document.createElement('canvas'); icon.canvas.width = icon.canvas.height = 256; }
+  const x = icon.canvas.getContext('2d');
+  x.clearRect(0, 0, 256, 256);
+  x.fillStyle = x.strokeStyle = '#fff';
+  x.lineWidth = 15; x.lineCap = x.lineJoin = 'round';
+  def.draw(x);
+  if (icon.tex) icon.tex.needsUpdate = true;
+  Object.assign(icon, { name, slot: def.slot, tint: def.tint, shownAt: performance.now(), hideAt: performance.now() + holdMs });
+}
+// a topic icon for a chat reply, from what it's about (used when the model doesn't pick one)
+const TOPIC_ICONS = [
+  [/e-?mail|contact|reach (him|out)|get in touch/i, 'mail'], [/hire|hiring|job|recruit|career|work(s|ed|ing)? (at|for)|Sigma/i, 'briefcase'],
+  [/MSc|degree|universit|studied|education|dissertation|graduat/i, 'cap'], [/YouTube|video|channel/i, 'play'],
+  [/project|built|builds|app\b|GitHub|open.source|tool/i, 'code'], [/London|Nagpur|Bengaluru|Liverpool|based in|lives? in/i, 'pin'],
+  [/Hindi|Marathi|languages?|speaks/i, 'speech'], [/certif|award|DIAT|trophy/i, 'trophy'],
+  [/%|accuracy|consisten|dashboard|Power BI|data/i, 'chart'], [/RAG|LLM|RLHF|model|neural|\bAI\b/i, 'chip'],
+  [/don.t know|not sure|no idea/i, 'question'],
+];
+const iconFor = (text) => (TOPIC_ICONS.find(([re]) => re.test(text)) || [])[1] || null;
+
 const FACE_VERT = `
 attribute float vis;
 varying vec2 vUv; varying float vVis;
 void main() { vUv = uv; vVis = vis; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
 const FACE_FRAG = `
-uniform vec4 uL, uR; uniform vec2 uHeart, uLook, uCentre; uniform float uAspect, uTime, uOn, uGlitch, uBright, uSkew;
+uniform vec4 uL, uR, uLx, uRx; uniform vec2 uLook, uCentre, uIconPos; uniform vec3 uIconTint;
+uniform float uAspect, uTime, uOn, uGlitch, uBright, uSkew, uIconSize, uIconAmt;
+uniform sampler2D uIcon;
 varying vec2 vUv; varying float vVis;
 float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+vec2 turn(vec2 p, float a) { float c = cos(a), s = sin(a); return vec2(c * p.x + s * p.y, -s * p.x + c * p.y); }
 float sdBox(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
 float sdArc(vec2 p, float R, float t) {               // an upside-down U: happy closed eyes (^ ^)
   if (p.y < 0.0) return length(vec2(abs(p.x) - R, p.y)) - t;
@@ -790,15 +889,37 @@ float sdHeart(vec2 p) {                                // Inigo Quilez's heart, 
   if (p.y + p.x > 1.0) return sqrt(dot(p - vec2(0.25, 0.75), p - vec2(0.25, 0.75))) - sqrt(2.0) / 4.0;
   return sqrt(min(dot(p - vec2(0.0, 1.0), p - vec2(0.0, 1.0)), dot(p - 0.5 * max(p.x + p.y, 0.0), p - 0.5 * max(p.x + p.y, 0.0)))) * sign(p.x - p.y);
 }
-float eye(vec2 p, vec4 e, float heart) {
+float sdStar(vec2 p, float r) {                        // Inigo Quilez's 5-point star
+  const vec2 k1 = vec2(0.809016994375, -0.587785252292);
+  const vec2 k2 = vec2(-0.809016994375, -0.587785252292);
+  p.x = abs(p.x);
+  p -= 2.0 * max(dot(k1, p), 0.0) * k1;
+  p -= 2.0 * max(dot(k2, p), 0.0) * k2;
+  p.x = abs(p.x);
+  p.y -= r;
+  vec2 ba = 0.45 * vec2(-k1.y, k1.x) - vec2(0.0, 1.0);
+  float h = clamp(dot(p, ba) / dot(ba, ba), 0.0, r);
+  return length(p - ba * h) * sign(p.y * ba.x - p.x * ba.y);
+}
+float sdCross(vec2 p, float w, float t) { return min(sdBox(turn(p, 0.785398), vec2(w, t), t), sdBox(turn(p, -0.785398), vec2(w, t), t)); }
+// x: (heart, star, cross, tilt) — tilt already signed per eye
+float eye(vec2 p, vec4 e, vec4 x) {
+  p = turn(p, x.w);
   float d = sdBox(p, e.xy, min(e.z, min(e.x, e.y)));
   d = mix(d, sdArc(p + vec2(0.0, 0.035), e.x * 0.85, 0.026), e.w);
-  if (heart > 0.001) { float s = e.x * 2.0; d = mix(d, sdHeart((p + vec2(0.0, s * 0.55)) / s) * s, heart); }
+  if (x.x > 0.001) { float s = e.x * 2.0; d = mix(d, sdHeart((p + vec2(0.0, s * 0.55)) / s) * s, x.x); }
+  if (x.y > 0.001) d = mix(d, sdStar(p + vec2(0.0, 0.01), e.x * 1.15), x.y);
+  if (x.z > 0.001) d = mix(d, sdCross(p, e.x * 0.95, 0.024), x.z);
   return d;
 }
 float faceAt(vec2 p) {
   vec2 c = uCentre + uLook;
-  return min(eye(p - (c + vec2(-0.2, uSkew)), uL, uHeart.x), eye(p - (c + vec2(0.2, -uSkew)), uR, uHeart.y));
+  return min(eye(p - (c + vec2(-0.2, uSkew)), uL, uLx), eye(p - (c + vec2(0.2, -uSkew)), uR, uRx));
+}
+float iconAt(vec2 p) {
+  vec2 q = (p - uIconPos) / uIconSize + 0.5;
+  if (q.x < 0.0 || q.y < 0.0 || q.x > 1.0 || q.y > 1.0) return 0.0;
+  return texture2D(uIcon, q).a;
 }
 float glow(float d) { return smoothstep(0.008, -0.004, d) * 0.85 + 0.22 * exp(-max(d, 0.0) * 45.0); }
 void main() {
@@ -807,10 +928,11 @@ void main() {
   float band = floor(uv.y * 38.0);
   uv.x += uGlitch * (hash(vec2(band, floor(uTime * 24.0))) - 0.5) * 0.14 * step(0.55, hash(vec2(band, 7.0)));
   vec2 p = (uv - 0.5) * vec2(uAspect, 1.0);
-  float ca = 0.007 + uGlitch * 0.025;                  // RGB fringing, like an old tube
-  vec3 col = vec3(glow(faceAt(p + vec2(ca, 0.0))), glow(faceAt(p)), glow(faceAt(p - vec2(ca, 0.0))));
+  vec2 ca = vec2(0.007 + uGlitch * 0.025, 0.0);        // RGB fringing, like an old tube
+  vec3 col = vec3(glow(faceAt(p + ca)), glow(faceAt(p)), glow(faceAt(p - ca)));
   col *= vec3(1.0, 0.97, 0.93);
-  // AMOLED: the screen itself stays pure black; only the eyes give off light, and they carry the CRT look
+  if (uIconAmt > 0.001) col += vec3(iconAt(p + ca), iconAt(p), iconAt(p - ca)) * uIconTint * uIconAmt * 0.95;
+  // AMOLED: the screen itself stays pure black; only the eyes and icons give off light, with the CRT look
   col *= 0.74 + 0.26 * sin(vUv.y * 6.2832 * 72.0);    // scanlines
   col *= 0.95 + 0.05 * sin(uTime * 57.0);              // mains flicker
   col *= 0.88 + 0.24 * hash(vUv * 640.0 + fract(uTime) * 91.0); // grain inside the light
@@ -827,12 +949,17 @@ async function buildFace() {
     const data = await fetch(`models/ronie-visor.json${new URL(import.meta.url).search}`).then((r) => r.json());
     const sheet = bakedSheet(data);
     if (!sheet) return;
+    if (!icon.canvas) { icon.canvas = document.createElement('canvas'); icon.canvas.width = icon.canvas.height = 256; }
+    icon.tex = new THREE.CanvasTexture(icon.canvas);
     faceMat = new THREE.ShaderMaterial({
       vertexShader: FACE_VERT, fragmentShader: FACE_FRAG,
       uniforms: {
-        uL: { value: new THREE.Vector4() }, uR: { value: new THREE.Vector4() }, uHeart: { value: new THREE.Vector2() },
+        uL: { value: new THREE.Vector4() }, uR: { value: new THREE.Vector4() },
+        uLx: { value: new THREE.Vector4() }, uRx: { value: new THREE.Vector4() },
         uLook: { value: new THREE.Vector2() }, uCentre: { value: new THREE.Vector2(-0.035, 0.09) },
         uAspect: { value: sheet.aspect }, uTime: { value: 0 }, uOn: { value: 0 }, uGlitch: { value: 0 }, uBright: { value: 1 }, uSkew: { value: 0 },
+        uIcon: { value: icon.tex }, uIconPos: { value: new THREE.Vector2() }, uIconSize: { value: 0.2 }, uIconAmt: { value: 0 },
+        uIconTint: { value: new THREE.Vector3(1, 1, 1) },
       },
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       polygonOffset: true, polygonOffsetFactor: -4,
@@ -854,6 +981,7 @@ async function buildFace() {
   } catch (err) { console.warn('visor face not loaded', err); }
 }
 
+const easeOutBack = (k) => 1 + 2.4 * (k - 1) ** 3 + 1.4 * (k - 1) ** 2;
 function updateFace(now, dt) {
   if (!faceMat) return;
   const u = faceMat.uniforms, t = now / 1000;
@@ -862,18 +990,19 @@ function updateFace(now, dt) {
   face.on = awake ? Math.min(1, Math.max(0, (since - 0.35) / (MOTION ? 0.7 : 0.01))) : 0;
   // morph towards the current expression
   const goal = FACES[face.name], k = 1 - Math.exp(-dt * 14);
-  for (let i = 0; i < 5; i++) { face.L[i] += (goal.L[i] - face.L[i]) * k; face.R[i] += (goal.R[i] - face.R[i]) * k; }
-  // blink every few seconds (not when the eyes are already closed)
+  for (let i = 0; i < 8; i++) { face.L[i] += (goal.L[i] - face.L[i]) * k; face.R[i] += (goal.R[i] - face.R[i]) * k; }
+  // blink every few seconds (not when the eyes are already closed or drawn as shapes)
   if (now > face.blinkAt) { face.blinkAt = now + 2200 + Math.random() * 3800; face.blinkT = now; }
   const bt = (now - face.blinkT) / 150;
-  const open = face.L[1] > 0.04 && face.L[3] < 0.5 && face.L[4] < 0.5;
+  const open = face.L[1] > 0.04 && face.L[3] < 0.5 && face.L[4] + face.L[5] + face.L[6] < 0.5;
   const blink = open && MOTION && bt < 2 ? 1 - Math.abs(bt - 1) : 0;
-  // a little bounce while he talks
   // while he speaks, the eyes bounce with the loudness of his voice; otherwise a little bob as the text types
   const loud = voiceLoudness();
   const talk = !MOTION ? 0 : voiceSrc ? loud : now < face.talkUntil ? Math.abs(Math.sin(t * 17)) : 0;
-  // eyes follow the mouse; an expression can add its own glance
+  // eyes follow the mouse; an expression can add its own glance, a laughing bounce or a nervous jitter
   const g = goal.look || [0, 0];
+  const bounce = MOTION && goal.bounce ? Math.abs(Math.sin(t * 9)) * 0.03 * goal.bounce : 0;
+  const jitter = MOTION && goal.jitter ? [(Math.random() - 0.5) * 0.012, (Math.random() - 0.5) * 0.008] : [0, 0];
   face.look[0] += (look.x * 0.07 + g[0] - face.look[0]) * k;
   face.look[1] += (-look.y * 0.05 + g[1] + talk * 0.012 - face.look[1]) * k;
   const squash = (e) => {
@@ -882,10 +1011,21 @@ function updateFace(now, dt) {
   };
   u.uL.value.fromArray(squash(face.L));
   u.uR.value.fromArray(squash(face.R));
-  u.uHeart.value.set(face.L[4], face.R[4]);
-  u.uLook.value.fromArray(face.look);
+  // shapes + tilt (the tilt is mirrored, so + lifts both outer corners)
+  u.uLx.value.set(face.L[4], face.L[5], face.L[6], -face.L[7]);
+  u.uRx.value.set(face.R[4], face.R[5], face.R[6], face.R[7]);
+  u.uLook.value.set(face.look[0] + jitter[0], face.look[1] + bounce + jitter[1]);
   face.skew += ((goal.skew || 0) - face.skew) * k;
   u.uSkew.value = face.skew;
+  // the icon pops in (with a little overshoot), bobs, and fades out when its time is up
+  const age = (now - icon.shownAt) / 1000, left = (icon.hideAt - now) / 1000;
+  const amt = !icon.name ? 0 : Math.max(0, Math.min(1, age / 0.15, left / 0.35));
+  const slot = ICON_SLOTS[icon.slot];
+  const pop = MOTION ? easeOutBack(Math.min(1, age / 0.35)) : 1;
+  u.uIconAmt.value = amt;
+  u.uIconSize.value = slot.size * Math.max(0.05, pop);
+  u.uIconPos.value.set(slot.pos[0], slot.pos[1] + (MOTION && icon.slot === 'emote' ? Math.sin(t * 2.6) * 0.012 : 0));
+  u.uIconTint.value.fromArray(icon.tint);
   face.glitch *= Math.exp(-dt * 5);
   if (MOTION && Math.random() < dt * 0.08) face.glitch = Math.max(face.glitch, 0.5);  // the odd random glitch
   u.uGlitch.value = MOTION ? face.glitch : 0;
@@ -1009,7 +1149,7 @@ function placeForLeap(now) {
     // as he straightens up from the landing, an excited wave hello (it blends over the end of the landing)
     if (!waved && k > 0.4) {
       waved = true;
-      if (playGesture('wave', true)) { setFace('happy'); nextIdleMove = now + 9000; }
+      if (playGesture('wave', true)) { setFace('happy'); setIcon('wave', 2600); nextIdleMove = now + 9000; }
     }
   }
   model.position.copy(homePos).addScaledVector(facing, -LEAP_BACK * (1 - prog));
@@ -1057,6 +1197,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (view.hidden || document.hidden) { if (voiceSrc) stopVoice(); return; }   // left the page: stop talking
+  adaptQuality(dt);
   resize();
   if (tubes.length) updateTubes(now, dt);
 
@@ -1184,22 +1325,40 @@ function buzz() {
 // With sound on, Ronie says every line he types. Computers that can run it get Kokoro, a small, natural and
 // expressive voice model that runs in the browser (no server, no quota). Phones — and everyone in the first moments
 // before Kokoro has loaded — get the quick MeloTTS voice from the chat worker (very cheap on the free allowance).
-const VOICE = { lib: 'https://cdn.jsdelivr.net/npm/kokoro-js@1.2.1/dist/kokoro.web.js', model: 'onnx-community/Kokoro-82M-v1.0-ONNX', voice: 'am_puck', speed: 1.04, ...(A.voice || {}) };
+const VOICE = { model: 'onnx-community/Kokoro-82M-v1.0-ONNX', voice: 'am_puck', speed: 1.04, ...(A.voice || {}) };
 const speakUrl = A.chatUrl ? A.chatUrl.replace(/\/chat$/, '/speak') : '';
-let kokoro = null, kokoroLoading = null, voiceToken = 0, voiceSrc = null, voiceAnalyser = null, voiceLevel = 0;
+let kokoroReady = false, kokoroLoading = null, voiceToken = 0, voiceSrc = null, voiceAnalyser = null, voiceLevel = 0;
+let speechDone = Promise.resolve();               // settles when the line he's saying now is finished
 const voiceData = new Uint8Array(256);
 const audioCtx = () => (audio ||= new (window.AudioContext || window.webkitAudioContext)());
 
+// The natural voice runs in a background thread (js/ronie-voice-worker.js), so generating speech never stalls the
+// page; this is a tiny request/reply wrapper around it.
+let voiceWorker = null, rpcId = 0;
+const rpcWaiting = new Map();
+function voiceRpc(msg) {
+  return new Promise((resolve, reject) => {
+    const id = ++rpcId;
+    rpcWaiting.set(id, { resolve, reject });
+    voiceWorker.postMessage({ ...msg, id });
+  });
+}
 function loadKokoro() {
   if (kokoroLoading) return kokoroLoading;
   kokoroLoading = (async () => {
     // only where it runs well: a desktop browser with a GPU (WebGPU)
-    if (!('gpu' in navigator) || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return null;
-    if (!(await navigator.gpu.requestAdapter().catch(() => null))) return null;
-    const { KokoroTTS } = await import(VOICE.lib);
-    kokoro = await KokoroTTS.from_pretrained(VOICE.model, { dtype: 'fp32', device: 'webgpu' });
-    return kokoro;
-  })().catch((err) => { console.warn('natural voice unavailable, using the quick one', err); return null; });
+    if (!('gpu' in navigator) || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return false;
+    voiceWorker = new Worker(`js/ronie-voice-worker.js${new URL(import.meta.url).search}`, { type: 'module' });
+    voiceWorker.onmessage = ({ data }) => {
+      const w = rpcWaiting.get(data.id);
+      if (!w) return;
+      rpcWaiting.delete(data.id);
+      if (data.ok) w.resolve(data); else w.reject(new Error(data.error));
+    };
+    await voiceRpc({ type: 'load', model: VOICE.model });
+    kokoroReady = true;
+    return true;
+  })().catch((err) => { console.warn('natural voice unavailable, using the quick one', err); return false; });
   return kokoroLoading;
 }
 
@@ -1213,11 +1372,14 @@ function playVoice(buffer, my) {
   return new Promise((resolve) => {
     if (my !== voiceToken) return resolve();
     const ctx = audioCtx();
+    // if the browser hasn't allowed audio, don't hold the conversation up waiting for silence to "finish"
+    if (ctx.state !== 'running') return resolve();
+    const failsafe = setTimeout(resolve, (buffer.duration + 1.5) * 1000);
     if (!voiceAnalyser) { voiceAnalyser = ctx.createAnalyser(); voiceAnalyser.fftSize = 256; voiceAnalyser.connect(ctx.destination); }
     const src = ctx.createBufferSource();
     src.buffer = buffer;
     src.connect(voiceAnalyser);
-    src.onended = () => { if (voiceSrc === src) voiceSrc = null; resolve(); };
+    src.onended = () => { clearTimeout(failsafe); if (voiceSrc === src) voiceSrc = null; resolve(); };
     voiceSrc = src;
     src.start();
   });
@@ -1237,25 +1399,26 @@ async function speak(text) {
   stopVoice();
   if (!soundOn || !text) return;
   const my = voiceToken;
+  const timeout = (ms) => { const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };
   const said = text.replace(/R\.O\.N\.I\.E\./g, 'Ronie').replace(/\s+/g, ' ').trim();
   try {
-    if (kokoro) {
+    if (kokoroReady) {
       // sentence by sentence: the next one is generated while this one plays, so he starts talking quickly
       const parts = said.match(/[^.!?…]+[.!?…]+["')\]]*|[^.!?…]+$/g) || [said];
-      const make = (s) => kokoro.generate(s.trim(), { voice: VOICE.voice, speed: VOICE.speed });
+      const make = (s) => voiceRpc({ type: 'speak', text: s.trim(), voice: VOICE.voice, speed: VOICE.speed });
       let next = make(parts[0]);
       for (let i = 0; i < parts.length; i++) {
         const out = await next;
         if (my !== voiceToken) return;
         next = i + 1 < parts.length ? make(parts[i + 1]) : null;
-        const ctx = audioCtx(), buf = ctx.createBuffer(1, out.audio.length, out.sampling_rate);
+        const ctx = audioCtx(), buf = ctx.createBuffer(1, out.audio.length, out.rate);
         buf.copyToChannel(out.audio, 0);
         await playVoice(buf, my);
       }
       return;
     }
     if (!speakUrl) return;
-    const r = await fetch(speakUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: said }) });
+    const r = await fetch(speakUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: said }), signal: timeout(8000) });
     if (!r.ok || my !== voiceToken) return;
     const buf = await audioCtx().decodeAudioData(await r.arrayBuffer());
     await playVoice(buf, my);
@@ -1263,7 +1426,7 @@ async function speak(text) {
 }
 
 function blip() {
-  if (!soundOn || speakUrl || kokoro) return;   // when Ronie has a voice, the typing blips step aside
+  if (!soundOn || speakUrl || kokoroReady) return;   // when Ronie has a voice, the typing blips step aside
   try {
     audio ||= new (window.AudioContext || window.webkitAudioContext)();
     const o = audio.createOscillator(), g = audio.createGain();
@@ -1303,7 +1466,7 @@ function lineFor(id, step) {
 function typeLine(text) {
   const my = ++typingToken;
   sayEl.classList.remove('done');
-  speak(text);
+  speechDone = speak(text);
   if (!MOTION) { sayEl.textContent = text; return Promise.resolve(); }
   return new Promise((resolve) => {
     let i = 0;
@@ -1341,6 +1504,7 @@ function go(id, push = true) {
   clearTimeout(confusedTimer);
   const mood = faceFor(id, step);
   setFace(mood);
+  setIcon(step.icon || null);
   if (mood === 'excited' && playGesture('excited')) reacting = false;
   else if (reacting) { reacting = false; startJump(); }
   typeLine(lineFor(id, step)).then(() => showActions(id, step));
@@ -1355,6 +1519,7 @@ function react() {
 let confusedTimer = 0;
 function confused() {
   setFace('confused');
+  setIcon('question', 2600);
   playGesture('confused');
   clearTimeout(confusedTimer);
   confusedTimer = setTimeout(() => { const id = history[history.length - 1]; setFace(faceFor(id, A.steps[id])); }, 2600);
@@ -1391,7 +1556,8 @@ async function askRonie() {
     });
     if (!r.ok) return null;
     const j = await r.json();
-    return typeof j.reply === 'string' && j.reply.trim() ? j.reply.trim() : null;
+    // { reply, face?, icon? } — the face and icon are the model's pick for this answer
+    return typeof j.reply === 'string' && j.reply.trim() ? { ...j, reply: j.reply.trim() } : null;
   } catch { return null; } finally { clearTimeout(timer); }
 }
 
@@ -1435,20 +1601,30 @@ function showChat(id, step, offerEmail = false) {
     prevEl.classList.add('show');
     chatLog.push({ role: 'user', content: q });
     setFace('thinking');
+    setIcon('dots', 30000);
     sayEl.classList.remove('done');
     sayEl.textContent = '…';
-    const reply = await askRonie();
+    const answer = await askRonie();
     if (!history.length || history[history.length - 1] !== id) return;   // they've moved on meanwhile
-    if (reply) {
+    if (answer) {
+      const { reply } = answer;
       chatLog.push({ role: 'assistant', content: reply });
-      setFace('happy');
+      // his expression and icon follow the answer: the model's pick, or what the answer is about
+      const mood = FACES[answer.face] ? answer.face : 'happy';
+      setFace(mood);
+      // a "?" only when he's actually unsure; otherwise show what the answer is about
+      const unsure = /don.t know|not sure|no information|don.t have/i.test(reply);
+      const picked = ICONS[answer.icon] && !(answer.icon === 'question' && !unsure) ? answer.icon : null;
+      setIcon(picked || iconFor(reply), 9000);
       await typeLine(reply);
-      setFace('neutral');
+      setTimeout(() => { if (face.name === mood) setFace('neutral'); }, 2500);
       showChat(id, step);
     } else {
       chatLog.pop();
-      confused();
+      setFace('sleepy');
+      setIcon('zzz', 6000);
       await typeLine(fill(step.fallback || "I can't think right now. Try again in a bit?"));
+      setFace('neutral');
       showChat(id, step, true);
     }
   };
@@ -1517,7 +1693,11 @@ function showActions(id, step) {
     if (step.story !== 'story-done') button('Skip the story', 'rai-skip', () => go('story-done'), 80);
     return;
   }
-  if (step.next) autoTimer = setTimeout(() => go(step.next), 1300);
+  // lines that move on by themselves wait until he has finished saying them
+  if (step.next) {
+    const mine = typingToken;
+    speechDone.then(() => { if (mine === typingToken) autoTimer = setTimeout(() => go(step.next), soundOn ? 450 : 1300); });
+  }
 }
 
 // No server needed: open the visitor's email app with everything filled in.
