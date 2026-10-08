@@ -75,7 +75,8 @@ const ENV_ONLY = 1;              // layer seen by the reflection camera but not 
 const GLOW = 2;                  // layer of things allowed to bloom (only the tube cores)
 const BLACK = new THREE.MeshBasicMaterial({ color: 0x000000 });
 const _saved = new Map(), _hidden = [];
-let cubeRT, cubeCam, softbox, envTick = 0, wakeAt = 0;
+let cubeRT, cubeCam, pmremGen, envRT = null, softbox, envTick = 0, wakeAt = 0, baseAng = 0;
+const COS75 = Math.cos((75 * Math.PI) / 180);
 const tubes = [];
 const tubeLights = [];
 const OFF_CORE = new THREE.Color(0x1a1a1a), _c = new THREE.Color();
@@ -104,7 +105,7 @@ function init3D() {
   cubeCam = new THREE.CubeCamera(0.05, 40, cubeRT);
   cubeCam.layers.enable(ENV_ONLY);
   cubeCam.children.forEach((c) => c.layers.enable(ENV_ONLY));
-  scene.environment = cubeRT.texture;
+  pmremGen = new THREE.PMREMGenerator(renderer);
   // an overhead softbox only visible in reflections (dims with the room)
   softbox = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.4), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, fog: false }));
   softbox.layers.set(ENV_ONLY);
@@ -122,12 +123,12 @@ function init3D() {
   lights.key.target.position.set(0, 1, 0);
   scene.add(lights.moon, lights.hemi, lights.key, lights.key.target);
   for (let i = 0; i < 6; i++) {
-    const l = new THREE.PointLight(PALETTE[(i * 2) % PALETTE.length], 0, 9, 2);
+    const l = new THREE.PointLight(PALETTE[(i * 2) % PALETTE.length], 0, 12, 2);
     tubeLights.push(l); scene.add(l);
   }
-  cursorLight = new THREE.PointLight(0xfff1e0, 0, 3.2, 2);
+  cursorLight = new THREE.PointLight(0xfff1e0, 0, 2.4, 2);
   cursorOrb = new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-  cursorOrb.layers.enable(GLOW);
+  cursorOrb.layers.set(ENV_ONLY); // invisible to the viewer — only its light (and reflections) show
   scene.add(cursorLight, cursorOrb);
   // listen on the whole R.A.I. view, so the light keeps following over the dialogue too
   root.addEventListener('pointermove', (e) => {
@@ -275,8 +276,8 @@ function onModel(gltf) {
 // core, metal caps, a little floor stand and a cable going up. Tubes in front of him only appear in
 // reflections (ENV_ONLY), so they light his chest without blocking the view.
 function buildTubes() {
-  const N = 22, R = 3.4;
-  const base = Math.atan2(facing.x, facing.z);
+  const N = 22;
+  baseAng = Math.atan2(facing.x, facing.z);
   const glass = new THREE.MeshPhysicalMaterial({
     color: 0xffffff, metalness: 0, roughness: 0.03, transparent: true, opacity: 0.24,
     clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.6, depthWrite: false,
@@ -285,7 +286,8 @@ function buildTubes() {
   const cable = new THREE.MeshStandardMaterial({ color: 0x080808, roughness: 0.55 });
   for (let i = 0; i < N; i++) {
     const ang = (i / N) * Math.PI * 2;                   // 0 = straight in front of him
-    const a = base + ang;
+    const R = 2.6 + rand(i + 200) * 3.3;                 // each tube at its own distance (2.6–5.9)
+    const a = baseAng + ang;
     const h = 1.35 + rand(i) * 1.7;                      // glowing length
     const y0 = 0.16;                                     // bottom of the glass
     const yc = y0 + 0.045 + h / 2;                       // centre of the tube
@@ -311,7 +313,6 @@ function buildTubes() {
     const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, wireLen, 6), cable);
     wire.position.y = top + wireLen / 2;
     g.add(core, tube, capB, capT, stand, rod, wire);
-    if (Math.cos(ang) > Math.cos((75 * Math.PI) / 180)) g.traverse((o) => o.layers.set(ENV_ONLY));
     scene.add(g);
     // on wake each tube flickers like a fluorescent starter before it settles
     const flicks = [];
@@ -322,14 +323,43 @@ function buildTubes() {
       tt += 0.03 + rand(i * 11 + k) * 0.1; flicks.push([tt, k % 2 === 0 ? 0.05 : 1]);
     }
     flicks.push([tt + 0.08, 1]);
-    tubes.push({ g, coreMat, col: PALETTE[i % PALETTE.length], phase: i * 1.7, start: 0.15 + i * 0.045 + rand(i + 99) * 0.35, flicks, level: 0, lit: false });
+    tubes.push({
+      g, core, parts: [core, tube, capB, capT, stand, rod, wire], coreMat, col: PALETTE[i % PALETTE.length],
+      // orbit: closer tubes travel a little faster, like planets around him
+      ang, R, speed: 0.24 / R, front: null,
+      phase: i * 1.7, start: 0.15 + i * 0.045 + rand(i + 99) * 0.35, flicks, level: 0, lit: false, light: null,
+    });
   }
-  tubeLights.forEach((l, i) => {
-    const a = base + ((i + 0.5) / tubeLights.length) * Math.PI * 2;
-    l.position.set(Math.sin(a) * 2.3, 1.6, Math.cos(a) * 2.3);
+  // the coloured fill lights ride along with a few of the tubes
+  tubeLights.forEach((l, k) => {
+    const tb = tubes[Math.round((k * N) / tubeLights.length) % N];
+    tb.light = l;
+    l.color.copy(tb.col);
   });
   softbox.position.copy(facing).multiplyScalar(1.8).add(new THREE.Vector3(0, 3.8, 0));
   softbox.lookAt(0, 1.2, 0);
+  placeTubes(0);
+}
+
+// move every tube along its orbit; tubes passing in front of him (between him and the camera) are
+// shown only in reflections, and the switch happens well outside the camera's view
+function placeTubes(dt) {
+  for (const tb of tubes) {
+    tb.ang += tb.speed * dt * MOTION;
+    const a = baseAng + tb.ang;
+    tb.g.position.set(Math.sin(a) * tb.R, 0, Math.cos(a) * tb.R);
+    tb.g.rotation.y = a;
+    const front = Math.cos(tb.ang) > COS75;
+    if (front !== tb.front) {
+      tb.front = front;
+      for (const o of tb.parts) o.layers.set(front ? ENV_ONLY : 0);
+      if (!front) tb.core.layers.enable(GLOW);
+    }
+    if (tb.light) {
+      const r = tb.R - 0.35;
+      tb.light.position.set(Math.sin(a) * r, 1.5, Math.cos(a) * r);
+    }
+  }
 }
 
 function tubeState(tb, since) {
@@ -343,6 +373,7 @@ function tubeState(tb, since) {
 function updateTubes(now, dt) {
   const t = now / 1000;
   const since = awake ? (now - wakeAt) / 1000 : -1;
+  placeTubes(dt);
   let total = 0;
   for (const tb of tubes) {
     const goal = MOTION ? tubeState(tb, since) : (awake ? 1 : 0);
@@ -353,9 +384,9 @@ function updateTubes(now, dt) {
     // off = dark core behind clear glass; on = HDR colour that the bloom turns into a neon glow
     tb.coreMat.color.copy(OFF_CORE).lerp(_c.copy(tb.col).multiplyScalar(2.6), lvl);
     total += tb.level;
+    // farther tubes get a stronger light so they still reach him
+    if (tb.light) tb.light.intensity = 9 * Math.min(3, (tb.R / 2.6) ** 2) * lvl;
   }
-  const lit = tubes.length ? total / tubes.length : 0;
-  tubeLights.forEach((l, i) => { l.intensity = 9 * lit * (0.88 + 0.12 * Math.sin(t * 1.1 + i)); });
   // the room light comes up once the tubes are mostly on
   const roomGoal = awake && since > 0.55 ? 1 : 0;
   power += (roomGoal - power) * Math.min(1, dt * (MOTION ? 1.6 : 60));
@@ -372,9 +403,13 @@ function updateReflections() {
   if (envTick++ % 3) return;
   model.visible = false;
   if (dust) dust.visible = false;
+  // reflections are switched off while the room is photographed — otherwise the glass, floor and metal
+  // would read from the very image being written (a feedback loop that made every 3rd frame flash)
+  scene.environment = null;
   cubeCam.position.set(headHome.x, headHome.y - 0.5, headHome.z);
   cubeCam.update(renderer, scene);
-  cubeRT.texture.needsPMREMUpdate = true;
+  envRT = pmremGen.fromCubemap(cubeRT.texture, envRT);
+  scene.environment = envRT.texture;
   model.visible = true;
   if (dust) dust.visible = true;
 }
@@ -418,12 +453,13 @@ function updateCursorLight(dt) {
   _plane.setFromNormalAndCoplanarPoint(facing, _hit.copy(target).addScaledVector(facing, 0.7));
   _ray.setFromCamera(_ndc.set(cursor.x, cursor.y), camera);
   if (_ray.ray.intersectPlane(_plane, _hit)) { cursorLight.position.copy(_hit); cursorOrb.position.copy(_hit); }
-  // on only while he's awake and the mouse is over the scene; fades in and out softly
-  const goal = awake && cursor.inside ? 1 : 0;
+  // on whenever the mouse is over the scene (awake or asleep); fades in and out softly
+  const goal = cursor.inside ? 1 : 0;
   cursor.level += (goal - cursor.level) * Math.min(1, dt * 6);
-  cursorLight.intensity = 2.6 * cursor.level;
+  // a softer, more local glow while he's asleep (a torch in a dark room); brighter once he's awake
+  cursorLight.intensity = (1.1 + 1.4 * power) * cursor.level;
   cursorOrb.visible = cursor.level > 0.02;
-  cursorOrb.material.color.setScalar(0.4 + 5.5 * cursor.level);
+  cursorOrb.material.color.setScalar(0.4 + 3 * cursor.level);
 }
 
 function startJump() {
