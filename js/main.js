@@ -937,7 +937,7 @@
       glitchingText = false; appear = 0;
       visited = new Set(); arrive(0);
     }
-    // scramble the coordinates while the lines glitch out
+    // scramble the coordinates as they glitch out
     function scrambleText(duration) {
       const els = $$('.pin.shown .pin-coords', card);
       els.forEach((el) => glitch(el, el.textContent, { chars: GLYPHS, percent: 0.55, duration, speed: 55, color: 'rgba(255,255,255,.7)' }));
@@ -959,42 +959,6 @@
         if (s) ctx.lineTo(x, y); else ctx.moveTo(x, y);
       }
       ctx.stroke();
-    }
-
-    // The journey lines live on their own layer, so only they (not the map dots) glitch out.
-    const lineC = document.createElement('canvas');
-    // Digital glitch over the line layer: pink/cyan ghosts, torn horizontal slices, noise bars.
-    const gbuf = document.createElement('canvas');
-    function glitchLayer(layer, gi) {
-      const cw = layer.width, ch = layer.height, dpr = cw / Math.max(1, W);
-      if (gbuf.width !== cw || gbuf.height !== ch) { gbuf.width = cw; gbuf.height = ch; }
-      const g = gbuf.getContext('2d');
-      g.clearRect(0, 0, cw, ch); g.drawImage(layer, 0, 0);
-      const c = layer.getContext('2d');
-      c.save();
-      c.setTransform(1, 0, 0, 1, 0, 0);
-      c.clearRect(0, 0, cw, ch);
-      const shift = gi * cw * 0.035;
-      c.globalCompositeOperation = 'lighter';
-      c.globalAlpha = 0.55 * gi;
-      c.filter = 'sepia(1) saturate(9) hue-rotate(270deg)'; c.drawImage(gbuf, -shift * (0.5 + Math.random()), 0);
-      c.filter = 'sepia(1) saturate(9) hue-rotate(130deg)'; c.drawImage(gbuf, shift * (0.5 + Math.random()), 0);
-      c.filter = 'none';
-      c.globalCompositeOperation = 'source-over';
-      c.globalAlpha = 1;
-      for (let y = 0; y < ch;) {
-        const sh = (3 + Math.random() * 28) * dpr;
-        const off = Math.random() < 0.15 + 0.4 * gi ? (Math.random() * 2 - 1) * shift * 2.4 : 0;
-        c.drawImage(gbuf, 0, y, cw, sh, off, y, cw, sh);
-        y += sh;
-      }
-      const NOISE = ['#ff00c8', '#00fff9', '#ffffff', '#c6f432'];
-      for (let i = 0; i < gi * 16; i++) {
-        c.globalAlpha = Math.random() * 0.7;
-        c.fillStyle = NOISE[i % NOISE.length];
-        c.fillRect(Math.random() * cw, Math.random() * ch, (6 + Math.random() * 90) * dpr, (1 + Math.random() * 3) * dpr);
-      }
-      c.restore();
     }
 
     onFrame(card, (now, dt) => {
@@ -1038,7 +1002,7 @@
         scrambleText(HOME_TRAVEL * 0.65 + VANISH);
       }
 
-      // the map dots don't glitch — they just dim slowly to nothing, then fade back in on restart
+      // only the coordinates glitch — the map dots just dim slowly to nothing, then fade back in on restart
       let dotsA = clamp(appear / APPEAR, 0, 1);
       if (onHomeLeg && gi > 0) dotsA = 1 - 0.45 * gi;
       else if (stage === 'vanish') dotsA = 0.55 - 0.3 * clamp(t / VANISH, 0, 1);
@@ -1058,36 +1022,21 @@
         ctx.beginPath(); ctx.arc(d.x, d.y, DOT_R + g * 0.8, 0, TAU); ctx.fill();
       }
       ctx.globalAlpha = 1;
-      if (stage === 'void') return; // lines and coordinates are already gone
 
-      // finished legs stay as a trail; the current leg draws itself — on the line layer
-      if (lineC.width !== canvas.width || lineC.height !== canvas.height) { lineC.width = canvas.width; lineC.height = canvas.height; }
-      const lc = lineC.getContext('2d');
-      const ldpr = lineC.width / Math.max(1, W);
-      lc.setTransform(1, 0, 0, 1, 0, 0);
-      lc.clearRect(0, 0, lineC.width, lineC.height);
-      lc.setTransform(ldpr, 0, 0, ldpr, 0, 0);
-      const finished = stage === 'travel' ? leg : stage === 'hold' ? Math.max(0, visited.size - 1) : legs.length;
-      for (let L = 0; L < finished; L++) strokeLeg(lc, curves[L], 1, 0.55);
-      if (stage === 'travel') {
-        strokeLeg(lc, curves[leg], u, 0.95);
-        lc.globalAlpha = 1; lc.fillStyle = '#fff';
-        lc.beginPath(); lc.arc(head.x, head.y, 2.8, 0, TAU); lc.fill();
-      }
-      lc.globalAlpha = 1;
-      if (gi > 0) glitchLayer(lineC, gi);
-
-      // the lines flicker out during the vanish
+      // the lines don't glitch either: they stay until the trip home ends, then fade out with the dots
       let linesA = 1;
-      if (stage === 'vanish') {
-        const left = 1 - clamp((t - VANISH * 0.45) / (VANISH * 0.55), 0, 1);
-        linesA = Math.random() < 0.35 ? left * 0.25 : left;
+      if (stage === 'vanish') linesA = 1 - 0.55 * clamp(t / VANISH, 0, 1);
+      else if (stage === 'void') linesA = 0.45 * (1 - clamp(t / (VOID * 0.85), 0, 1));
+      if (linesA <= 0) return;
+      // finished legs stay as a trail; the current leg draws itself
+      const finished = stage === 'travel' ? leg : stage === 'hold' ? Math.max(0, visited.size - 1) : legs.length;
+      for (let L = 0; L < finished; L++) strokeLeg(ctx, curves[L], 1, 0.55 * linesA);
+      if (stage === 'travel') {
+        strokeLeg(ctx, curves[leg], u, 0.95);
+        ctx.globalAlpha = 1; ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(head.x, head.y, 2.8, 0, TAU); ctx.fill();
       }
-      ctx.save();
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.globalAlpha = linesA;
-      ctx.drawImage(lineC, 0, 0);
-      ctx.restore();
+      ctx.globalAlpha = 1;
     });
   }
 
