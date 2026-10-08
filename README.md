@@ -1,0 +1,30 @@
+# Raunak Patil — Portfolio
+
+A dashboard-style portfolio (bento cards, ASCII greeting, hours gauge, skill matrix,
+3D project tunnel, dotted experience map) plus Projects and Case Study pages.
+Plain HTML/CSS/JS with no build step.
+
+## Edit your content
+Everything lives in **`js/data.js`**: name, links, skills, experience (map pins),
+projects and case studies. Values marked *estimate* (hours, skill scores) are guesses.
+
+- **Real screenshots:** add `image: 'img/resrescue.png'` to a project to replace the generated mock-up.
+- **ASCII portrait:** set `hello.asciiImage` to a portrait on a plain background (e.g. `img/me.png`).
+- **Map region:** `mapBounds` controls which part of the world is shown; delete it for the full map.
+
+## Run locally
+Serve the folder over http, because a local portrait image won't render as ASCII from `file://`:
+
+```bash
+python -m http.server 5173
+```
+
+Then open http://localhost:5173.
+
+## Deploy
+Hosted free on GitHub Pages from the `portfolio` repo, at https://raunakpatil.com
+(the `CNAME` file holds the domain). Every push to `main` goes live within a minute or two.
+
+DNS for raunakpatil.com (at GoDaddy):
+- `A` records for `@` → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
+- `CNAME` record `www` → `raunakpatil.github.io`
