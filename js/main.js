@@ -158,7 +158,12 @@
     const box = document.getElementById('rai-loading');
     if (!pre || bootRunning || box.hidden) return;
     bootRunning = true;
-    const W = 40, H = 22, RAMP = ' .:-=+*#%@';
+    // ASCII Saturn: a banded planet with a tilted ring that passes in front of and behind it
+    const W = 78, H = 25, RAMP = ' .:-=+*#%@', RING = ' .`,:-~=';
+    const U = 7.6;                  // rows per planet radius (a character is ~0.6 as wide as it is tall)
+    const TILT = 0.27, ROLL = -0.22; // ring opening (slim ellipse), and the whole planet leaning a little
+    const nY = Math.cos(TILT), nZ = Math.sin(TILT);
+    const cr = Math.cos(ROLL), sr = Math.sin(ROLL);
     let spin = 0, last = performance.now();
     const step = (now) => {
       // stop once Ronie has loaded (or the loading box was replaced by an error message)
@@ -166,25 +171,37 @@
       requestAnimationFrame(step);
       const dt = Math.min(50, now - last); last = now;
       if (document.querySelector('[data-view="assistant"]').hidden) return;
-      spin += dt * 0.0009 * MOTION;
-      const cs = Math.cos(spin), sn = Math.sin(spin);
-      // light sweeps around the core
-      const lx = Math.cos(spin * 1.7) * 0.6, ly = 0.45, lz = 0.66;
+      spin += dt * 0.0007 * MOTION;
+      const lx = -0.55, ly = 0.5, lz = 0.67; // fixed sun, upper left
       let txt = '';
       for (let r = 0; r < H; r++) {
         for (let c = 0; c < W; c++) {
-          // character cells are ~2× taller than wide, so stretch x to keep the sphere round
-          const x = (c - W / 2 + 0.5) / (W / 2), y = -(r - H / 2 + 0.5) / (H / 2);
+          // screen → planet space (lean the whole system by ROLL)
+          const sx = ((c - W / 2 + 0.5) * 0.6) / U, sy = -(r - H / 2 + 0.5) / U;
+          const x = sx * cr - sy * sr, y = sx * sr + sy * cr;
+          // planet (unit sphere)
           const d = x * x + y * y;
-          if (d > 1) { txt += ' '; continue; }
-          const z = Math.sqrt(1 - d);
-          // rotate the surface around the vertical axis to get spinning latitude/longitude bands
-          const rx = x * cs + z * sn, rz = -x * sn + z * cs;
-          const lon = Math.atan2(rx, rz), lat = Math.asin(y);
-          const bands = Math.abs(Math.sin(lon * 6)) > 0.93 || Math.abs(Math.sin(lat * 7)) > 0.95;
-          const shade = Math.max(0, x * lx + y * ly + z * lz) * 0.85 + 0.12;
-          const v = bands ? Math.min(1, shade + 0.35) : shade * 0.6;
-          txt += RAMP[Math.min(RAMP.length - 1, Math.round(v * (RAMP.length - 1)))];
+          const zs = d <= 1 ? Math.sqrt(1 - d) : -Infinity;
+          // ring plane through the centre, tilted towards the viewer
+          const zr = -(y * nY) / nZ;
+          const rad = Math.sqrt(x * x + y * y + zr * zr);
+          const onRing = rad > 1.32 && rad < 2.25 && !(rad > 1.83 && rad < 1.9); // with a Cassini gap
+          let ch = ' ';
+          if (onRing && zr > zs) {
+            // ring in front of the planet (or beside it): fine bands that drift with the spin
+            const ang = Math.atan2(x, zr * nZ - y * nY);
+            const band = 0.55 + 0.45 * Math.sin(rad * 22) * (0.7 + 0.3 * Math.sin(ang * 5 + spin * 3));
+            const shadowed = zs === -Infinity && d < 1.02 && zr < 0; // behind the planet's shadow
+            ch = RING[Math.max(1, Math.min(RING.length - 1, Math.round(band * (shadowed ? 0.35 : 1) * (RING.length - 1))))];
+          } else if (zs > -Infinity) {
+            // planet: latitude bands (Saturn's stripes) + soft lighting; the bands drift slowly
+            const lat = Math.asin(Math.max(-1, Math.min(1, y)));
+            const stripes = 0.75 + 0.25 * Math.sin(lat * 9 + Math.sin(x * 2 + spin) * 0.4);
+            const light = Math.max(0, x * lx + y * ly + zs * lz);
+            const v = (0.22 + 0.78 * light) * stripes;
+            ch = RAMP[Math.max(1, Math.min(RAMP.length - 1, Math.round(v * (RAMP.length - 1))))];
+          }
+          txt += ch;
         }
         txt += '\n';
       }
