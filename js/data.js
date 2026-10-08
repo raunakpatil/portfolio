@@ -243,7 +243,7 @@ window.PORTFOLIO = {
     start: 'intro',
     steps: {
       intro: {
-        progress: 0.05, next: 'greeting',
+        progress: 0.05, next: 'your-name',
         say: [
           "Hi {visitor}, I'm R.O.N.I.E. — Raunak's Own Neural Intelligence Engine. Ronie, to friends.",
           "Oh! A visitor. I'm Ronie — Raunak's Own Neural Intelligence Engine. I basically run this place.",
@@ -401,15 +401,33 @@ window.PORTFOLIO = {
       },
 
       // ---------- get to know him ----------
+      // the conversation starts by asking the visitor's name (remembered on this device), then it's a free chat
+      'your-name': {
+        progress: 0.15, next: 'ask', skipIfName: 'welcome-back',
+        input: { name: 'name', label: 'Your name', type: 'text' },
+        say: [
+          "Before we start — what should I call you?",
+          "First things first: who am I talking to?",
+          "I'm terrible with names. Mostly because nobody tells me theirs. What's yours?",
+        ],
+      },
+      'welcome-back': {
+        progress: 0.2, next: 'ask',
+        say: [
+          "Wait — {name}? You came back! I'm… not crying. That's coolant.",
+          "{name}! Welcome back. I kept your seat warm. Well, my fans did.",
+          "Oh, hi {name}. I remembered your name. I've been practising.",
+        ],
+      },
       // free chat: questions go to a small AI model (worker/), grounded only in this file's facts
       ask: {
         progress: 0.3, chat: true,
         say: [
-          "Ask me anything about Raunak — his work, projects, skills, or how to reach him.",
-          "Go on, ask me anything about him. I've read everything he's written. Twice.",
-          "Questions about Raunak? Fire away — I'll answer as honestly as a robot can.",
+          "Right, {name}. Ask me anything about Raunak — his work, projects, skills, or how to reach him.",
+          "Okay {name}, ask me anything about him. I've read everything he's written. Twice.",
+          "So, {name} — questions about Raunak? Fire away. I'll answer as honestly as a robot can.",
         ],
-        fallback: "My chat brain is taking a nap right now (free-tier robots need sleep too). Try the menu — or email Raunak at {email}.",
+        fallback: "Sorry {name}, my chat brain is taking a nap right now (free-tier robots need sleep too). Try again in a bit — or email Raunak at {email}.",
       },
 
       'story-menu': {

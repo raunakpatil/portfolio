@@ -1239,6 +1239,8 @@ function typeLine(text) {
 function go(id, push = true) {
   const step = A.steps[id];
   if (!step) return;
+  // returning visitors: no need to ask their name again
+  if (step.skipIfName && answers.name) return go(step.skipIfName, push);
   clearTimeout(autoTimer);
   if (push) history.push(id);
   const prevText = sayEl.textContent;
@@ -1298,7 +1300,7 @@ async function askRonie() {
   try {
     const r = await fetch(A.chatUrl, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: chatLog.slice(-8) }), signal: ctl.signal,
+      body: JSON.stringify({ messages: chatLog.slice(-8), name: answers.name || '' }), signal: ctl.signal,
     });
     if (!r.ok) return null;
     const j = await r.json();
@@ -1306,7 +1308,7 @@ async function askRonie() {
   } catch { return null; } finally { clearTimeout(timer); }
 }
 
-function showChat(id, step) {
+function showChat(id, step, offerEmail = false) {
   actions.innerHTML = '';
   const field = document.createElement('div');
   field.className = 'rai-field';
@@ -1326,7 +1328,16 @@ function showChat(id, step) {
   const err = document.createElement('p');
   err.className = 'rai-error';
   actions.appendChild(err);
-  button('Back to the menu', 'rai-skip', () => go('greeting'), 120);
+  if (offerEmail) button('Email Raunak instead', 'rai-choice', () => { location.href = `mailto:${A.email}`; }, 60);
+  // someone else at this computer? let them give their own name
+  if (answers.name) {
+    button(`Not ${answers.name}?`, 'rai-skip', () => {
+      delete answers.name;
+      store.set('rai-name', '');
+      chatLog.length = 0;
+      go('your-name');
+    }, 120);
+  }
   actions.onsubmit = async (e) => {
     e.preventDefault();
     const q = el.value.trim();
@@ -1350,9 +1361,8 @@ function showChat(id, step) {
     } else {
       chatLog.pop();
       confused();
-      await typeLine(fill(step.fallback || "I can't think right now. Try the menu?"));
-      actions.innerHTML = '';
-      button('Back to the menu', 'rai-choice', () => go('greeting'), 0);
+      await typeLine(fill(step.fallback || "I can't think right now. Try again in a bit?"));
+      showChat(id, step, true);
     }
   };
   setTimeout(() => el.focus({ preventScroll: true }), 50);
@@ -1370,6 +1380,7 @@ function showActions(id, step) {
     el.placeholder = inp.label;
     el.setAttribute('aria-label', inp.label);
     if (!inp.multiline) el.type = inp.type || 'text';
+    if (inp.name === 'name') el.maxLength = 40;
     if (inp.type === 'email') el.autocomplete = 'email';
     if (inp.name === 'name') el.autocomplete = 'name';
     if (inp.multiline) el.rows = 3;
