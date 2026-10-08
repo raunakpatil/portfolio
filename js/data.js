@@ -243,7 +243,7 @@ window.PORTFOLIO = {
     start: 'intro',
     steps: {
       intro: {
-        progress: 0.05, next: 'your-name',
+        progress: 0.05, next: 'your-name', face: 'happy', icon: 'sparkle',
         say: [
           "Hi {visitor}, I'm R.O.N.I.E. — Raunak's Own Neural Intelligence Engine. Ronie, to friends.",
           "Oh! A visitor. I'm Ronie — Raunak's Own Neural Intelligence Engine. I basically run this place.",
@@ -403,7 +403,7 @@ window.PORTFOLIO = {
       // ---------- get to know him ----------
       // the conversation starts by asking the visitor's name (remembered on this device), then it's a free chat
       'your-name': {
-        progress: 0.15, next: 'ask', skipIfName: 'welcome-back',
+        progress: 0.15, next: 'ask', skipIfName: 'welcome-back', face: 'curious', icon: 'question',
         input: { name: 'name', label: 'Your name', type: 'text' },
         say: [
           "Before we start — what should I call you?",
@@ -412,7 +412,7 @@ window.PORTFOLIO = {
         ],
       },
       'welcome-back': {
-        progress: 0.2, next: 'ask',
+        progress: 0.2, next: 'ask', face: 'love', icon: 'heart',
         say: [
           "Wait — {name}? You came back! I'm… not crying. That's coolant.",
           "{name}! Welcome back. I kept your seat warm. Well, my fans did.",
@@ -421,7 +421,7 @@ window.PORTFOLIO = {
       },
       // free chat: questions go to a small AI model (worker/), grounded only in this file's facts
       ask: {
-        progress: 0.3, chat: true,
+        progress: 0.3, chat: true, face: 'happy', icon: 'speech',
         say: [
           "Right, {name}. Ask me anything about Raunak — his work, projects, skills, or how to reach him.",
           "Okay {name}, ask me anything about him. I've read everything he's written. Twice.",
