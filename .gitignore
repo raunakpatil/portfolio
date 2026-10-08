@@ -8,3 +8,6 @@ img/covers/*.png
 Thumbs.db
 desktop.ini
 .DS_Store
+
+# Source 3D model archives (the site uses the optimized models/ copy)
+3dmodel/

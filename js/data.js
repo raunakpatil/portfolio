@@ -219,4 +219,228 @@ window.PORTFOLIO = {
       { title: '15% less downtime', sub: 'Predictive maintenance · Zummit Infolabs', text: 'Python ML models built through feature engineering and model iteration.' },
     ],
   },
+
+  /* R.A.I. — the assistant that opens when someone clicks "Hello Stranger".
+     Each step: `say` (one line is picked at random), then either `choices`, an `input`,
+     or `next` (auto-continues). `progress` fills the bar (0–1).
+     {name} is replaced with the visitor's name once they've given it.
+     Choices: `to` = next step, `href` = go to a page/link, `set` = remember an answer.
+     Steps with `send: 'hire' | 'word'` open the visitor's email app, addressed to `email`. */
+  assistant: {
+    name: 'R.A.I.',
+    email: 'raunakpatil15@gmail.com',
+    model: {
+      src: 'models/rai-robot.glb',
+      credit: 'Sci-fi O.B. Robot Unit TH-ICC02 (animated)',
+      creditUrl: 'https://sketchfab.com/3d-models/sci-fi-ob-robot-unit-th-icc02-animated-6c0764c2bc4c4aaa8e03ba1653f455a6',
+      author: 'Jungle Jim',
+      authorUrl: 'https://sketchfab.com/jungle_jim',
+      license: 'CC BY 4.0',
+      licenseUrl: 'http://creativecommons.org/licenses/by/4.0/',
+    },
+    start: 'intro',
+    steps: {
+      intro: {
+        progress: 0.05, next: 'greeting',
+        say: [
+          "Hi {visitor}, I'm R.A.I. — Raunak's Artificial Intern.",
+          "Oh! A visitor. I'm R.A.I., Raunak's Artificial Intern. I basically run this place.",
+          "Beep. Boop. Kidding — I'm R.A.I., Raunak's Artificial Intern, and I'm fully awake now.",
+        ],
+      },
+      greeting: {
+        progress: 0.12,
+        say: [
+          "Finally, some company. Talking to my own logs was getting weird. What can I do for you?",
+          "You have questions. I have… mostly answers. Pick one.",
+          "I've cleared my calendar. Well, I don't have one. But still — how can I help?",
+          "Speak, and the model shall respond. Accurately. Raunak checks.",
+          "Unpaid intern, fully motivated. What brings you here?",
+        ],
+        choices: [
+          { label: 'Work with Raunak', to: 'hire-intro', set: { goal: 'hire' } },
+          { label: 'Get to know him', to: 'story-menu' },
+          { label: 'Drop a quick word', to: 'word-message', set: { goal: 'word' } },
+          { label: 'Show me his work', to: 'work' },
+        ],
+      },
+
+      // ---------- work with Raunak ----------
+      'hire-intro': {
+        progress: 0.2, next: 'hire-name',
+        say: [
+          "Ooh, an opportunity. Let me grab my notepad. It's imaginary, but it's very organised.",
+          "A collaboration? Now we're talking. Raunak will be thrilled — I'll act casual.",
+          "Excellent taste. Let's get you on his radar.",
+        ],
+      },
+      'hire-name': {
+        progress: 0.3, next: 'hire-post-name',
+        input: { name: 'name', label: 'Your name', type: 'text' },
+        say: [
+          "First things first — who am I talking to?",
+          "Let's not be strangers. What's your name?",
+          "Name, please. I need something to say dramatically when I tell Raunak about this.",
+        ],
+      },
+      'hire-post-name': {
+        progress: 0.35, next: 'hire-company',
+        say: [
+          "Nice to meet you, {name}. I'll remember that. Probably.",
+          "{name}. Strong name. Main-character energy.",
+          "Got it, {name}. We're officially on a first-name basis.",
+        ],
+      },
+      'hire-company': {
+        progress: 0.45, next: 'hire-type',
+        input: { name: 'company', label: 'Company or team', type: 'text', optional: true },
+        say: [
+          "Where are you reaching out from? Company, team, secret lab — all welcome.",
+          "Which company or team are you with? You can skip this if it's top secret.",
+        ],
+      },
+      'hire-type': {
+        progress: 0.55,
+        say: [
+          "What kind of thing are we talking about?",
+          "Give it to me straight — what's the mission?",
+          "So what are we building? A team? A model? A miracle?",
+        ],
+        choices: [
+          { label: 'A full-time role', to: 'hire-brief', set: { kind: 'A full-time role' } },
+          { label: 'Contract / freelance', to: 'hire-brief', set: { kind: 'Contract / freelance work' } },
+          { label: 'AI quality or LLM evaluation', to: 'hire-brief', set: { kind: 'An AI quality / LLM evaluation project' } },
+          { label: 'Something else', to: 'hire-brief', set: { kind: 'Something else' } },
+        ],
+      },
+      'hire-brief': {
+        progress: 0.7, next: 'hire-email',
+        input: { name: 'brief', label: 'A few lines about it', type: 'text', multiline: true },
+        say: [
+          "Tell me a little about it. A few lines is perfect — I'll do the rest.",
+          "What's the story? The more context, the better Raunak's reply.",
+        ],
+      },
+      'hire-email': {
+        progress: 0.85, next: 'hire-processing',
+        input: { name: 'email', label: 'Your email', type: 'email' },
+        say: [
+          "And where should Raunak reply?",
+          "Last thing — your email, so he can get back to you.",
+          "Email, please. I promise not to sign you up for my newsletter. I don't have one. Yet.",
+        ],
+      },
+      'hire-processing': {
+        progress: 0.95, next: 'hire-completion', send: 'hire',
+        say: [
+          "Drafting… formatting… adding exactly one polite exclamation mark…",
+          "Compiling your message. Running a hallucination check. Clean.",
+        ],
+      },
+      'hire-completion': {
+        progress: 1,
+        say: [
+          "Done! Your email app should be open with everything filled in — just hit send.",
+          "Your email is drafted and waiting. One click on send and it's in Raunak's inbox.",
+        ],
+        choices: [
+          { label: 'Open the email again', send: 'hire' },
+          { label: 'Get to know him', to: 'story-menu' },
+          { label: 'Back to the start', to: 'greeting' },
+        ],
+      },
+
+      // ---------- quick word ----------
+      'word-message': {
+        progress: 0.4, next: 'word-email',
+        input: { name: 'message', label: 'Your message', type: 'text', multiline: true },
+        say: [
+          "Go on, what's on your mind?",
+          "Short and sweet — I'm all ears. Metaphorically.",
+          "Type away. I'll pass it on word for word.",
+        ],
+      },
+      'word-email': {
+        progress: 0.75, next: 'word-processing',
+        input: { name: 'email', label: 'Your email', type: 'email' },
+        say: [
+          "Where should he reply?",
+          "And your email, so this doesn't become a one-way conversation.",
+        ],
+      },
+      'word-processing': {
+        progress: 0.95, next: 'word-completion', send: 'word',
+        say: ["Packaging your message with care…", "Folding it into a nice little email…"],
+      },
+      'word-completion': {
+        progress: 1,
+        say: [
+          "Your email app is open with your note — hit send and you're done.",
+          "Drafted and ready. Press send and Raunak's on it.",
+        ],
+        choices: [
+          { label: 'Open the email again', send: 'word' },
+          { label: 'Get to know him', to: 'story-menu' },
+          { label: 'Back to the start', to: 'greeting' },
+        ],
+      },
+
+      // ---------- his work ----------
+      work: {
+        progress: 0.5,
+        say: ["Straight to the good stuff. Where to?", "Pick a door. They all lead somewhere impressive."],
+        choices: [
+          { label: 'Projects', href: '#projects' },
+          { label: 'Case studies', href: '#case-study' },
+          { label: 'His profile', href: '#profile' },
+          { label: 'Back', to: 'greeting' },
+        ],
+      },
+
+      // ---------- get to know him ----------
+      'story-menu': {
+        progress: 0.2,
+        say: [
+          "What do you want to know? I have opinions on all of it.",
+          "Pick a topic. I've read his entire LinkedIn. Twice.",
+          "Where should we start?",
+        ],
+        choices: [
+          { label: 'His journey', to: 'journey-1' },
+          { label: 'What he builds', to: 'builds-1' },
+          { label: 'How he works', to: 'works-1' },
+          { label: 'Fun facts', to: 'facts-1' },
+          { label: 'Back to the start', to: 'greeting' },
+        ],
+      },
+      'journey-1': { progress: 0.25, story: 'journey-2', say: ["It started in Nagpur, with a degree in Electrical, Electronics and Communications Engineering at GH Raisoni University."] },
+      'journey-2': { progress: 0.4, story: 'journey-3', say: ["Signals and circuits by day… and a growing obsession with machine learning by night."] },
+      'journey-3': { progress: 0.55, story: 'journey-4', say: ["In 2021 he joined Zummit Infolabs in Bengaluru as a Junior Data Scientist. His models cut equipment downtime by 15%."] },
+      'journey-4': { progress: 0.7, story: 'journey-5', say: ["Then the UK: an MSc in Data Science & AI at the University of Liverpool, with a dissertation on multi-agent reinforcement learning."] },
+      'journey-5': { progress: 0.85, story: 'story-done', say: ["Today he's an AI Quality Engineer at Sigma AI in London, making large language models more trustworthy."] },
+      'builds-1': { progress: 0.3, story: 'builds-2', say: ["He builds free tools. Like ResRescue — a desktop app that rewrites résumés to get past applicant tracking systems."] },
+      'builds-2': { progress: 0.5, story: 'builds-3', say: ["And a YouTube Agentic AI Studio that researches, scripts, narrates and uploads videos on its own. 96 stars on GitHub."] },
+      'builds-3': { progress: 0.7, story: 'builds-4', say: ["There's TriviaFlux, an AI trivia game, and a Titanic survival predictor that explains its own decisions with SHAP."] },
+      'builds-4': { progress: 0.85, story: 'story-done', say: ["And Interdimensional Cable — a retro TV that streams random rabbit holes. The man has range."] },
+      'works-1': { progress: 0.3, story: 'works-2', say: ["At Sigma AI he audits RAG systems, tracing hallucinations back to their source. Dataset accuracy went up 18%."] },
+      'works-2': { progress: 0.5, story: 'works-3', say: ["He's been data controller on 14+ multilingual LLM projects — with 100% compliance on safety and alignment guidelines."] },
+      'works-3': { progress: 0.7, story: 'works-4', say: ["He led a team of four reviewers on RLHF datasets, and built Power BI tracking that made the team 27% more consistent."] },
+      'works-4': { progress: 0.85, story: 'story-done', say: ["His rule of thumb: the best AI system is one that knows what it doesn't know. I'm working on it."] },
+      'facts-1': { progress: 0.3, story: 'facts-2', say: ["He speaks English, Hindi and Marathi. And Python. Fluently."] },
+      'facts-2': { progress: 0.5, story: 'facts-3', say: ["He's a DIAT-certified Artificial Intelligence Professional — that's the Defence Institute of Advanced Technology."] },
+      'facts-3': { progress: 0.7, story: 'facts-4', say: ["He runs a YouTube channel, The Fractured Timelines, where an AI pipeline does the heavy lifting."] },
+      'facts-4': { progress: 0.85, story: 'story-done', say: ["He built this whole website. Including me. I'm still deciding how I feel about that."] },
+      'story-done': {
+        progress: 1,
+        say: ["Want to hear about something else?", "There's more where that came from. Pick another?", "Not bad for one human, right? What next?"],
+        choices: [
+          { label: 'His journey', to: 'journey-1' },
+          { label: 'What he builds', to: 'builds-1' },
+          { label: 'How he works', to: 'works-1' },
+          { label: 'Fun facts', to: 'facts-1' },
+          { label: 'Work with Raunak', to: 'hire-intro', set: { goal: 'hire' } },
+        ],
+      },
+    },
+  },
 };

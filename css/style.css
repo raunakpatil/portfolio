@@ -461,6 +461,120 @@ main { padding: 0 var(--gap) var(--gap); }
   .card-map-profile { min-height: 400px; }
 }
 
+/* ===================== R.A.I. — the assistant ===================== */
+.rai {
+  position: relative; overflow: hidden; isolation: isolate;
+  height: calc(100vh - var(--bar) - var(--gap)); height: calc(100dvh - var(--bar) - var(--gap)); min-height: 560px;
+  border-radius: var(--radius); color: var(--on-card);
+  background:
+    radial-gradient(ellipse 55% 60% at 64% 38%, #2b2420 0%, rgba(43, 36, 32, 0) 70%),
+    radial-gradient(ellipse 120% 90% at 50% 120%, #0a0a0a 0%, #151515 60%, #1b1b1b 100%);
+}
+.rai-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.rai [hidden] { display: none !important; } /* keep `hidden` working on elements that set their own display */
+.rai::after { /* soft vignette + scanlines */
+  content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background:
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse 80% 80% at 50% 50%, transparent 55%, rgba(0, 0, 0, .55) 100%);
+}
+.rai-loading {
+  position: absolute; left: 50%; top: 50%; z-index: 3; transform: translate(-50%, -50%);
+  font-family: var(--mono); font-size: 12px; color: #8a8a8a; letter-spacing: .06em; text-align: center;
+}
+.rai-loading b { color: #38ffb3; font-weight: 500; }
+.rai-wake {
+  position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; cursor: pointer;
+}
+.rai-wake span {
+  padding: 9px 16px; border: 1px solid rgba(56, 232, 255, .45); background: rgba(0, 0, 0, .45);
+  font-family: var(--mono); font-size: 13px; letter-spacing: .14em; color: #38e8ff;
+  text-shadow: 0 0 10px rgba(56, 232, 255, .6); animation: rai-blink 1.6s ease-in-out infinite;
+}
+.rai-wake:hover span, .rai-wake:focus-visible span { background: rgba(56, 232, 255, .12); }
+@keyframes rai-blink { 50% { opacity: .45; } }
+
+.rai-panel {
+  position: absolute; z-index: 3; left: clamp(20px, 5vw, 72px); top: 50%; transform: translateY(-50%);
+  width: min(460px, 40%);
+}
+.rai-back { margin-bottom: 18px; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; color: #8a8a8a; }
+.rai-back:hover { color: #fff; }
+.rai-prev { min-height: 1.4em; margin-bottom: 10px; font-size: 13px; line-height: 1.4; color: #6f6f6f; opacity: 0; transition: opacity .4s; }
+.rai-prev.show { opacity: 1; }
+.rai-say {
+  min-height: 3.9em; cursor: default;
+  font-size: clamp(21px, 2.1vw, 30px); font-weight: 300; line-height: 1.28; letter-spacing: -.015em;
+}
+.rai-scr { color: #38ffb3; }
+.rai-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 24px; }
+.rai-choice {
+  padding: 10px 18px; border-radius: 999px; font-size: 14px; color: #eee; text-align: left;
+  background: rgba(255, 255, 255, .06); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14);
+  animation: rise .5s var(--ease) both; transition: background .25s, color .25s, transform .35s var(--ease);
+}
+.rai-choice:hover, .rai-choice:focus-visible { background: #fff; color: #111; transform: translateX(4px); }
+.rai-next { background: #ff7a1a; color: #111; box-shadow: none; }
+.rai-next:hover { background: #ffa05a; }
+.rai-skip { margin-top: 2px; font-family: var(--mono); font-size: 11px; color: #8a8a8a; text-decoration: underline; text-underline-offset: 3px; animation: rise .5s var(--ease) both; }
+.rai-skip:hover { color: #fff; }
+.rai-field {
+  display: flex; align-items: flex-end; gap: 10px; width: 100%;
+  padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, .25); animation: rise .5s var(--ease) both;
+}
+.rai-field:focus-within { border-bottom-color: #ff7a1a; }
+.rai-field input, .rai-field textarea {
+  flex: 1; min-width: 0; padding: 4px 0; border: 0; outline: none; resize: none;
+  background: transparent; color: #fff; font: inherit; font-size: 18px; line-height: 1.4;
+}
+.rai-field ::placeholder { color: #6f6f6f; }
+.rai-send {
+  flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%;
+  background: #ff7a1a; color: #111; font-size: 18px; transition: transform .3s var(--ease), background .25s;
+}
+.rai-send:hover { background: #ffa05a; transform: translateX(3px); }
+.rai-error { min-height: 1.2em; font-family: var(--mono); font-size: 11px; color: #ff7ab6; }
+
+.rai-progress { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; height: 3px; background: rgba(255, 255, 255, .06); }
+.rai-progress i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #ff7a1a, #38ffb3); transition: width .9s var(--ease); }
+.rai-close {
+  position: absolute; top: 14px; right: 16px; z-index: 4; display: grid; place-items: center;
+  width: 40px; height: 40px; border-radius: 50%; background: #fff; color: #111; font-size: 22px; line-height: 1;
+  transition: transform .4s var(--ease);
+}
+.rai-close:hover { transform: rotate(90deg); }
+.rai-sound {
+  position: absolute; right: 16px; bottom: 18px; z-index: 4; display: grid; place-items: center;
+  width: 38px; height: 38px; border-radius: 50%; background: rgba(255, 255, 255, .08); color: #bbb;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14);
+}
+.rai-sound svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.rai-sound .rai-wave { display: none; }
+.rai-sound.on { color: #fff; }
+.rai-sound.on .rai-wave { display: inline; }
+.rai-sound.on .rai-x { display: none; }
+.rai-credit {
+  position: absolute; left: 16px; bottom: 12px; z-index: 3; max-width: calc(100% - 90px);
+  font-family: var(--mono); font-size: 9.5px; color: #6a6a6a;
+}
+.rai-credit a { color: #8a8a8a; text-decoration: underline; text-underline-offset: 2px; }
+.rai-credit a:hover { color: #fff; }
+/* power-on glitch */
+.rai.rai-glitch-on .rai-canvas { animation: glitch-tear .1s steps(1, end) 8; filter: drop-shadow(3px 0 rgba(255, 0, 200, .7)) drop-shadow(-3px 0 rgba(0, 255, 249, .7)); }
+[data-link].card-hello .card-go { background: #38ffb3; }
+
+@media (max-width: 760px) {
+  .rai { min-height: 0; }
+  .rai-panel {
+    left: 0; right: 0; top: auto; bottom: 34px; width: auto; transform: none;
+    padding: 60px 18px 8px; background: linear-gradient(rgba(14, 14, 14, 0), rgba(14, 14, 14, .92) 38%);
+  }
+  .rai-say { min-height: 3.2em; font-size: 20px; }
+  .rai-actions { margin-top: 14px; }
+  .rai-credit { top: 18px; bottom: auto; max-width: calc(100% - 140px); font-size: 8.5px; line-height: 1.5; }
+  .rai-sound { top: 14px; right: 66px; bottom: auto; }
+}
+
 /* ===================== Pages ===================== */
 .page-head { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; padding: 14px 10px 18px; }
 .page-title { font-size: clamp(34px, 4vw, 48px); font-weight: 400; letter-spacing: -.025em; line-height: 1.05; }
