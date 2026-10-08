@@ -26,14 +26,17 @@ window.PORTFOLIO = {
     asciiImage: '',
   },
 
-  /* Card 2 — hours counter + gauge (gauge fills hours / goal). */
+  /* Card 2 — hours dial. The total keeps growing by a random-but-fixed 4–6 h every day
+     after `since` (the same number for every visitor), and creeps up through the day.
+     Hover a marker to see each era: `start.hours` is time spent there; the rest is `end`. */
   time: {
     title: 'Time spent in AI / ML',
-    hours: 8200, // estimate: Zummit (1 yr) + MSc (1 yr) + Sigma AI (Apr 2024 → now) + side projects
-    goal: 10000,
+    hours: 8200,           // total on the `since` date (estimate)
+    since: '2026-10-08',
+    perDay: [4, 6],        // hours added per day
     unit: 'Hours',
-    start: { year: 2021, city: 'Bengaluru', lat: 12.9716, lon: 77.5946 },
-    end: { year: 2026, city: 'London', lat: 51.5072, lon: -0.1276 },
+    start: { year: 2021, city: 'Bengaluru', region: 'India', lat: 12.9716, lon: 77.5946, hours: 1900 }, // estimate
+    end: { year: 'now', city: 'London', region: 'the UK', lat: 51.5072, lon: -0.1276 },
   },
 
   /* Card 3 — skill matrix. Scores are self-assessed estimates; they're shown as
@@ -63,26 +66,26 @@ window.PORTFOLIO = {
   tunnel: {
     question: 'Who are you?',
     answers: [
-      'A dreamer.',
+      'A dreamer who debugs.',
       'A teacher to machines.',
       'A hallucination hunter.',
+      'The one who asks the model, "are you sure?"',
       'A translator between humans and models.',
-      'A builder of thinking things.',
+      'A signals engineer who fell for neural nets.',
+      'A detective of edge cases.',
+      'A coach for stubborn language models.',
+      'A guardian of honest AI.',
+      'A builder of things that think.',
       'A storyteller with data.',
-      'A prompt whisperer.',
-      'A coach for language models.',
-      'A data detective.',
-      'A tinkerer at heart.',
-      'A guardian of model quality.',
+      'A tinkerer since the soldering iron.',
       'An explorer of latent space.',
       'A seeker of signal in the noise.',
-      'A lifelong learner.',
-      'A maker of free tools.',
-      'A friend to robots.',
-      'A night-owl coder.',
-      'An apprentice of neural nets.',
-      'A curious mind from Nagpur.',
-      'An AI engineer in London.',
+      'A maker of free tools for everyone.',
+      'A friend to robots, a critic of their facts.',
+      'A night owl with a GPU.',
+      'Fluent in Python, Hindi, Marathi and English.',
+      'From Nagpur to London, still curious.',
+      'A student who never logged off.',
     ],
   },
 

@@ -152,13 +152,27 @@ main { padding: 0 var(--gap) var(--gap); }
   letter-spacing: -.035em; line-height: 1; font-variant-numeric: tabular-nums;
 }
 .time-count small { display: block; margin-top: 6px; font-size: 13px; color: #c4c4c4; }
-.gauge { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; margin: 10px 0 8px; overflow: visible; }
-.gauge-track { fill: none; stroke: #222; stroke-width: 30; }
-.gauge-fill { fill: none; stroke: url(#g-arc); stroke-width: 30; stroke-dasharray: 0 100; }
-.gauge-tick { fill: #3d3d3d; transition: fill .4s; }
-.gauge-tick.on { fill: #a8a8a8; }
-.gauge-dot { fill: #fff; filter: drop-shadow(0 0 6px rgba(255, 255, 255, .85)); }
-.gauge-goal { fill: var(--on-card-2); font-family: var(--mono); font-size: 10.5px; }
+.time-today { display: block; min-height: 1.4em; margin-top: 4px; font-family: var(--mono); font-size: 10px; color: #38ffb3; opacity: .8; }
+.card-time[data-side="start"] .time-today { color: #ff70f3; }
+.dial { flex: 1 1 auto; min-height: 0; width: 100%; height: 100%; margin-top: 4px; overflow: hidden; }
+.dial-track { fill: none; stroke: #222; stroke-width: 30; }
+.dial-rot { transform-box: view-box; transform-origin: 150px 240px; transition: transform 1s cubic-bezier(.34, 1.4, .5, 1); }
+.dial-seg { fill: none; stroke: url(#dial-grad); stroke-width: 30; transition: stroke .5s; }
+.dial-seg-glow { opacity: .55; }
+.dial-dot { fill: #fff; filter: drop-shadow(0 0 6px rgba(255, 255, 255, .8)); }
+.dial-hit { fill: transparent; cursor: pointer; }
+.dial-mk { fill: #6a6a6a; transition: fill .35s, filter .35s; transform-box: fill-box; transform-origin: center; }
+.dial-marker:hover .dial-mk { animation: mk-pulse 1.2s ease-in-out infinite; }
+@keyframes mk-pulse { 50% { transform: scale(1.4); } }
+/* hover a city: the dial swings towards it and takes that city's colour */
+.card-time[data-side="start"] .dial-rot { transform: rotate(-52deg); }
+.card-time[data-side="end"] .dial-rot { transform: rotate(52deg); }
+.card-time[data-side="start"] .dial-seg { stroke: #ff70f3; }
+.card-time[data-side="end"] .dial-seg { stroke: #38ffb3; }
+.card-time[data-side="start"] .dial-marker[data-side="start"] .dial-mk { fill: #ff70f3; filter: drop-shadow(0 0 6px #ff70f3); }
+.card-time[data-side="end"] .dial-marker[data-side="end"] .dial-mk { fill: #38ffb3; filter: drop-shadow(0 0 6px #38ffb3); }
+.time-end { cursor: default; transition: opacity .3s; }
+.card-time[data-side="start"] .time-end.right, .card-time[data-side="end"] .time-end:not(.right) { opacity: .35; }
 .time-ends { flex: none; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
 .time-end { display: flex; align-items: flex-end; gap: 8px; min-width: 0; }
 .time-end b { font-size: 17px; font-weight: 400; line-height: 1; }
@@ -229,6 +243,7 @@ main { padding: 0 var(--gap) var(--gap); }
   position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(ellipse 30% 32% at var(--fx, 50%) var(--fy, 50%), #151515 0%, rgba(21, 21, 21, .85) 35%, rgba(21, 21, 21, 0) 100%);
 }
+.tunnel-stars { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; mix-blend-mode: screen; }
 .chat {
   position: absolute; left: 50%; top: 50%; z-index: 3; transform: translate(-50%, -50%);
   display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: none;
@@ -259,7 +274,18 @@ main { padding: 0 var(--gap) var(--gap); }
 /* ---- Map ---- */
 .map-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .map-pins { position: absolute; inset: 0; z-index: 2; }
-.pin { position: absolute; left: 0; top: 0; width: 0; height: 0; padding: 0; }
+.pin {
+  position: absolute; left: 0; top: 0; width: 0; height: 0; padding: 0;
+  opacity: 0; visibility: hidden; transition: opacity .5s, visibility 0s .5s;
+}
+/* a pin (and its coordinates) only appears once the journey line reaches it */
+.pin.shown { opacity: 1; visibility: visible; transition: opacity .5s; }
+.pin.shown i { animation: pin-pop .55s var(--ease); }
+.pin.shown .pin-label { animation: label-in .5s var(--ease) .1s both; }
+.pin.fading { opacity: 0; transition: opacity .9s; }
+@keyframes pin-pop { 0% { transform: scale(0); } 60% { transform: scale(1.6); } }
+@keyframes label-in { from { opacity: 0; filter: blur(3px); } }
+.map-info.fading { opacity: 0; transition: opacity .9s; }
 .pin i {
   position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
   background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 25%, transparent);
@@ -272,7 +298,7 @@ main { padding: 0 var(--gap) var(--gap); }
 .pin-label {
   position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 5px;
   padding: 4px 8px; border-radius: 7px; white-space: nowrap;
-  background: rgba(22, 22, 22, .88); border: 1px solid #343434; color: #cfcfcf;
+  background: #161616; border: 1px solid #343434; color: #cfcfcf;
   font-family: var(--mono); font-size: 9.5px;
   transition: border-color .3s, color .3s;
 }
