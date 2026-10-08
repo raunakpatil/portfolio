@@ -38,6 +38,13 @@ const soundBtn = $('#rai-sound');
 
 let started = false;
 let awake = false;
+let warmup = -1; // >0: frames left to render hidden before revealing the scene
+
+function reveal() {
+  root.classList.add('ready');
+  loading.hidden = true;
+  showWake();
+}
 
 export function open() {
   if (!started) { started = true; init(); }
@@ -205,6 +212,7 @@ function init3D() {
     if (e.total) loadPct.textContent = `${Math.min(99, Math.round((e.loaded / e.total) * 100))}%`;
   }, () => {
     loading.textContent = "My 3D body didn't load — but I can still talk.";
+    root.classList.add('ready');
     showWake();
   });
   requestAnimationFrame(loop);
@@ -280,8 +288,8 @@ function onModel(gltf) {
   target.set(headHome.x, headHome.y - 0.24, headHome.z); // headroom for his jump
 
   buildTubes();
-  loading.hidden = true;
-  showWake();
+  // the canvas stays hidden (black) while a few frames render, so nothing pops in; then it all fades in at once
+  warmup = 3;
 }
 
 // Neon tubes in the site's palette, standing in a ring around Ronie: clear glass with rounded ends, a glowing
@@ -555,6 +563,7 @@ function loop(now) {
     updateReflections();
   }
   renderWithGlow();
+  if (warmup > 0 && --warmup === 0) reveal();
 }
 
 function renderWithGlow() {

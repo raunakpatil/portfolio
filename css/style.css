@@ -467,11 +467,10 @@ main { padding: 0 var(--gap) var(--gap); }
   position: relative; overflow: hidden; isolation: isolate;
   height: calc(100vh - var(--bar) - var(--gap)); height: calc(100dvh - var(--bar) - var(--gap)); min-height: 560px;
   border-radius: var(--radius); color: var(--on-card);
-  background:
-    radial-gradient(ellipse 55% 60% at 64% 38%, #2b2420 0%, rgba(43, 36, 32, 0) 70%),
-    radial-gradient(ellipse 120% 90% at 50% 120%, #0a0a0a 0%, #151515 60%, #1b1b1b 100%);
+  background: #000; /* pure black while loading — the 3D scene fades in only once it's fully ready */
 }
-.rai-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.rai-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 1.4s ease; }
+.rai.ready .rai-canvas { opacity: 1; }
 .rai [hidden] { display: none !important; }
 .rai::before { /* keeps the dialogue readable over the neon tubes */
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
