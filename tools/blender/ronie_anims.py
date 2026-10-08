@@ -79,7 +79,7 @@ def apply(offs):
                 rot_world(bone, ax, d, FEET_MID if bone == HIP else None)
     for side in ('L', 'R'):
         h = offs.get('F' + side)
-        if h: curl(side, h.get('f', 0), h.get('t', 0))
+        if h and FINGERS: curl(side, h.get('f', 0), h.get('t', 0))
 
 # Hands: four fingers driven as one block by the Index1-3 chain, plus a thumb (Thumb1-3).
 # Pseudo-bones 'FL'/'FR' in a pose: {'f': finger curl, 't': thumb curl} in degrees. + closes towards a fist,
@@ -87,6 +87,7 @@ def apply(offs):
 FING = {s: ([B(f'{s}_Index{i}') for i in (1, 2, 3)], [B(f'{s}_Thumb{i}') for i in (1, 2, 3)]) for s in ('L', 'R')}
 FINGER_BONES = [n for s in FING.values() for chain in s for n in chain]
 SPREAD = (1.0, 1.0, 0.8)                         # how a curl is shared along each chain (knuckle → tip)
+FINGERS = False                                  # finger poses switched off (hands keep their relaxed idle pose)
 
 def rot_axis(name, axis, deg):
     p = pb[name]; M = p.matrix.copy(); c = M.translation.copy(); sc = p.scale.copy()
