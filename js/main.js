@@ -850,12 +850,13 @@
     }
     const DOT_R = 1.45;
 
-    pinsEl.innerHTML = E.map((e, i) => `<button class="pin" type="button" data-i="${i}" style="--c:${colorOf(i)}" aria-label="${esc(e.org)}, ${esc(e.place)}"><i></i><span class="pin-label"><span class="pin-row">${PIN_ICON}${coords(e.lat, e.lon)}</span><span class="pin-more"><b>${esc(e.place)}</b><em>${esc(e.years)}</em><span>${esc(e.org)}</span></span></span></button>`).join('');
+    pinsEl.innerHTML = E.map((e, i) => `<button class="pin" type="button" data-i="${i}" style="--c:${colorOf(i)}" aria-label="${esc(e.org)}, ${esc(e.place)}"><i></i><span class="pin-label"><span class="pin-row">${PIN_ICON}<span class="pin-coords">${coords(e.lat, e.lon)}</span></span><span class="pin-more"><b>${esc(e.place)}</b><em>${esc(e.years)}</em><span>${esc(e.org)}</span></span></span></button>`).join('');
     const pins = $$('.pin', pinsEl);
     // ---- the journey: every stop in order, then home to the first stop, fade out, repeat
     const legs = E.map((_, i) => [i, (i + 1) % E.length]); // the last leg is the trip home
-    const HOME = D.homecoming || { years: 'Full circle', org: 'Back home · Nagpur', role: 'Every journey loops back to where it began' };
-    const HOLD = 2600, TRAVEL = 1800, HOME_HOLD = 3400, FADE = 1000;
+    const HOME = D.homecoming || { org: 'Back home · Nagpur', role: 'Every journey loops back to where it began' };
+    // HOLD at each stop, TRAVEL per leg; on the trip home the map glitches out, VANISH, sits empty for VOID, then restarts
+    const HOLD = 2600, TRAVEL = 1800, HOME_TRAVEL = 2400, VANISH = 650, VOID = 700, APPEAR = 600;
     const qb = (a, b, c, u) => (1 - u) * (1 - u) * a + 2 * (1 - u) * u * b + u * u * c;
     let curves = [];
 
@@ -905,7 +906,7 @@
 
     function showInfo(e, c) {
       info.style.setProperty('--c', c);
-      info.innerHTML = `<span class="mi-years">${esc(e.years)}</span><b>${esc(e.org)}</b><span>${esc(e.role)}${e.place ? ` · ${esc(e.place)}` : ''}</span>`;
+      info.innerHTML = `${e.years ? `<span class="mi-years">${esc(e.years)}</span>` : ''}<b>${esc(e.org)}</b><span>${esc(e.role)}${e.place ? ` · ${esc(e.place)}` : ''}</span>`;
       info.classList.remove('swap'); void info.offsetWidth; info.classList.add('swap');
     }
     const setPins = (visited, here) => pins.forEach((p, k) => {
@@ -913,14 +914,26 @@
       p.classList.toggle('active', k === here);
     });
 
-    // stage: 'hold' at a stop → 'travel' along a leg → … → 'home' (back at the start) → 'fade' → restart
-    let stage = null, at = 0, leg = 0, t = 0, visited = new Set(), hovering = false;
+    // stage: 'hold' at a stop → 'travel' along a leg → … the trip home glitches everything out
+    //        → 'vanish' (gone) → 'void' (empty map) → restart
+    let stage = null, at = 0, leg = 0, t = 0, visited = new Set(), hovering = false, appear = 0, glitchingText = false;
     function arrive(k) {
       visited.add(k); at = k; stage = 'hold'; t = 0;
       setPins(visited, k);
       showInfo(E[k], colorOf(k));
     }
-    function restart() { visited = new Set(); arrive(0); }
+    function restart() {
+      card.classList.remove('glitching', 'glitch-out');
+      pins.forEach((p) => p.classList.remove('shown', 'active'));
+      canvas.style.opacity = '';
+      glitchingText = false; appear = 0;
+      visited = new Set(); arrive(0);
+    }
+    // scramble every visible bit of text on the map while it glitches out
+    function scrambleText(duration) {
+      const els = [...$$('.pin.shown .pin-coords', card), ...info.children];
+      els.forEach((el) => glitch(el, el.textContent, { chars: GLYPHS, percent: 0.55, duration, speed: 55, color: 'rgba(255,255,255,.7)' }));
+    }
 
     pins.forEach((p, i) => p.addEventListener('click', () => { if (p.classList.contains('shown')) showInfo(E[i], colorOf(i)); }));
     card.addEventListener('pointerenter', () => { hovering = true; });  // pause so the card can be read
@@ -940,6 +953,40 @@
       ctx.stroke();
     }
 
+    // Digital glitch over the finished frame: pink/cyan ghosts, torn horizontal slices, noise bars.
+    const gbuf = document.createElement('canvas');
+    function glitchFrame(gi) {
+      const cw = canvas.width, ch = canvas.height, dpr = cw / Math.max(1, W);
+      if (gbuf.width !== cw || gbuf.height !== ch) { gbuf.width = cw; gbuf.height = ch; }
+      const g = gbuf.getContext('2d');
+      g.clearRect(0, 0, cw, ch); g.drawImage(canvas, 0, 0);
+      const c = canvas.getContext('2d');
+      c.save();
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.clearRect(0, 0, cw, ch);
+      const shift = gi * cw * 0.035;
+      c.globalCompositeOperation = 'lighter';
+      c.globalAlpha = 0.55 * gi;
+      c.filter = 'sepia(1) saturate(9) hue-rotate(270deg)'; c.drawImage(gbuf, -shift * (0.5 + Math.random()), 0);
+      c.filter = 'sepia(1) saturate(9) hue-rotate(130deg)'; c.drawImage(gbuf, shift * (0.5 + Math.random()), 0);
+      c.filter = 'none';
+      c.globalCompositeOperation = 'source-over';
+      c.globalAlpha = 1;
+      for (let y = 0; y < ch;) {
+        const sh = (3 + Math.random() * 28) * dpr;
+        const off = Math.random() < 0.15 + 0.4 * gi ? (Math.random() * 2 - 1) * shift * 2.4 : 0;
+        c.drawImage(gbuf, 0, y, cw, sh, off, y, cw, sh);
+        y += sh;
+      }
+      const NOISE = ['#ff00c8', '#00fff9', '#ffffff', '#c6f432'];
+      for (let i = 0; i < gi * 16; i++) {
+        c.globalAlpha = Math.random() * 0.7;
+        c.fillStyle = NOISE[i % NOISE.length];
+        c.fillRect(Math.random() * cw, Math.random() * ch, (6 + Math.random() * 90) * dpr, (1 + Math.random() * 3) * dpr);
+      }
+      c.restore();
+    }
+
     onFrame(card, (now, dt) => {
       const f = fit(canvas);
       const { ctx } = f;
@@ -949,51 +996,72 @@
       if (!stage) restart();
 
       // advance the journey (paused while hovered)
-      if (!hovering) t += dt;
-      if (stage === 'hold' && t > HOLD) { stage = 'travel'; leg = at; t = 0; pins.forEach((p) => p.classList.remove('active')); }
-      else if (stage === 'travel' && (t > TRAVEL || !MOTION)) {
-        if (leg === legs.length - 1) { stage = 'home'; t = 0; at = 0; setPins(visited, 0); showInfo(HOME, colorOf(0)); }
+      if (!hovering) { t += dt; appear += dt; }
+      const homeLeg = stage === 'travel' && leg === legs.length - 1;
+      const travelTime = homeLeg ? HOME_TRAVEL : TRAVEL;
+      if (stage === 'hold' && t > HOLD) {
+        stage = 'travel'; leg = at; t = 0;
+        pins.forEach((p) => p.classList.remove('active'));
+        if (leg === legs.length - 1) showInfo(HOME, colorOf(0));
+      } else if (stage === 'travel' && (t > travelTime || !MOTION)) {
+        if (homeLeg) { stage = 'vanish'; t = 0; card.classList.add('glitch-out'); }
         else arrive(legs[leg][1]);
-      }
-      else if (stage === 'home' && t > HOME_HOLD) { stage = 'fade'; t = 0; info.classList.add('fading'); pins.forEach((p) => p.classList.add('fading')); }
-      else if (stage === 'fade' && t > FADE) {
-        info.classList.remove('fading'); pins.forEach((p) => p.classList.remove('fading', 'shown', 'active'));
-        restart();
-      }
+      } else if (stage === 'vanish' && t > VANISH) { stage = 'void'; t = 0; canvas.style.opacity = '0'; }
+      else if (stage === 'void' && t > VOID) restart();
 
       // where the traveller is right now
       let head = proj(E[at].lat, E[at].lon), u = 1;
+      const onHomeLeg = stage === 'travel' && leg === legs.length - 1;
+      const legTime = onHomeLeg ? HOME_TRAVEL : TRAVEL;
       if (stage === 'travel') {
-        u = MOTION ? easeInOut(clamp(t / TRAVEL, 0, 1)) : 1;
+        u = MOTION ? easeInOut(clamp(t / legTime, 0, 1)) : 1;
         const c = curves[leg];
         head = { x: qb(c.a.x, c.mx, c.b.x, u), y: qb(c.a.y, c.my, c.b.y, u) };
       }
-      const fade = stage === 'fade' ? 1 - clamp(t / FADE, 0, 1) : 1;
+      // glitch builds up over the second half of the trip home, peaks, then everything is gone
+      let gi = 0;
+      if (onHomeLeg && MOTION) gi = clamp((t / legTime - 0.35) / 0.65, 0, 1);
+      if (stage === 'vanish') gi = 1;
+      if (gi > 0 && !glitchingText) {
+        glitchingText = true;
+        card.classList.add('glitching');
+        scrambleText(HOME_TRAVEL * 0.65 + VANISH);
+      }
+      if (stage === 'void') return;
 
       ctx.clearRect(0, 0, W, Hh);
-      if (base) ctx.drawImage(base, 0, 0, W, Hh);
+      const fadeIn = clamp(appear / APPEAR, 0, 1);
+      if (base) { ctx.globalAlpha = fadeIn; ctx.drawImage(base, 0, 0, W, Hh); }
       ctx.fillStyle = '#ffffff';
       for (const d of dots) {
         const dx = d.x - ptr.x, dy = d.y - ptr.y, m = dx * dx + dy * dy;
         const ax = d.x - head.x, ay = d.y - head.y, am = ax * ax + ay * ay;
         let g = 0;
         if (m < 6400) g = 1 - m / 6400;
-        if (d.land && am < 1600) g = Math.max(g, (1 - am / 1600) * 0.5 * fade);
+        if (d.land && am < 1600) g = Math.max(g, (1 - am / 1600) * 0.5);
         if (!g) continue;
-        ctx.globalAlpha = Math.min(1, g * 0.85);
+        ctx.globalAlpha = Math.min(1, g * 0.85) * fadeIn;
         ctx.beginPath(); ctx.arc(d.x, d.y, DOT_R + g * 0.8, 0, TAU); ctx.fill();
       }
 
       // finished legs stay as a trail; the current leg draws itself
-      const done = stage === 'travel' ? leg : stage === 'hold' ? at : legs.length; // legs fully drawn
-      const finished = stage === 'hold' ? Math.max(0, visited.size - 1) : done;
-      for (let L = 0; L < finished; L++) strokeLeg(ctx, curves[L], 1, 0.55 * fade);
+      const finished = stage === 'travel' ? leg : stage === 'hold' ? Math.max(0, visited.size - 1) : legs.length;
+      for (let L = 0; L < finished; L++) strokeLeg(ctx, curves[L], 1, 0.55);
       if (stage === 'travel') {
         strokeLeg(ctx, curves[leg], u, 0.95);
         ctx.globalAlpha = 1; ctx.fillStyle = '#fff';
         ctx.beginPath(); ctx.arc(head.x, head.y, 2.8, 0, TAU); ctx.fill();
       }
       ctx.globalAlpha = 1;
+
+      if (gi > 0) {
+        glitchFrame(gi);
+        // flicker out during the vanish
+        if (stage === 'vanish') {
+          const left = 1 - clamp((t - VANISH * 0.45) / (VANISH * 0.55), 0, 1);
+          canvas.style.opacity = String(Math.random() < 0.35 ? left * 0.25 : left);
+        }
+      }
     });
   }
 
