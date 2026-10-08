@@ -158,56 +158,41 @@
     const box = document.getElementById('rai-loading');
     if (!pre || bootRunning || box.hidden) return;
     bootRunning = true;
-    // ASCII Saturn: a banded planet with a tilted ring that passes in front of and behind it
-    const W = 78, H = 25, RAMP = ' .:-=+*#%@', RING = ' .`,:-~=';
-    const U = 7.6;                  // rows per planet radius (a character is ~0.6 as wide as it is tall)
-    const TILT = 0.27, ROLL = -0.22; // ring opening (slim ellipse), and the whole planet leaning a little
-    const nY = Math.cos(TILT), nZ = Math.sin(TILT);
-    const cr = Math.cos(ROLL), sr = Math.sin(ROLL);
-    let spin = 0, last = performance.now();
+    // ASCII Ronie: a turntable of the real 3D model, baked into characters (js/ronie-ascii.json).
+    // He's "assembled" from the feet up as the download progresses, with a scan line at the edge.
+    const RAMP = ' .:-=+*#%@';
+    let art = null, spin = 0, last = performance.now(), shown = 0;
+    fetch(`js/ronie-ascii.json${ASSET_V ? `?v=${ASSET_V}` : ''}`).then((r) => r.json()).then((j) => {
+      art = { w: j.w, h: j.h, frames: j.frames.map((f) => f.split('\n')) };
+    }).catch(() => {});
     const step = (now) => {
       // stop once Ronie has loaded (or the loading box was replaced by an error message)
       if (box.hidden || !pre.isConnected) { bootRunning = false; return; }
       requestAnimationFrame(step);
       const dt = Math.min(50, now - last); last = now;
-      if (document.querySelector('[data-view="assistant"]').hidden) return;
-      spin += dt * 0.0007 * MOTION;
-      const lx = -0.55, ly = 0.5, lz = 0.67; // fixed sun, upper left
+      if (document.querySelector('[data-view="assistant"]').hidden || !art) return;
+      spin += dt * 0.00014 * MOTION;                    // one full turn every ~7 s
+      const frame = art.frames[Math.floor(((spin % 1) + 1) % 1 * art.frames.length) % art.frames.length];
+      const pct = parseInt(pctEl.textContent, 10) || 0;
+      shown += (Math.min(1, 0.08 + pct / 100) - shown) * Math.min(1, dt / 160);
+      const edge = art.h * (1 - shown);                 // rows above this are still being "printed"
       let txt = '';
-      for (let r = 0; r < H; r++) {
-        for (let c = 0; c < W; c++) {
-          // screen → planet space (lean the whole system by ROLL)
-          const sx = ((c - W / 2 + 0.5) * 0.6) / U, sy = -(r - H / 2 + 0.5) / U;
-          const x = sx * cr - sy * sr, y = sx * sr + sy * cr;
-          // planet (unit sphere)
-          const d = x * x + y * y;
-          const zs = d <= 1 ? Math.sqrt(1 - d) : -Infinity;
-          // ring plane through the centre, tilted towards the viewer
-          const zr = -(y * nY) / nZ;
-          const rad = Math.sqrt(x * x + y * y + zr * zr);
-          const onRing = rad > 1.32 && rad < 2.25 && !(rad > 1.83 && rad < 1.9); // with a Cassini gap
-          let ch = ' ';
-          if (onRing && zr > zs) {
-            // ring in front of the planet (or beside it): fine bands that drift with the spin
-            const ang = Math.atan2(x, zr * nZ - y * nY);
-            const band = 0.55 + 0.45 * Math.sin(rad * 22) * (0.7 + 0.3 * Math.sin(ang * 5 + spin * 3));
-            const shadowed = zs === -Infinity && d < 1.02 && zr < 0; // behind the planet's shadow
-            ch = RING[Math.max(1, Math.min(RING.length - 1, Math.round(band * (shadowed ? 0.35 : 1) * (RING.length - 1))))];
-          } else if (zs > -Infinity) {
-            // planet: latitude bands (Saturn's stripes) + soft lighting; the bands drift slowly
-            const lat = Math.asin(Math.max(-1, Math.min(1, y)));
-            const stripes = 0.75 + 0.25 * Math.sin(lat * 9 + Math.sin(x * 2 + spin) * 0.4);
-            const light = Math.max(0, x * lx + y * ly + zs * lz);
-            const v = (0.22 + 0.78 * light) * stripes;
-            ch = RAMP[Math.max(1, Math.min(RAMP.length - 1, Math.round(v * (RAMP.length - 1))))];
-          }
-          txt += ch;
+      for (let r = 0; r < art.h; r++) {
+        const row = frame[r] || '';
+        const scan = Math.abs(r - edge) < 0.9;
+        for (let c = 0; c < art.w; c++) {
+          const code = row.charCodeAt(c);
+          if (!(code >= 97)) { txt += ' '; continue; }   // empty cell
+          let v = (code - 97) / 25;
+          if (r < edge - 0.9) { txt += (r * 7 + c * 3) % 5 ? ' ' : '.'; continue; } // faint outline still to come
+          if (scan) v = 1;
+          else v *= 0.9 + 0.1 * Math.sin(now / 240 + r * 0.6 + c * 0.2);   // a slow shimmer
+          txt += RAMP[Math.max(1, Math.min(RAMP.length - 1, Math.round(v * (RAMP.length - 1))))];
         }
         txt += '\n';
       }
       pre.textContent = txt;
       // boot log follows the download percentage
-      const pct = parseInt(pctEl.textContent, 10) || 0;
       log.textContent = BOOT_LOG.filter(([at]) => pct >= at).map(([at, label], i, shown) => {
         const done = i < shown.length - 1;
         return `› ${label} ${done ? '… ok' : '.'.repeat(1 + (((now / 400) | 0) % 3))}`;

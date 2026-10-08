@@ -65,6 +65,9 @@ const BG = new THREE.Color(0x0d0d0d);
 // the cursor is a little light source: it moves on a plane just in front of Ronie and lights his armour
 const cursor = { x: 0, y: 0, inside: false, level: 0 };
 let floorMat, tubeGlass, tubeMetal; // room materials that fade back while he's asleep
+let smokeMat; const puffs = [];       // soft smoke, lit by the room's own lights
+let dustVel = null;                    // per-particle velocity, so dust can be pushed around by the mouse
+const cursorVel = new THREE.Vector3(), _prevCursor = new THREE.Vector3(); let cursorTracked = false;
 let cursorRing; // the cursor's neon ring light: three coloured lights + a ring seen only in reflections
 const ringLights = [], ringArcs = [];
 const RING_R = 0.22;
@@ -75,6 +78,13 @@ const _ray = new THREE.Raycaster(), _plane = new THREE.Plane(), _hit = new THREE
 const IDLE_AT = 12.8;                    // seconds: standing still
 const JUMP_FROM = 13.1, JUMP_TO = 15.3;  // seconds: crouch, one jump, land back in the idle pose
 let jumping = false, jumpW = 0;
+// Waking up: he waits further back in the room, then takes one huge leap to his spot.
+// The leap reuses the clip's biggest jump (crouch 6.6 s → take-off 7.35 s → landing 8.0 s → settled 8.8 s),
+// stretched for extra hang time, with a higher arc and the forward travel added on top.
+const LEAP_BACK = 2.0, LEAP_HEIGHT = 0.95;            // metres behind his spot, extra arc height
+const LEAP_DELAY = 0.9, LEAP_CROUCH = 0.55, LEAP_AIR = 1.05, LEAP_LAND = 0.8; // seconds after waking
+let leapAction = null, leapW = 0, landed = false, shake = 0, contact;
+const homePos = new THREE.Vector3();
 
 // The site's skill-bar colours (same hues as the dashboard's skill matrix), used for Ronie's neon tubes.
 const PALETTE = (() => {
@@ -89,7 +99,7 @@ let cubeRT, cubeCam, pmremGen, envRT = null, softbox, envTick = 0, wakeAt = 0, b
 const COS75 = Math.cos((75 * Math.PI) / 180);
 const tubes = [];
 const tubeLights = [];
-const OFF_CORE = new THREE.Color(0x1a1a1a), _c = new THREE.Color();
+const OFF_CORE = new THREE.Color(0x070707), _c = new THREE.Color();
 const rand = (i) => ((Math.sin(i * 12.9898 + 4.1) * 43758.5453) % 1 + 1) % 1;
 
 function init3D() {
@@ -105,8 +115,8 @@ function init3D() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
-  scene.background = BG.clone();
-  scene.fog = new THREE.Fog(BG, 6.5, 13);
+  scene.background = new THREE.Color(0x000000); // pitch black while he's asleep, rises to BG with the room light
+  scene.fog = new THREE.Fog(0x000000, 6.5, 13);
   camera = new THREE.PerspectiveCamera(30, 1, 0.05, 60);
 
   // Reflections: a cube camera photographs the room from Ronie's chest a few times a second,
@@ -158,28 +168,18 @@ function init3D() {
   }, { passive: true });
   root.addEventListener('pointerleave', () => { cursor.inside = false; });
 
-  // glossy dark floor that catches the coloured light, plus a soft contact shadow under his feet
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 72), floorMat = new THREE.MeshPhysicalMaterial({
-    color: 0x0b0b0b, roughness: 0.3, metalness: 0.15, clearcoat: 0.8, clearcoatRoughness: 0.18,
-  }));
+  // an unlit black floor (no coloured pools or reflections on it), plus a soft contact shadow under his feet
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 72), floorMat = new THREE.MeshBasicMaterial({ color: 0x000000 }));
   floor.rotation.x = -Math.PI / 2;
-  floor.receiveShadow = true;
   scene.add(floor);
   const blob = document.createElement('canvas'); blob.width = blob.height = 128;
   const bx = blob.getContext('2d'); const bg = bx.createRadialGradient(64, 64, 4, 64, 64, 64);
   bg.addColorStop(0, 'rgba(0,0,0,.75)'); bg.addColorStop(1, 'rgba(0,0,0,0)');
   bx.fillStyle = bg; bx.fillRect(0, 0, 128, 128);
-  const contact = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(blob), transparent: true, depthWrite: false }));
+  contact = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(blob), transparent: true, depthWrite: false }));
   contact.rotation.x = -Math.PI / 2; contact.position.y = 0.003;
   scene.add(contact);
 
-  // drifting dust for depth (only visible once the room is lit)
-  const N = 220, pos = new Float32Array(N * 3);
-  for (let i = 0; i < N; i++) { pos[i * 3] = (Math.random() - 0.5) * 6; pos[i * 3 + 1] = Math.random() * 3.2; pos[i * 3 + 2] = (Math.random() - 0.5) * 4 - 1; }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffd2b0, size: 0.01, transparent: true, opacity: 0, depthWrite: false }));
-  scene.add(dust);
 
   // post-processing: selective bloom — only the neon cores glow (never glints on his armour).
   // Pass 1 renders the scene with everything except the cores blacked out and blooms it;
@@ -281,19 +281,27 @@ function onModel(gltf) {
     jumpAction.paused = true;
     jumpAction.time = JUMP_FROM;
     jumpAction.setEffectiveWeight(0);
+    leapAction = mixer.clipAction(clip.clone());
+    leapAction.play();
+    leapAction.paused = true;
+    leapAction.time = 6.6;
+    leapAction.setEffectiveWeight(0);
     mixer.update(0);
   }
   model.updateMatrixWorld(true);
   (head || model).getWorldPosition(headHome);
   target.set(headHome.x, headHome.y - 0.24, headHome.z); // headroom for his jump
+  homePos.copy(model.position);
+  placeForLeap(performance.now());
 
   buildTubes();
+  buildAtmosphere();
   // the canvas stays hidden (black) while a few frames render, so nothing pops in; then it all fades in at once
   warmup = 3;
 }
 
 // Neon tubes in the site's palette, standing in a ring around Ronie: clear glass with rounded ends, a glowing
-// core, metal caps, a little floor stand and a cable going up. Tubes in front of him only appear in
+// core and metal caps, hanging from the ceiling on a cable and swaying gently. Tubes in front of him only appear in
 // reflections (ENV_ONLY), so they light his chest without blocking the view.
 function buildTubes() {
   const N = 22;
@@ -308,12 +316,14 @@ function buildTubes() {
     const ang = (i / N) * Math.PI * 2;                   // 0 = straight in front of him
     const R = [2.8, 4.2, 5.6][i % 3];                    // three evenly spaced rings: near, middle, far
     const a = baseAng + ang;
-    const h = 1.35 + rand(i) * 1.7;                      // glowing length
-    const y0 = 0.16;                                     // bottom of the glass
-    const yc = y0 + 0.045 + h / 2;                       // centre of the tube
-    const top = y0 + h + 0.09;
+    const h = 1.1 + rand(i) * 1.3;                       // glowing length
+    const y0 = 0.45 + rand(i + 300) * 0.9;               // each hangs at its own height (bottom of the glass)
+    const top = y0 + h + 0.09;                           // where the cable attaches
+    const yc = y0 + 0.045 + h / 2 - top;                 // centre of the tube, relative to the hanging point
+    // the group's origin is the hanging point, so a small rotation reads as the tube swaying on its cable
     const g = new THREE.Group();
-    g.position.set(Math.sin(a) * R, 0, Math.cos(a) * R);
+    g.rotation.order = 'YXZ';
+    g.position.set(Math.sin(a) * R, top, Math.cos(a) * R);
     g.rotation.y = a;
     const coreMat = new THREE.MeshBasicMaterial({ color: OFF_CORE.clone() });
     const core = new THREE.Mesh(new THREE.CapsuleGeometry(0.017, h, 6, 12), coreMat);
@@ -322,17 +332,13 @@ function buildTubes() {
     const tube = new THREE.Mesh(new THREE.CapsuleGeometry(0.046, h, 10, 24), glass);
     tube.position.y = yc;
     const capB = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.064, 0.1, 24), metal);
-    capB.position.y = y0 + 0.03;
+    capB.position.y = y0 + 0.03 - top;
     const capT = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.058, 0.1, 24), metal);
-    capT.position.y = top - 0.03;
-    const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.025, 28), metal);
-    stand.position.y = 0.0125;
-    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, y0 - 0.02, 10), metal);
-    rod.position.y = 0.025 + (y0 - 0.02) / 2;
+    capT.position.y = -0.03;
     const wireLen = 7 - top;
     const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, wireLen, 6), cable);
-    wire.position.y = top + wireLen / 2;
-    g.add(core, tube, capB, capT, stand, rod, wire);
+    wire.position.y = wireLen / 2;
+    g.add(core, tube, capB, capT, wire);
     scene.add(g);
     // on wake each tube flickers like a fluorescent starter before it settles
     const flicks = [];
@@ -344,7 +350,7 @@ function buildTubes() {
     }
     flicks.push([tt + 0.08, 1]);
     tubes.push({
-      g, core, parts: [core, tube, capB, capT, stand, rod, wire], coreMat, col: PALETTE[i % PALETTE.length],
+      g, core, parts: [core, tube, capB, capT, wire], coreMat, col: PALETTE[i % PALETTE.length], top, mid: y0 + 0.045 + h / 2,
       // orbit: the whole ring turns together, slowly, so the tubes stay evenly spaced
       ang, R, speed: 0.03, front: null,
       phase: i * 1.7, start: 0.15 + i * 0.045 + rand(i + 99) * 0.35, flicks, level: 0, lit: false, light: null,
@@ -367,8 +373,10 @@ function placeTubes(dt) {
   for (const tb of tubes) {
     tb.ang += tb.speed * dt * MOTION;
     const a = baseAng + tb.ang;
-    tb.g.position.set(Math.sin(a) * tb.R, 0, Math.cos(a) * tb.R);
-    tb.g.rotation.y = a;
+    tb.g.position.set(Math.sin(a) * tb.R, tb.top, Math.cos(a) * tb.R);
+    // a slow, small sway on the cable
+    const ts = performance.now() / 1000;
+    tb.g.rotation.set(Math.sin(ts * 0.6 + tb.phase) * 0.03 * MOTION, a, Math.cos(ts * 0.47 + tb.phase * 1.3) * 0.025 * MOTION);
     const front = Math.cos(tb.ang) > COS75;
     if (front !== tb.front) {
       tb.front = front;
@@ -377,9 +385,111 @@ function placeTubes(dt) {
     }
     if (tb.light) {
       const r = tb.R - 0.35;
-      tb.light.position.set(Math.sin(a) * r, 1.5, Math.cos(a) * r);
+      tb.light.position.set(Math.sin(a) * r, tb.mid, Math.cos(a) * r);
     }
   }
+}
+
+// a soft, cloudy smoke sprite drawn once into a canvas
+function smokeTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 256;
+  const x = c.getContext('2d');
+  for (let i = 0; i < 46; i++) {
+    const r = 30 + Math.random() * 70;
+    const px = 128 + (Math.random() - 0.5) * 120, py = 128 + (Math.random() - 0.5) * 120;
+    const g = x.createRadialGradient(px, py, 0, px, py, r);
+    g.addColorStop(0, 'rgba(255,255,255,0.13)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+  }
+  // fade the edges so no square ever shows
+  x.globalCompositeOperation = 'destination-in';
+  const m = x.createRadialGradient(128, 128, 40, 128, 128, 128);
+  m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = m; x.fillRect(0, 0, 256, 256);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+
+// Smoke and dust. Positions are set up around him relative to the way he faces.
+const _right2 = new THREE.Vector3();
+function buildAtmosphere() {
+  _right2.crossVectors(UP, facing);
+  const place = (sideways, height, depth) => new THREE.Vector3().addScaledVector(_right2, sideways).addScaledVector(facing, depth).setY(height);
+
+  // smoke: camera-facing puffs with a lit (Lambert) material, so the tube colours and the mouse light tint them
+  smokeMat = new THREE.MeshLambertMaterial({ map: smokeTexture(), color: 0x9a9a9a, transparent: true, opacity: 0, depthWrite: false });
+  for (let i = 0; i < 18; i++) {
+    const ang = rand(i + 500) * Math.PI * 2, r = 1.6 + rand(i + 600) * 4;
+    // keep the space right between him and the camera clear
+    const sideways = Math.sin(ang) * r, depth = Math.cos(ang) * r;
+    const near = depth > 0.6 && Math.abs(sideways) < 1.4;
+    const size = 2 + rand(i + 700) * 2.4;
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), smokeMat);
+    mesh.position.copy(place(near ? sideways + Math.sign(sideways || 1) * 1.6 : sideways, 0.15 + rand(i + 800) ** 2 * 1.3, near ? depth - 1.2 : depth));
+    scene.add(mesh);
+    puffs.push({ mesh, vel: new THREE.Vector3(), drift: new THREE.Vector3((rand(i + 900) - 0.5) * 0.04, 0.012 + rand(i + 950) * 0.02, (rand(i + 990) - 0.5) * 0.04), rot: rand(i) * 6, spin: (rand(i + 77) - 0.5) * 0.06, home: mesh.position.clone() });
+  }
+
+  // dust: tiny floating particles, mostly in the air around and in front of him
+  const N = 420, pos = new Float32Array(N * 3);
+  dustVel = new Float32Array(N * 3);
+  for (let i = 0; i < N; i++) {
+    const v = place((Math.random() - 0.5) * 6.5, Math.random() * 3.2, (Math.random() - 0.5) * 4.5 + 0.4);
+    pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffe2c8, size: 0.013, transparent: true, opacity: 0, depthWrite: false }));
+  scene.add(dust);
+}
+
+// the mouse pushes particles out of its way and stirs them along the direction it moves
+const _d = new THREE.Vector3();
+function updateAtmosphere(dt) {
+  const P = cursorRing ? cursorRing.position : null;
+  const active = cursor.level > 0.05 && P;
+  if (dust && dustVel) {
+    const a = dust.geometry.attributes.position, arr = a.array;
+    const damp = Math.exp(-2.4 * dt);
+    for (let i = 0; i < arr.length; i += 3) {
+      if (active) {
+        const dx = arr[i] - P.x, dy = arr[i + 1] - P.y, dz = arr[i + 2] - P.z;
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < 0.8) {
+          const d = Math.sqrt(d2) || 0.001, f = (1 - d / 0.894) * cursor.level;
+          dustVel[i] += (dx / d * 2.2 + cursorVel.x * 0.9) * f * dt * 6;
+          dustVel[i + 1] += (dy / d * 2.2 + cursorVel.y * 0.9) * f * dt * 6;
+          dustVel[i + 2] += (dz / d * 2.2 + cursorVel.z * 0.9) * f * dt * 6;
+        }
+      }
+      dustVel[i] *= damp; dustVel[i + 1] *= damp; dustVel[i + 2] *= damp;
+      arr[i] += dustVel[i] * dt;
+      arr[i + 1] += (dustVel[i + 1] + 0.035 * MOTION) * dt;   // a slow rise
+      arr[i + 2] += dustVel[i + 2] * dt;
+      if (arr[i + 1] > 3.3) arr[i + 1] = 0.02;
+      if (arr[i + 1] < 0) arr[i + 1] = 0.02;
+    }
+    a.needsUpdate = true;
+  }
+  for (const p of puffs) {
+    const m = p.mesh;
+    if (active) {
+      _d.subVectors(m.position, P);
+      const d = _d.length();
+      if (d < 1.6) {
+        const f = (1 - d / 1.6) * cursor.level;
+        p.vel.addScaledVector(_d.normalize(), 0.9 * f * dt).addScaledVector(cursorVel, 0.25 * f * dt);
+      }
+    }
+    // drift, ease back towards where it started, damp the pushes
+    p.vel.multiplyScalar(Math.exp(-0.8 * dt));
+    m.position.addScaledVector(p.vel, dt).addScaledVector(p.drift, dt * MOTION);
+    m.position.lerp(p.home, Math.min(1, dt * 0.05));
+    p.rot += p.spin * dt * MOTION;
+    m.lookAt(camera.position);
+    m.rotateZ(p.rot);
+  }
+  if (smokeMat) smokeMat.opacity = 0.004 + 0.088 * power;
 }
 
 function tubeState(tb, since) {
@@ -414,16 +524,17 @@ function updateTubes(now, dt) {
   lights.hemi.intensity = 0.22 * power;
   lights.moon.intensity = 0.55 - 0.3 * power;
   softbox.material.color.setScalar(0.05 + 1.5 * power);
-  // while he's asleep the room is barely there: near-clear glass, dull caps, a floor that hardly reflects
+  scene.background.copy(BG).multiplyScalar(power);
+  scene.fog.color.copy(scene.background);
+  // while he's asleep the room is barely there: near-clear glass and dull caps
   // (his own lighting is untouched). Clearcoat never quite hits 0 so the shader isn't rebuilt.
   if (tubeGlass) {
-    tubeGlass.opacity = 0.025 + 0.215 * power;
+    tubeGlass.opacity = 0.012 + 0.228 * power;
     tubeGlass.clearcoat = 0.02 + 0.98 * power;
     tubeGlass.envMapIntensity = 0.08 + 1.52 * power;
   }
   if (tubeMetal) { tubeMetal.color.setScalar(0.035 + 0.135 * power); tubeMetal.envMapIntensity = 0.05 + 0.95 * power; }
-  if (floorMat) floorMat.envMapIntensity = 0.1 + 0.9 * power;
-  if (dust) dust.material.opacity = 0.45 * power;
+  if (dust) dust.material.opacity = 0.025 + 0.475 * power;
 }
 
 // re-photograph the surroundings for reflections (every few frames is plenty)
@@ -481,7 +592,12 @@ function updateCursorLight(dt) {
   // project the mouse onto a plane ~0.7 in front of his chest (facing the viewer)
   _plane.setFromNormalAndCoplanarPoint(facing, _hit.copy(target).addScaledVector(facing, 0.7));
   _ray.setFromCamera(_ndc.set(cursor.x, cursor.y), camera);
-  if (_ray.ray.intersectPlane(_plane, _hit)) cursorRing.position.copy(_hit);
+  if (_ray.ray.intersectPlane(_plane, _hit)) {
+    if (cursorTracked && dt > 0) cursorVel.lerp(_d.subVectors(_hit, _prevCursor).divideScalar(dt), 0.35);
+    _prevCursor.copy(_hit); cursorTracked = true;
+    cursorRing.position.copy(_hit);
+  }
+  if (!cursor.inside) cursorVel.multiplyScalar(0.8);
   cursorRing.lookAt(camera.position);            // the ring faces him/the viewer…
   cursorRing.rotateZ(performance.now() / 1000 * 0.9); // …and slowly spins
   // on whenever the mouse is over the scene (awake or asleep); fades in and out softly
@@ -501,6 +617,54 @@ function updateCursorLight(dt) {
   cursorRing.visible = cursor.level > 0.02;
 }
 
+// where he is during the wake-up leap, and which moment of the clip he's in
+const lerp = (a, b, k) => a + (b - a) * k;
+function placeForLeap(now) {
+  if (!model) return 0;
+  const since = awake ? (now - wakeAt) / 1000 - LEAP_DELAY : -1;
+  let clipT = 6.6, prog = 0, lift = 0, w = 0;
+  if (!MOTION || since >= LEAP_CROUCH + LEAP_AIR + LEAP_LAND) prog = 1;   // done (or motion reduced: just be there)
+  else if (since >= 0 && since < LEAP_CROUCH) {
+    const k = since / LEAP_CROUCH;
+    clipT = lerp(6.6, 7.35, k); w = Math.min(1, k * 4);
+  } else if (since >= LEAP_CROUCH && since < LEAP_CROUCH + LEAP_AIR) {
+    const k = (since - LEAP_CROUCH) / LEAP_AIR;
+    clipT = lerp(7.35, 8.0, k); prog = k; lift = LEAP_HEIGHT * 4 * k * (1 - k); w = 1;
+  } else if (since >= LEAP_CROUCH + LEAP_AIR) {
+    const k = (since - LEAP_CROUCH - LEAP_AIR) / LEAP_LAND;
+    clipT = lerp(8.0, 8.8, k); prog = 1; w = 1 - Math.max(0, (k - 0.4) / 0.6);
+    if (!landed) { landed = true; landingBurst(); }
+  }
+  model.position.copy(homePos).addScaledVector(facing, -LEAP_BACK * (1 - prog));
+  model.position.y += lift;
+  if (contact) {
+    contact.position.set(model.position.x, 0.003, model.position.z);
+    contact.scale.setScalar(1 - Math.min(0.5, lift * 0.5));
+    contact.material.opacity = 1 - Math.min(0.75, lift * 0.8);
+  }
+  if (leapAction) leapAction.time = clipT;
+  return w;
+}
+
+// the landing: the camera jolts and the dust on the floor around his feet is thrown outwards
+function landingBurst() {
+  shake = 1;
+  if (dust && dustVel) {
+    const arr = dust.geometry.attributes.position.array;
+    for (let i = 0; i < arr.length; i += 3) {
+      const dx = arr[i] - homePos.x, dz = arr[i + 2] - homePos.z, d = Math.hypot(dx, dz) || 0.001;
+      if (d > 1.8 || arr[i + 1] > 1.4) continue;
+      const f = (1 - d / 1.8) * (1 - arr[i + 1] / 1.4);
+      dustVel[i] += (dx / d) * 3.2 * f; dustVel[i + 1] += 1.6 * f; dustVel[i + 2] += (dz / d) * 3.2 * f;
+    }
+  }
+  for (const p of puffs) {
+    _d.subVectors(p.mesh.position, homePos).setY(0);
+    const d = _d.length() || 0.001;
+    if (d < 3) p.vel.addScaledVector(_d.normalize(), 0.5 * (1 - d / 3));
+  }
+}
+
 function startJump() {
   if (!jumpAction || jumping || !MOTION) return;
   jumping = true;
@@ -516,21 +680,22 @@ function loop(now) {
   if (view.hidden || document.hidden) return;
   resize();
   if (tubes.length) updateTubes(now, dt);
-  if (dust) {
-    dust.rotation.y += dt * 0.02;
-    const p = dust.geometry.attributes.position;
-    for (let i = 0; i < p.count; i++) { let y = p.getY(i) + dt * 0.04; if (y > 3.2) y = 0; p.setY(i, y); }
-    p.needsUpdate = true;
-  }
 
   // fixed camera framing the idle pose — it doesn't chase him when he moves
   const dist = 3.15 * Math.max(1, 1.05 / Math.max(camera.aspect, 0.3));
   camera.position.copy(target).addScaledVector(facing, dist).add(new THREE.Vector3(0, 0.14, 0));
   camera.lookAt(target);
+  if (shake > 0.002) {
+    // a short, decaying jolt when he lands
+    const a = shake * shake * 0.05;
+    camera.position.add(new THREE.Vector3((Math.random() - 0.5) * a, (Math.random() - 0.5) * a, 0));
+    shake *= Math.exp(-dt * 7);
+  }
   _right.crossVectors(UP, facing); // the viewer's right, in world space
   lights.key.position.copy(camera.position).add(new THREE.Vector3(1.6, 2.4, 0.4));
   lights.moon.position.copy(facing).multiplyScalar(-4).add(new THREE.Vector3(-1.5, 3, 0));
   updateCursorLight(dt);
+  updateAtmosphere(dt);
 
   if (model) {
     for (const [b, q] of rest) b.quaternion.copy(q);
@@ -539,7 +704,9 @@ function loop(now) {
       if (jumping && jumpAction.time >= JUMP_TO) { jumping = false; jumpAction.paused = true; }
       jumpW += ((jumping ? 1 : 0) - jumpW) * Math.min(1, dt * (jumping ? 10 : 3.5));
       jumpAction.setEffectiveWeight(jumpW);
-      idleAction.setEffectiveWeight(1 - jumpW);
+      leapW = placeForLeap(now);
+      leapAction.setEffectiveWeight(leapW);
+      idleAction.setEffectiveWeight(Math.max(0, 1 - jumpW - leapW));
       mixer.update(dt);
     }
     model.updateMatrixWorld(true);
@@ -595,8 +762,8 @@ function wake() {
   awake = true;
   wakeAt = performance.now();
   wakeBtn.hidden = true;
-  // the tubes flicker on, the room light rises, then he lifts his head and starts talking
-  setTimeout(() => { panel.hidden = false; go(A.start); }, MOTION ? 1500 : 0);
+  // the tubes flicker on, the room light rises, he lifts his head, leaps to his spot and starts talking
+  setTimeout(() => { panel.hidden = false; go(A.start); }, MOTION ? (LEAP_DELAY + LEAP_CROUCH + LEAP_AIR + 0.45) * 1000 : 0);
 }
 
 /* ======================= sound (optional typing blips) ======================= */
