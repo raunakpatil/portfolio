@@ -85,6 +85,8 @@ export default {
       // a portfolio robot, not a coding assistant
       if (/```|\bdef |function\s*\w*\s*\(|=>\s*\{/.test(reply)) reply = OFFTOPIC[Math.floor(Math.random() * OFFTOPIC.length)];
       reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s*\n+\s*/g, ' ').trim();
+      // stage directions like "(Awkwardly)" or "*whirrs*" — Ronie's asides in brackets that are actual speech stay
+      reply = reply.replace(/\(\s*\w+ly\s*\)\s*/g, '').replace(/\*[^*]{1,40}\*\s*/g, '').replace(/\s{2,}/g, ' ').trim();
       if (!reply) return json({ error: 'empty' }, 502, cors);
       return json({ reply }, 200, cors);
     } catch (err) {
