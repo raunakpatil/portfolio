@@ -1,0 +1,17 @@
+# Ronie's chat worker — deploy with:  cd worker && npx wrangler deploy
+name = "ronie-chat"
+main = "src/index.js"
+compatibility_date = "2025-09-01"
+workers_dev = true
+
+[ai]
+binding = "AI"
+
+# 12 questions per minute per visitor
+[[ratelimits]]
+name = "LIMITER"
+namespace_id = "1001"
+
+  [ratelimits.simple]
+  limit = 12
+  period = 60
