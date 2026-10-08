@@ -229,6 +229,7 @@ window.PORTFOLIO = {
      Steps with `send: 'hire' | 'word'` open the visitor's email app, addressed to `email`. */
   assistant: {
     name: 'Ronie', // R.O.N.I.E. — Raunak's Own Neural Intelligence Engine
+    chatUrl: 'https://ronie-chat.ronie-chat.workers.dev/chat', // Ronie's chat worker (see worker/); '' = chat off
     email: 'raunakpatil15@gmail.com',
     model: {
       src: 'models/rai-robot.glb',
@@ -260,6 +261,7 @@ window.PORTFOLIO = {
         ],
         choices: [
           { label: 'Work with Raunak', to: 'hire-intro', set: { goal: 'hire' } },
+          { label: 'Ask me anything', to: 'ask' },
           { label: 'Get to know him', to: 'story-menu' },
           { label: 'Drop a quick word', to: 'word-message', set: { goal: 'word' } },
           { label: 'Show me his work', to: 'work' },
@@ -399,6 +401,17 @@ window.PORTFOLIO = {
       },
 
       // ---------- get to know him ----------
+      // free chat: questions go to a small AI model (worker/), grounded only in this file's facts
+      ask: {
+        progress: 0.3, chat: true,
+        say: [
+          "Ask me anything about Raunak — his work, projects, skills, or how to reach him.",
+          "Go on, ask me anything about him. I've read everything he's written. Twice.",
+          "Questions about Raunak? Fire away — I'll answer as honestly as a robot can.",
+        ],
+        fallback: "My chat brain is taking a nap right now (free-tier robots need sleep too). Try the menu — or email Raunak at {email}.",
+      },
+
       'story-menu': {
         progress: 0.2,
         say: [

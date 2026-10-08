@@ -1203,7 +1203,8 @@ panel.insertBefore(prevEl, sayEl);
 
 const fill = (text) => text
   .replace(/\{name\}/g, answers.name || 'friend')
-  .replace(/\{visitor\}/g, answers.name || 'stranger');
+  .replace(/\{visitor\}/g, answers.name || 'stranger')
+  .replace(/\{email\}/g, A.email);
 
 function lineFor(id, step) {
   const options = step.say || [''];
@@ -1271,7 +1272,7 @@ function confused() {
 }
 
 // lines that just talk and move on by themselves aren't worth going "back" to
-const isInteractive = (id) => { const s = A.steps[id]; return !!(s && (s.input || s.choices || s.story)); };
+const isInteractive = (id) => { const s = A.steps[id]; return !!(s && (s.input || s.choices || s.story || s.chat)); };
 const canGoBack = () => history.slice(0, -1).some(isInteractive);
 
 function button(label, cls, onClick, delay) {
@@ -1285,7 +1286,80 @@ function button(label, cls, onClick, delay) {
   return b;
 }
 
+/* ======================= free chat ======================= */
+// "Ask me anything": questions go to Ronie's chat worker (worker/), a small AI model that only knows the facts
+// in data.js. The last few messages go along so follow-up questions work. If the worker can't answer (free daily
+// allowance used up, offline…), Ronie says so in character and offers the menu.
+const chatLog = [];
+async function askRonie() {
+  if (!A.chatUrl) return null;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 25000);
+  try {
+    const r = await fetch(A.chatUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: chatLog.slice(-8) }), signal: ctl.signal,
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return typeof j.reply === 'string' && j.reply.trim() ? j.reply.trim() : null;
+  } catch { return null; } finally { clearTimeout(timer); }
+}
+
+function showChat(id, step) {
+  actions.innerHTML = '';
+  const field = document.createElement('div');
+  field.className = 'rai-field';
+  const el = document.createElement('input');
+  el.type = 'text';
+  el.maxLength = 300;
+  el.placeholder = 'Ask about his work, projects, skills…';
+  el.setAttribute('aria-label', 'Your question for Ronie');
+  el.autocomplete = 'off';
+  const send = document.createElement('button');
+  send.type = 'submit';
+  send.className = 'rai-send';
+  send.setAttribute('aria-label', 'Send');
+  send.textContent = '→';
+  field.append(el, send);
+  actions.appendChild(field);
+  const err = document.createElement('p');
+  err.className = 'rai-error';
+  actions.appendChild(err);
+  button('Back to the menu', 'rai-skip', () => go('greeting'), 120);
+  actions.onsubmit = async (e) => {
+    e.preventDefault();
+    const q = el.value.trim();
+    if (!q) { err.textContent = 'Type a question first.'; el.focus(); confused(); return; }
+    el.disabled = send.disabled = true;
+    // the visitor's question sits above Ronie's answer
+    prevEl.textContent = `You: ${q}`;
+    prevEl.classList.add('show');
+    chatLog.push({ role: 'user', content: q });
+    setFace('thinking');
+    sayEl.classList.remove('done');
+    sayEl.textContent = '…';
+    const reply = await askRonie();
+    if (!history.length || history[history.length - 1] !== id) return;   // they've moved on meanwhile
+    if (reply) {
+      chatLog.push({ role: 'assistant', content: reply });
+      setFace('happy');
+      await typeLine(reply);
+      setFace('neutral');
+      showChat(id, step);
+    } else {
+      chatLog.pop();
+      confused();
+      await typeLine(fill(step.fallback || "I can't think right now. Try the menu?"));
+      actions.innerHTML = '';
+      button('Back to the menu', 'rai-choice', () => go('greeting'), 0);
+    }
+  };
+  setTimeout(() => el.focus({ preventScroll: true }), 50);
+}
+
 function showActions(id, step) {
+  if (step.chat) return showChat(id, step);
   actions.innerHTML = '';
   if (step.input) {
     const inp = step.input;

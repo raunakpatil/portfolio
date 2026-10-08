@@ -44,3 +44,18 @@ Poses are written as world-space rotations on top of his idle pose, so edit the 
 It also saves a `.blend` next to the output; `tools/blender/ronie_preview.py` (body) and `ronie_hands_preview.py` (hands)
 render poses from it to check them. Fingers: each hand has a finger block (Index1-3) and a thumb; poses for them
 (`FL`/`FR`) are in the script but switched off with `FINGERS = False`.
+
+## Ronie's chat (Cloudflare Workers AI)
+"Ask me anything" sends visitors' questions to a tiny Cloudflare Worker (`worker/`) running a small model on
+Workers AI's free daily allowance. Ronie only knows `worker/src/facts.js`, generated from `js/data.js`, and the
+site falls back to the scripted menu if the worker can't answer. The worker URL is `assistant.chatUrl` in data.js.
+
+After changing your details in data.js (wrangler needs Node 22; this runs it without changing your system Node):
+
+```
+node tools/ronie-facts.mjs
+cd worker
+npx -y -p node@22 -p wrangler@4 -- wrangler deploy
+```
+
+Persona, rules and the model live in `worker/src/index.js`. Usage is visible in the Cloudflare dashboard → AI.
