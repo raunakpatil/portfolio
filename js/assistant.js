@@ -110,7 +110,15 @@ function findBone(...patterns) {
 
 function onModel(gltf) {
   model = gltf.scene;
-  model.traverse((o) => { if (o.isMesh) o.frustumCulled = false; });
+  model.traverse((o) => {
+    if (!o.isMesh) return;
+    o.frustumCulled = false;
+    // The body is exported as "transparent" though its texture is fully opaque; drawn that way the
+    // back and inner faces show through the front. Render it as a solid surface instead.
+    for (const m of [].concat(o.material)) {
+      if (m.transparent && m.opacity >= 1) { m.transparent = false; m.depthWrite = true; m.needsUpdate = true; }
+    }
+  });
   scene.add(model);
 
   // normalise: 2 units tall, feet on the floor, centred
