@@ -66,6 +66,7 @@ const BG = new THREE.Color(0x0d0d0d);
 const cursor = { x: 0, y: 0, inside: false, level: 0 };
 let floorMat, tubeGlass, tubeMetal; // room materials that fade back while he's asleep
 let emblemMat = null;                  // the glowing R.O.N.I.E crest on his chest plate
+let faceMat = null;                    // his visor is an old CRT screen showing two expressive eyes
 let smokeMat; const puffs = [];       // soft smoke, lit by the room's own lights
 let dustVel = null;                    // per-particle velocity, so dust can be pushed around by the mouse
 const cursorVel = new THREE.Vector3(), _prevCursor = new THREE.Vector3(); let cursorTracked = false;
@@ -309,6 +310,7 @@ function onModel(gltf) {
   homePos.copy(model.position);
   modelQuat.copy(model.quaternion);
   buildEmblem();
+  buildFace();
   placeForLeap(performance.now());
 
   buildTubes();
@@ -680,6 +682,33 @@ function emblemTexture() {
   return t;
 }
 
+// Rebuild a baked sheet: a grid of points (some missing) in a bone's space, with uvs across the grid.
+// An optional per-point 'vis' (1 = on the dark glass) becomes an attribute for masking.
+function bakedSheet(data) {
+  let bone = null;
+  model.traverse((o) => { if (!bone && o.isBone && o.name === data.bone) bone = o; });
+  if (!bone) return null;
+  const { nx, ny } = data, pos = [], uv = [], vis = [], index = [], at = new Int32Array(nx * ny).fill(-1);
+  data.pos.forEach((p, k) => {
+    if (!p) return;
+    at[k] = pos.length / 3;
+    pos.push(p[0], p[1], p[2]);
+    uv.push((k % nx) / (nx - 1), 1 - Math.floor(k / nx) / (ny - 1));
+    vis.push(data.vis ? data.vis[k] : 1);
+  });
+  for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    const a = at[j * nx + i], b = at[j * nx + i + 1], c = at[(j + 1) * nx + i], d = at[(j + 1) * nx + i + 1];
+    if (a >= 0 && b >= 0 && c >= 0) index.push(a, c, b);
+    if (b >= 0 && c >= 0 && d >= 0) index.push(b, c, d);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  geo.setAttribute('vis', new THREE.Float32BufferAttribute(vis, 1));
+  geo.setIndex(index);
+  return { bone, geo, aspect: (data.x[1] - data.x[0]) / (data.y[1] - data.y[0]) };
+}
+
 async function buildEmblem() {
   try {
     const v = new URL(import.meta.url).search;
@@ -687,25 +716,9 @@ async function buildEmblem() {
       fetch(`models/ronie-emblem.json${v}`).then((r) => r.json()),
       document.fonts ? document.fonts.load('900 100px "Inter Tight"').catch(() => {}) : null,
     ]);
-    let bone = null;
-    model.traverse((o) => { if (!bone && o.isBone && o.name === data.bone) bone = o; });
-    if (!bone) return;
-    const { nx, ny } = data, pos = [], uv = [], index = [], at = new Int32Array(nx * ny).fill(-1);
-    data.pos.forEach((p, k) => {
-      if (!p) return;
-      at[k] = pos.length / 3;
-      pos.push(p[0], p[1], p[2]);
-      uv.push((k % nx) / (nx - 1), 1 - Math.floor(k / nx) / (ny - 1));
-    });
-    for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
-      const a = at[j * nx + i], b = at[j * nx + i + 1], c = at[(j + 1) * nx + i], d = at[(j + 1) * nx + i + 1];
-      if (a >= 0 && b >= 0 && c >= 0) index.push(a, c, b);
-      if (b >= 0 && c >= 0 && d >= 0) index.push(b, c, d);
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-    geo.setIndex(index);
+    const sheet = bakedSheet(data);
+    if (!sheet) return;
+    const { bone, geo } = sheet;
     emblemMat = new THREE.MeshBasicMaterial({
       map: emblemTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -4, color: 0x000000,
@@ -715,6 +728,158 @@ async function buildEmblem() {
     mesh.layers.enable(GLOW);                       // the neon blooms like the tubes
     bone.add(mesh);
   } catch (err) { console.warn('chest crest not loaded', err); }
+}
+
+/* ======================= CRT face ======================= */
+// Two glowing eyes drawn by a shader on a sheet baked over his visor (models/ronie-visor.json, in head-bone
+// space). Each eye is a shape that morphs between a rounded box (circle ↔ bar), a happy ^ arc and a heart.
+// Per eye: [half width, half height, corner radius, arc amount, heart amount]  (units: visor height = 1)
+const EYE = (w, h, r, arc = 0, heart = 0) => [w, h, r, arc, heart];
+const FACES = {
+  neutral:   { L: EYE(0.095, 0.095, 0.095), R: EYE(0.095, 0.095, 0.095) },
+  happy:     { L: EYE(0.1, 0.1, 0.1, 1), R: EYE(0.1, 0.1, 0.1, 1) },
+  excited:   { L: EYE(0.11, 0.11, 0.11, 0, 1), R: EYE(0.11, 0.11, 0.11, 0, 1) },
+  wink:      { L: EYE(0.11, 0.02, 0.02), R: EYE(0.095, 0.095, 0.095) },
+  thinking:  { L: EYE(0.075, 0.075, 0.075), R: EYE(0.075, 0.075, 0.075), look: [0.07, 0.06] },
+  surprised: { L: EYE(0.125, 0.125, 0.125), R: EYE(0.125, 0.125, 0.125) },
+  sleepy:    { L: EYE(0.11, 0.016, 0.016), R: EYE(0.11, 0.016, 0.016) },
+};
+const face = {
+  name: 'sleepy', L: [...FACES.sleepy.L], R: [...FACES.sleepy.R], look: [0, 0],
+  glitch: 0, blinkAt: 0, blinkT: -1e9, talkUntil: 0, on: 0,
+};
+function setFace(name) {
+  if (!FACES[name] || name === face.name) return;
+  face.name = name;
+  face.glitch = 1;                                   // a short CRT glitch as the picture changes
+}
+// which face goes with which moment of the chat (a step can also say { face: '…' } in data.js)
+function faceFor(id, step) {
+  if (step && step.face) return step.face;
+  if (/processing/.test(id)) return 'thinking';
+  if (/completion|done/.test(id)) return 'happy';
+  if (id === 'word-message') return 'wink';
+  if (id === 'intro') return 'happy';
+  if (/^(work|story|hire-intro)/.test(id)) return 'excited';
+  return 'neutral';
+}
+
+const FACE_VERT = `
+attribute float vis;
+varying vec2 vUv; varying float vVis;
+void main() { vUv = uv; vVis = vis; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
+const FACE_FRAG = `
+uniform vec4 uL, uR; uniform vec2 uHeart, uLook, uCentre; uniform float uAspect, uTime, uOn, uGlitch, uBright;
+varying vec2 vUv; varying float vVis;
+float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+float sdBox(vec2 p, vec2 b, float r) { vec2 q = abs(p) - b + r; return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r; }
+float sdArc(vec2 p, float R, float t) {               // an upside-down U: happy closed eyes (^ ^)
+  if (p.y < 0.0) return length(vec2(abs(p.x) - R, p.y)) - t;
+  return abs(length(p) - R) - t;
+}
+float sdHeart(vec2 p) {                                // Inigo Quilez's heart, unit size
+  p.x = abs(p.x);
+  if (p.y + p.x > 1.0) return sqrt(dot(p - vec2(0.25, 0.75), p - vec2(0.25, 0.75))) - sqrt(2.0) / 4.0;
+  return sqrt(min(dot(p - vec2(0.0, 1.0), p - vec2(0.0, 1.0)), dot(p - 0.5 * max(p.x + p.y, 0.0), p - 0.5 * max(p.x + p.y, 0.0)))) * sign(p.x - p.y);
+}
+float eye(vec2 p, vec4 e, float heart) {
+  float d = sdBox(p, e.xy, min(e.z, min(e.x, e.y)));
+  d = mix(d, sdArc(p + vec2(0.0, 0.035), e.x * 0.85, 0.026), e.w);
+  if (heart > 0.001) { float s = e.x * 2.0; d = mix(d, sdHeart((p + vec2(0.0, s * 0.55)) / s) * s, heart); }
+  return d;
+}
+float faceAt(vec2 p) {
+  vec2 c = uCentre + uLook;
+  return min(eye(p - (c + vec2(-0.2, 0.0)), uL, uHeart.x), eye(p - (c + vec2(0.2, 0.0)), uR, uHeart.y));
+}
+float glow(float d) { return smoothstep(0.008, -0.004, d) * 0.85 + 0.22 * exp(-max(d, 0.0) * 45.0); }
+void main() {
+  vec2 uv = vUv;
+  // glitch: bands of the picture slip sideways
+  float band = floor(uv.y * 38.0);
+  uv.x += uGlitch * (hash(vec2(band, floor(uTime * 24.0))) - 0.5) * 0.14 * step(0.55, hash(vec2(band, 7.0)));
+  vec2 p = (uv - 0.5) * vec2(uAspect, 1.0);
+  float ca = 0.007 + uGlitch * 0.025;                  // RGB fringing, like an old tube
+  vec3 col = vec3(glow(faceAt(p + vec2(ca, 0.0))), glow(faceAt(p)), glow(faceAt(p - vec2(ca, 0.0))));
+  col *= vec3(1.0, 0.97, 0.93);
+  // AMOLED: the screen itself stays pure black; only the eyes give off light, and they carry the CRT look
+  col *= 0.74 + 0.26 * sin(vUv.y * 6.2832 * 72.0);    // scanlines
+  col *= 0.95 + 0.05 * sin(uTime * 57.0);              // mains flicker
+  col *= 0.88 + 0.24 * hash(vUv * 640.0 + fract(uTime) * 91.0); // grain inside the light
+  // switching on: a dot, then a bright line, then the picture opens up
+  float hOpen = smoothstep(0.0, 0.3, uOn), vOpen = smoothstep(0.3, 1.0, uOn);
+  float inside = step(abs(vUv.x - 0.5), hOpen * 0.5 + 0.004) * step(abs(vUv.y - 0.5), vOpen * 0.5 + 0.004);
+  float line = exp(-abs(vUv.y - 0.5) / (0.004 + vOpen * 0.2)) * exp(-abs(vUv.x - 0.5) / (0.01 + hOpen * 0.7)) * (1.0 - vOpen) * 2.2;
+  col = max(col, 0.0) * inside * vOpen + vec3(line) * step(0.001, uOn);
+  gl_FragColor = vec4(col * uBright * vVis, 1.0);
+}`;
+
+async function buildFace() {
+  try {
+    const data = await fetch(`models/ronie-visor.json${new URL(import.meta.url).search}`).then((r) => r.json());
+    const sheet = bakedSheet(data);
+    if (!sheet) return;
+    faceMat = new THREE.ShaderMaterial({
+      vertexShader: FACE_VERT, fragmentShader: FACE_FRAG,
+      uniforms: {
+        uL: { value: new THREE.Vector4() }, uR: { value: new THREE.Vector4() }, uHeart: { value: new THREE.Vector2() },
+        uLook: { value: new THREE.Vector2() }, uCentre: { value: new THREE.Vector2(-0.035, 0.09) },
+        uAspect: { value: sheet.aspect }, uTime: { value: 0 }, uOn: { value: 0 }, uGlitch: { value: 0 }, uBright: { value: 1 },
+      },
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -4,
+    });
+    // a black panel just under the eyes turns the glass into a deep AMOLED black (reflections stay faintly visible)
+    const panel = new THREE.Mesh(sheet.geo, new THREE.ShaderMaterial({
+      vertexShader: FACE_VERT,
+      fragmentShader: 'varying vec2 vUv; varying float vVis; uniform float uDark; void main() { gl_FragColor = vec4(0.0, 0.0, 0.0, uDark * vVis); }',
+      uniforms: { uDark: { value: 0.82 } }, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -2,
+    }));
+    panel.frustumCulled = false;
+    panel.renderOrder = 1;
+    const mesh = new THREE.Mesh(sheet.geo, faceMat);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 2;
+    mesh.layers.enable(GLOW);
+    sheet.bone.add(panel, mesh);
+  } catch (err) { console.warn('visor face not loaded', err); }
+}
+
+function updateFace(now, dt) {
+  if (!faceMat) return;
+  const u = faceMat.uniforms, t = now / 1000;
+  // the screen switches on just after the tubes start flickering
+  const since = awake ? (now - wakeAt) / 1000 : -1;
+  face.on = awake ? Math.min(1, Math.max(0, (since - 0.35) / (MOTION ? 0.7 : 0.01))) : 0;
+  // morph towards the current expression
+  const goal = FACES[face.name], k = 1 - Math.exp(-dt * 14);
+  for (let i = 0; i < 5; i++) { face.L[i] += (goal.L[i] - face.L[i]) * k; face.R[i] += (goal.R[i] - face.R[i]) * k; }
+  // blink every few seconds (not when the eyes are already closed)
+  if (now > face.blinkAt) { face.blinkAt = now + 2200 + Math.random() * 3800; face.blinkT = now; }
+  const bt = (now - face.blinkT) / 150;
+  const open = face.L[1] > 0.04 && face.L[3] < 0.5 && face.L[4] < 0.5;
+  const blink = open && MOTION && bt < 2 ? 1 - Math.abs(bt - 1) : 0;
+  // a little bounce while he talks
+  const talk = MOTION && now < face.talkUntil ? Math.abs(Math.sin(t * 17)) : 0;
+  // eyes follow the mouse; an expression can add its own glance
+  const g = goal.look || [0, 0];
+  face.look[0] += (look.x * 0.07 + g[0] - face.look[0]) * k;
+  face.look[1] += (-look.y * 0.05 + g[1] + talk * 0.012 - face.look[1]) * k;
+  const squash = (e) => {
+    const h = Math.max(0.012, e[1] * (1 - 0.88 * blink) * (1 - talk * 0.08));
+    return [e[0] * (1 + talk * 0.04), h, Math.min(e[2], h), e[3]];
+  };
+  u.uL.value.fromArray(squash(face.L));
+  u.uR.value.fromArray(squash(face.R));
+  u.uHeart.value.set(face.L[4], face.R[4]);
+  u.uLook.value.fromArray(face.look);
+  face.glitch *= Math.exp(-dt * 5);
+  if (MOTION && Math.random() < dt * 0.08) face.glitch = Math.max(face.glitch, 0.5);  // the odd random glitch
+  u.uGlitch.value = MOTION ? face.glitch : 0;
+  u.uTime.value = t % 1000;
+  u.uOn.value = face.on;
+  u.uBright.value = 0.9 + 0.1 * power;
 }
 
 // the crest is dark while he sleeps and powers up with the room, flickering on like the tubes
@@ -822,6 +987,7 @@ function loop(now) {
   updateCursorLight(dt);
   updateAtmosphere(dt);
   updateEmblem(now);
+  updateFace(now, dt);
 
   if (model) {
     for (const [b, q] of rest) b.quaternion.copy(q);
@@ -894,6 +1060,7 @@ function wake() {
   awake = true;
   wakeAt = performance.now();
   wakeBtn.hidden = true;
+  face.name = 'surprised';
   // the tubes flicker on, the room light rises, he lifts his head, leaps to his spot and starts talking
   setTimeout(() => { panel.hidden = false; go(A.start); }, MOTION ? (LEAP_DELAY + LEAP_CROUCH + LEAP_AIR + 0.45) * 1000 : 0);
 }
@@ -968,6 +1135,7 @@ function typeLine(text) {
       const tail = Array.from({ length: Math.min(3, text.length - i) }, () => GLYPHS[(Math.random() * GLYPHS.length) | 0]).join('');
       sayEl.innerHTML = `${esc(text.slice(0, i))}<span class="rai-scr">${esc(tail)}</span>`;
       if (i % 2 === 0) blip();
+      face.talkUntil = performance.now() + 140;
       setTimeout(tick, text[i - 1] === ',' || text[i - 1] === '.' ? 90 : 22);
     };
     tick();
@@ -987,6 +1155,7 @@ function go(id, push = true) {
   backBtn.hidden = !canGoBack() || !!step.send || id.endsWith('-completion');
   actions.innerHTML = '';
   if (step.send) compose(step.send);
+  setFace(faceFor(id, step));
   typeLine(lineFor(id, step)).then(() => showActions(id, step));
 }
 
