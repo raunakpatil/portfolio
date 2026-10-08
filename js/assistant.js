@@ -152,7 +152,7 @@ function init3D() {
     const arc = new THREE.Mesh(new THREE.TorusGeometry(RING_R, 0.011, 10, 40, (Math.PI * 2) / 3), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     arc.rotation.z = (k * Math.PI * 2) / 3;
     arc.layers.set(ENV_ONLY); // never drawn for the viewer — it only shows up as a reflection on him
-    const light = new THREE.PointLight(0xffffff, 0, 2.6, 2);
+    const light = new THREE.PointLight(0xffffff, 0, 4, 2);
     const mid = ((k + 0.5) * Math.PI * 2) / 3;
     light.position.set(Math.cos(mid) * RING_R, Math.sin(mid) * RING_R, 0);
     cursorRing.add(arc, light);
@@ -589,8 +589,10 @@ function resize() {
 
 function updateCursorLight(dt) {
   if (!cursorRing) return;
-  // project the mouse onto a plane ~0.7 in front of his chest (facing the viewer)
-  _plane.setFromNormalAndCoplanarPoint(facing, _hit.copy(target).addScaledVector(facing, 0.7));
+  // project the mouse onto a plane ~0.7 in front of his chest (facing the viewer) — wherever he's standing
+  _hit.copy(target).addScaledVector(facing, 0.7);
+  if (model) _hit.add(model.position).sub(homePos).setY(_hit.y);
+  _plane.setFromNormalAndCoplanarPoint(facing, _hit);
   _ray.setFromCamera(_ndc.set(cursor.x, cursor.y), camera);
   if (_ray.ray.intersectPlane(_plane, _hit)) {
     if (cursorTracked && dt > 0) cursorVel.lerp(_d.subVectors(_hit, _prevCursor).divideScalar(dt), 0.35);
@@ -606,7 +608,7 @@ function updateCursorLight(dt) {
   // cycles through the spectrum like the cursor trail; the three arcs sit 40° apart in hue so the ring
   // reads as one rich, shifting colour (120° apart would mix back to white on his armour)
   const t = Date.now() / 1000;
-  const strength = (0.55 + 0.75 * power) * cursor.level; // softer while he's asleep
+  const strength = (2.4 - 1.1 * power) * cursor.level; // stronger in the dark while he's asleep
   for (let k = 0; k < 3; k++) {
     // a slow cycle (~12 s round the spectrum); white while he's asleep, colour fades in as he wakes
     _c.setHSL(((t * 30 + k * 40) % 360) / 360, power, 0.55 + 0.45 * (1 - power));
