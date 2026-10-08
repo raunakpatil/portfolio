@@ -57,6 +57,7 @@ const lights = {};
 const BG = new THREE.Color(0x0d0d0d);
 // the cursor is a little light source: it moves on a plane just in front of R.A.I. and lights his armour
 const cursor = { x: 0, y: 0, inside: false, level: 0 };
+let floorMat, tubeGlass, tubeMetal; // room materials that fade back while he's asleep
 let cursorRing; // the cursor's neon ring light: three coloured lights + a ring seen only in reflections
 const ringLights = [], ringArcs = [];
 const RING_R = 0.22;
@@ -151,7 +152,7 @@ function init3D() {
   root.addEventListener('pointerleave', () => { cursor.inside = false; });
 
   // glossy dark floor that catches the coloured light, plus a soft contact shadow under his feet
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 72), new THREE.MeshPhysicalMaterial({
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 72), floorMat = new THREE.MeshPhysicalMaterial({
     color: 0x0b0b0b, roughness: 0.3, metalness: 0.15, clearcoat: 0.8, clearcoatRoughness: 0.18,
   }));
   floor.rotation.x = -Math.PI / 2;
@@ -289,11 +290,11 @@ function onModel(gltf) {
 function buildTubes() {
   const N = 22;
   baseAng = Math.atan2(facing.x, facing.z);
-  const glass = new THREE.MeshPhysicalMaterial({
+  const glass = tubeGlass = new THREE.MeshPhysicalMaterial({
     color: 0xffffff, metalness: 0, roughness: 0.03, transparent: true, opacity: 0.24,
     clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.6, depthWrite: false,
   });
-  const metal = new THREE.MeshStandardMaterial({ color: 0x2b2b2e, metalness: 1, roughness: 0.3 });
+  const metal = tubeMetal = new THREE.MeshStandardMaterial({ color: 0x2b2b2e, metalness: 1, roughness: 0.3 });
   const cable = new THREE.MeshStandardMaterial({ color: 0x080808, roughness: 0.55 });
   for (let i = 0; i < N; i++) {
     const ang = (i / N) * Math.PI * 2;                   // 0 = straight in front of him
@@ -405,6 +406,15 @@ function updateTubes(now, dt) {
   lights.hemi.intensity = 0.22 * power;
   lights.moon.intensity = 0.55 - 0.3 * power;
   softbox.material.color.setScalar(0.05 + 1.5 * power);
+  // while he's asleep the room is barely there: near-clear glass, dull caps, a floor that hardly reflects
+  // (his own lighting is untouched). Clearcoat never quite hits 0 so the shader isn't rebuilt.
+  if (tubeGlass) {
+    tubeGlass.opacity = 0.025 + 0.215 * power;
+    tubeGlass.clearcoat = 0.02 + 0.98 * power;
+    tubeGlass.envMapIntensity = 0.08 + 1.52 * power;
+  }
+  if (tubeMetal) { tubeMetal.color.setScalar(0.035 + 0.135 * power); tubeMetal.envMapIntensity = 0.05 + 0.95 * power; }
+  if (floorMat) floorMat.envMapIntensity = 0.1 + 0.9 * power;
   if (dust) dust.material.opacity = 0.45 * power;
 }
 
@@ -474,7 +484,8 @@ function updateCursorLight(dt) {
   const t = Date.now() / 1000;
   const strength = (0.55 + 0.75 * power) * cursor.level; // softer while he's asleep
   for (let k = 0; k < 3; k++) {
-    _c.setHSL(((t * 120 + k * 40) % 360) / 360, 1, 0.55); // same speed as the trail
+    // a slow cycle (~12 s round the spectrum); white while he's asleep, colour fades in as he wakes
+    _c.setHSL(((t * 30 + k * 40) % 360) / 360, power, 0.55 + 0.45 * (1 - power));
     ringLights[k].color.copy(_c);
     ringLights[k].intensity = strength;
     ringArcs[k].material.color.copy(_c).multiplyScalar(0.3 + 3 * cursor.level);

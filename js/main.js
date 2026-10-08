@@ -142,6 +142,63 @@
   $('.modal-close').addEventListener('click', () => modal.close());
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.close(); });
 
+  /* ---------- R.A.I. loading screen: a spinning ASCII core + a boot log, while the 3D files download ---------- */
+  let bootRunning = false;
+  const BOOT_LOG = [
+    [0, 'fetching 3D engine'],
+    [10, 'loading armour textures'],
+    [35, 'calibrating servos'],
+    [60, 'syncing neon tubes'],
+    [85, 'warming up personality'],
+  ];
+  function bootScreen() {
+    const pre = document.getElementById('rai-ascii');
+    const log = document.getElementById('rai-bootlog');
+    const pctEl = document.getElementById('rai-load-pct');
+    const box = document.getElementById('rai-loading');
+    if (!pre || bootRunning || box.hidden) return;
+    bootRunning = true;
+    const W = 40, H = 22, RAMP = ' .:-=+*#%@';
+    let spin = 0, last = performance.now();
+    const step = (now) => {
+      // stop once R.A.I. has loaded (or the loading box was replaced by an error message)
+      if (box.hidden || !pre.isConnected) { bootRunning = false; return; }
+      requestAnimationFrame(step);
+      const dt = Math.min(50, now - last); last = now;
+      if (document.querySelector('[data-view="assistant"]').hidden) return;
+      spin += dt * 0.0009 * MOTION;
+      const cs = Math.cos(spin), sn = Math.sin(spin);
+      // light sweeps around the core
+      const lx = Math.cos(spin * 1.7) * 0.6, ly = 0.45, lz = 0.66;
+      let txt = '';
+      for (let r = 0; r < H; r++) {
+        for (let c = 0; c < W; c++) {
+          // character cells are ~2× taller than wide, so stretch x to keep the sphere round
+          const x = (c - W / 2 + 0.5) / (W / 2), y = -(r - H / 2 + 0.5) / (H / 2);
+          const d = x * x + y * y;
+          if (d > 1) { txt += ' '; continue; }
+          const z = Math.sqrt(1 - d);
+          // rotate the surface around the vertical axis to get spinning latitude/longitude bands
+          const rx = x * cs + z * sn, rz = -x * sn + z * cs;
+          const lon = Math.atan2(rx, rz), lat = Math.asin(y);
+          const bands = Math.abs(Math.sin(lon * 6)) > 0.93 || Math.abs(Math.sin(lat * 7)) > 0.95;
+          const shade = Math.max(0, x * lx + y * ly + z * lz) * 0.85 + 0.12;
+          const v = bands ? Math.min(1, shade + 0.35) : shade * 0.6;
+          txt += RAMP[Math.min(RAMP.length - 1, Math.round(v * (RAMP.length - 1)))];
+        }
+        txt += '\n';
+      }
+      pre.textContent = txt;
+      // boot log follows the download percentage
+      const pct = parseInt(pctEl.textContent, 10) || 0;
+      log.textContent = BOOT_LOG.filter(([at]) => pct >= at).map(([at, label], i, shown) => {
+        const done = i < shown.length - 1;
+        return `› ${label} ${done ? '… ok' : '.'.repeat(1 + (((now / 400) | 0) % 3))}`;
+      }).join('\n');
+    };
+    requestAnimationFrame(step);
+  }
+
   /* ---------- header, nav, menu ---------- */
   function initChrome() {
     document.title = `${D.name} — Portfolio`;
@@ -173,6 +230,7 @@
       document.body.dataset.route = r;
       // R.A.I. (three.js + the robot) only loads when someone actually opens it
       if (r === 'assistant') {
+        bootScreen();
         import(`./assistant.js${ASSET_V ? `?v=${ASSET_V}` : ''}`).then((m) => m.open()).catch((err) => {
           console.error('Assistant failed to load', err);
           const l = document.getElementById('rai-loading');
