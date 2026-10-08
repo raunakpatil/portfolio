@@ -286,6 +286,23 @@ main { padding: 0 var(--gap) var(--gap); }
 @keyframes pin-pop { 0% { transform: scale(0); } 60% { transform: scale(1.6); } }
 @keyframes label-in { from { opacity: 0; filter: blur(3px); } }
 .map-info.fading { opacity: 0; transition: opacity .9s; }
+/* the trip home: pins, coordinates and the info card tear, jitter and split into pink/cyan, then vanish */
+.card-map.glitching .pin.shown .pin-label,
+.card-map.glitching .pin.shown i,
+.card-map.glitching .map-info {
+  animation: glitch-tear .16s steps(1, end) infinite;
+  text-shadow: 1.5px 0 rgba(255, 0, 200, .85), -1.5px 0 rgba(0, 255, 249, .85);
+}
+.card-map.glitching .map-info { border-left-color: #ff00c8; box-shadow: -3px 0 0 #00fff9; }
+@keyframes glitch-tear {
+  0%   { translate: 0 0; clip-path: inset(0 0 0 0); opacity: 1; }
+  20%  { translate: -4px 1px; clip-path: inset(12% 0 52% 0); }
+  40%  { translate: 5px -1px; clip-path: inset(58% 0 6% 0); opacity: .55; }
+  60%  { translate: -2px 0; clip-path: inset(0 0 78% 0); }
+  80%  { translate: 3px 2px; clip-path: inset(34% 0 30% 0); opacity: .85; }
+  100% { translate: 0 0; clip-path: inset(0 0 0 0); }
+}
+.card-map.glitch-out .pin, .card-map.glitch-out .map-info { opacity: 0 !important; transition: opacity .45s steps(4, end); }
 .pin i {
   position: absolute; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%;
   background: var(--c); box-shadow: 0 0 0 3px color-mix(in srgb, var(--c) 25%, transparent);
