@@ -3,6 +3,8 @@
   'use strict';
 
   const D = window.PORTFOLIO;
+  // index.html loads this file as main.js?v=…; reuse that version so lazily-loaded files are fresh too
+  const ASSET_V = (() => { try { return new URL(document.currentScript.src).searchParams.get('v') || ''; } catch { return ''; } })();
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -171,7 +173,7 @@
       document.body.dataset.route = r;
       // R.A.I. (three.js + the robot) only loads when someone actually opens it
       if (r === 'assistant') {
-        import('./assistant.js').then((m) => m.open()).catch((err) => {
+        import(`./assistant.js${ASSET_V ? `?v=${ASSET_V}` : ''}`).then((m) => m.open()).catch((err) => {
           console.error('Assistant failed to load', err);
           const l = document.getElementById('rai-loading');
           if (l) l.textContent = "R.A.I. couldn't start on this browser. Try refreshing.";
@@ -934,7 +936,7 @@
     function restart() {
       card.classList.remove('glitching', 'glitch-out');
       pins.forEach((p) => p.classList.remove('shown', 'active'));
-      glitchingText = false; appear = 0;
+      glitchingText = false;
       visited = new Set(); arrive(0);
     }
     // scramble the coordinates as they glitch out
@@ -1002,11 +1004,8 @@
         scrambleText(HOME_TRAVEL * 0.65 + VANISH);
       }
 
-      // only the coordinates glitch — the map dots just dim slowly to nothing, then fade back in on restart
-      let dotsA = clamp(appear / APPEAR, 0, 1);
-      if (onHomeLeg && gi > 0) dotsA = 1 - 0.45 * gi;
-      else if (stage === 'vanish') dotsA = 0.55 - 0.3 * clamp(t / VANISH, 0, 1);
-      else if (stage === 'void') dotsA = 0.25 * (1 - clamp(t / (VOID * 0.85), 0, 1));
+      // the map itself always stays — it only fades in once, when the page first loads
+      const dotsA = clamp(appear / APPEAR, 0, 1);
 
       ctx.clearRect(0, 0, W, Hh);
       if (base) { ctx.globalAlpha = dotsA; ctx.drawImage(base, 0, 0, W, Hh); }

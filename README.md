@@ -25,6 +25,9 @@ Then open http://localhost:5173.
 Hosted free on GitHub Pages from the `portfolio` repo, at https://raunakpatil.com
 (the `CNAME` file holds the domain). Every push to `main` goes live within a minute or two.
 
+Browsers cache files for 10 minutes, so `index.html` loads the CSS/JS as `?v=<version>`.
+Change that version (one value, used on all three lines) whenever you publish, so visitors get the new files immediately.
+
 DNS for raunakpatil.com (at GoDaddy):
 - `A` records for `@` → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
 - `CNAME` record `www` → `raunakpatil.github.io`
