@@ -286,7 +286,7 @@ function buildTubes() {
   const cable = new THREE.MeshStandardMaterial({ color: 0x080808, roughness: 0.55 });
   for (let i = 0; i < N; i++) {
     const ang = (i / N) * Math.PI * 2;                   // 0 = straight in front of him
-    const R = 2.6 + rand(i + 200) * 3.3;                 // each tube at its own distance (2.6–5.9)
+    const R = [2.8, 4.2, 5.6][i % 3];                    // three evenly spaced rings: near, middle, far
     const a = baseAng + ang;
     const h = 1.35 + rand(i) * 1.7;                      // glowing length
     const y0 = 0.16;                                     // bottom of the glass
@@ -325,8 +325,8 @@ function buildTubes() {
     flicks.push([tt + 0.08, 1]);
     tubes.push({
       g, core, parts: [core, tube, capB, capT, stand, rod, wire], coreMat, col: PALETTE[i % PALETTE.length],
-      // orbit: closer tubes travel a little faster, like planets around him
-      ang, R, speed: 0.24 / R, front: null,
+      // orbit: the whole ring turns together, slowly, so the tubes stay evenly spaced
+      ang, R, speed: 0.03, front: null,
       phase: i * 1.7, start: 0.15 + i * 0.045 + rand(i + 99) * 0.35, flicks, level: 0, lit: false, light: null,
     });
   }
