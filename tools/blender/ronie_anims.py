@@ -33,16 +33,16 @@ def frame_of(t): return t * FPS
 
 def basis_at(action_time):
     scene.frame_set(int(math.floor(frame_of(action_time))), subframe=frame_of(action_time) % 1)
-    return {n: (p.location.copy(), p.rotation_quaternion.copy()) for n, p in pb.items()}
+    return {n: (p.location.copy(), p.rotation_quaternion.copy(), p.scale.copy()) for n, p in pb.items()}
 
 BASE = basis_at(12.8)
 JUMP = {k: basis_at(13.1 + k / FPS) for k in range(0, int(2.2 * FPS) + 2)}   # the source clip's clean hop
 arm.animation_data.action = None
 
 def set_basis(snap, names=None):
-    for n, (loc, q) in snap.items():
+    for n, (loc, q, sc) in snap.items():
         if names is None or n in names:
-            pb[n].location = loc; pb[n].rotation_quaternion = q
+            pb[n].location = loc; pb[n].rotation_quaternion = q; pb[n].scale = sc
     bpy.context.view_layer.update()
 
 def rot_world(name, axis, deg, pivot=None):
@@ -50,7 +50,9 @@ def rot_world(name, axis, deg, pivot=None):
     M = p.matrix.copy()
     c = pivot if pivot is not None else M.translation.copy()
     R = Matrix.Rotation(math.radians(deg), 4, AX[axis])
+    sc = p.scale.copy()
     p.matrix = Matrix.Translation(c) @ R @ Matrix.Translation(-c) @ M
+    p.scale = sc                                     # a rotation must never change the bone's size
     bpy.context.view_layer.update()
 
 def ease(x): return 0.5 - 0.5 * math.cos(math.pi * max(0.0, min(1.0, x)))
@@ -76,16 +78,26 @@ def apply(offs):
             if abs(d) > 1e-4:
                 rot_world(bone, ax, d, FEET_MID if bone == HIP else None)
 
+LASTQ = {}
+KEY_ALL = set()
 def key(names, f):
     for n in names:
+        # keep each bone's quaternion on the same side as its previous key (q and -q are the same rotation,
+        # but interpolating between them swings the bone the long way round)
+        q = pb[n].rotation_quaternion
+        if n in LASTQ and q.dot(LASTQ[n]) < 0: pb[n].rotation_quaternion = -q
+        LASTQ[n] = pb[n].rotation_quaternion.copy()
         pb[n].keyframe_insert('rotation_quaternion', frame=f)
-        if n == HIP: pb[n].keyframe_insert('location', frame=f)
+        pb[n].keyframe_insert('location', frame=f)
+        if f in KEY_ALL: pb[n].keyframe_insert('scale', frame=f)
 
 def make(name, length, keys, touched, legs_from_jump=False, step=2):
     act = bpy.data.actions.new(name)
     act.use_fake_user = True
     arm.animation_data.action = act
     global FEET_MID
+    LASTQ.clear()
+    KEY_ALL.clear(); KEY_ALL.update({0, int(round(length * FPS))})
     set_basis(BASE)
     FEET_MID = (pb[B('L_Foot')].head + pb[B('R_Foot')].head) / 2
     names = set(touched) | ({HIP, PELVIS, WAIST, SP1, SP2} | set(LEGS) if legs_from_jump else set())
@@ -96,7 +108,8 @@ def make(name, length, keys, touched, legs_from_jump=False, step=2):
         if legs_from_jump:
             set_basis(JUMP[min(f, max(JUMP))], names={HIP, PELVIS, WAIST, SP1, SP2, *LEGS})
         apply(offsets_at(keys, t))
-        key(names, f)
+        # every other bone holds the idle pose (keyed at both ends), so the clip never falls back to the rest pose
+        key(set(pb.keys()) if f in (0, n) else names, f)
     for fc in getattr(act, 'fcurves', []):
         for kp in fc.keyframe_points: kp.interpolation = 'LINEAR'
     arm.animation_data.action = None
@@ -157,5 +170,5 @@ bpy.context.view_layer.objects.active = arm
 bpy.ops.wm.save_as_mainfile(filepath=OUT.replace('.glb', '.blend'))
 bpy.ops.export_scene.gltf(filepath=OUT, export_format='GLB', use_selection=True, export_animations=True,
                           export_animation_mode='ACTIONS', export_def_bones=False, export_skins=False,
-                          export_optimize_animation_size=True, export_force_sampling=False)
+                          export_optimize_animation_size=True, export_force_sampling=True)
 print('EXPORTED', OUT)
