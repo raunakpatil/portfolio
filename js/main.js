@@ -142,7 +142,7 @@
   $('.modal-close').addEventListener('click', () => modal.close());
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.close(); });
 
-  /* ---------- R.A.I. loading screen: a spinning ASCII core + a boot log, while the 3D files download ---------- */
+  /* ---------- Ronie loading screen: a spinning ASCII core + a boot log, while the 3D files download ---------- */
   let bootRunning = false;
   const BOOT_LOG = [
     [0, 'fetching 3D engine'],
@@ -161,7 +161,7 @@
     const W = 40, H = 22, RAMP = ' .:-=+*#%@';
     let spin = 0, last = performance.now();
     const step = (now) => {
-      // stop once R.A.I. has loaded (or the loading box was replaced by an error message)
+      // stop once Ronie has loaded (or the loading box was replaced by an error message)
       if (box.hidden || !pre.isConnected) { bootRunning = false; return; }
       requestAnimationFrame(step);
       const dt = Math.min(50, now - last); last = now;
@@ -228,13 +228,13 @@
       moveIndicator();
       window.scrollTo(0, 0);
       document.body.dataset.route = r;
-      // R.A.I. (three.js + the robot) only loads when someone actually opens it
+      // Ronie (three.js + the robot) only loads when someone actually opens it
       if (r === 'assistant') {
         bootScreen();
         import(`./assistant.js${ASSET_V ? `?v=${ASSET_V}` : ''}`).then((m) => m.open()).catch((err) => {
           console.error('Assistant failed to load', err);
           const l = document.getElementById('rai-loading');
-          if (l) l.textContent = "R.A.I. couldn't start on this browser. Try refreshing.";
+          if (l) l.textContent = "Ronie couldn't start on this browser. Try refreshing.";
         });
       }
     };

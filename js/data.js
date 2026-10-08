@@ -220,14 +220,15 @@ window.PORTFOLIO = {
     ],
   },
 
-  /* R.A.I. — the assistant that opens when someone clicks "Hello Stranger".
+  /* R.O.N.I.E. ("Ronie") — Raunak's Own Neural Intelligence Engine: the assistant that opens when
+     someone clicks "Hello Stranger".
      Each step: `say` (one line is picked at random), then either `choices`, an `input`,
      or `next` (auto-continues). `progress` fills the bar (0–1).
      {name} is replaced with the visitor's name once they've given it.
      Choices: `to` = next step, `href` = go to a page/link, `set` = remember an answer.
      Steps with `send: 'hire' | 'word'` open the visitor's email app, addressed to `email`. */
   assistant: {
-    name: 'R.A.I.',
+    name: 'Ronie', // R.O.N.I.E. — Raunak's Own Neural Intelligence Engine
     email: 'raunakpatil15@gmail.com',
     model: {
       src: 'models/rai-robot.glb',
@@ -243,9 +244,9 @@ window.PORTFOLIO = {
       intro: {
         progress: 0.05, next: 'greeting',
         say: [
-          "Hi {visitor}, I'm R.A.I. — Raunak's Artificial Intern.",
-          "Oh! A visitor. I'm R.A.I., Raunak's Artificial Intern. I basically run this place.",
-          "Beep. Boop. Kidding — I'm R.A.I., Raunak's Artificial Intern, and I'm fully awake now.",
+          "Hi {visitor}, I'm R.O.N.I.E. — Raunak's Own Neural Intelligence Engine. Ronie, to friends.",
+          "Oh! A visitor. I'm Ronie — Raunak's Own Neural Intelligence Engine. I basically run this place.",
+          "Beep. Boop. Kidding — I'm Ronie, Raunak's Own Neural Intelligence Engine, and I'm fully awake now.",
         ],
       },
       greeting: {
@@ -255,7 +256,7 @@ window.PORTFOLIO = {
           "You have questions. I have… mostly answers. Pick one.",
           "I've cleared my calendar. Well, I don't have one. But still — how can I help?",
           "Speak, and the model shall respond. Accurately. Raunak checks.",
-          "Unpaid intern, fully motivated. What brings you here?",
+          "Neural engine warm, opinions fully loaded. What brings you here?",
         ],
         choices: [
           { label: 'Work with Raunak', to: 'hire-intro', set: { goal: 'hire' } },

@@ -1,4 +1,4 @@
-/* R.A.I. — Raunak's Artificial Intern.
+/* R.O.N.I.E. ("Ronie") — Raunak's Own Neural Intelligence Engine.
    Loaded on demand (from main.js) the first time #assistant opens.
    The conversation script lives in js/data.js → assistant. */
 import * as THREE from 'three';
@@ -43,7 +43,7 @@ export function open() {
   if (!started) { started = true; init(); }
 }
 
-/* ======================= 3D: R.A.I. in a neon room ======================= */
+/* ======================= 3D: Ronie in a neon room ======================= */
 let renderer, composer, bloomComposer, scene, camera, mixer, model, head, neck, spine, dust, idleAction, jumpAction;
 const rest = new Map();
 const facing = new THREE.Vector3(0, 0, 1);
@@ -55,7 +55,7 @@ const look = { x: 0, y: 0 };
 const ptr = { x: 0, y: 0 };
 const lights = {};
 const BG = new THREE.Color(0x0d0d0d);
-// the cursor is a little light source: it moves on a plane just in front of R.A.I. and lights his armour
+// the cursor is a little light source: it moves on a plane just in front of Ronie and lights his armour
 const cursor = { x: 0, y: 0, inside: false, level: 0 };
 let floorMat, tubeGlass, tubeMetal; // room materials that fade back while he's asleep
 let cursorRing; // the cursor's neon ring light: three coloured lights + a ring seen only in reflections
@@ -63,13 +63,13 @@ const ringLights = [], ringArcs = [];
 const RING_R = 0.22;
 const _ray = new THREE.Raycaster(), _plane = new THREE.Plane(), _hit = new THREE.Vector3(), _ndc = new THREE.Vector2();
 
-// The animation clip mixes still moments and big moves. R.A.I. holds a still pose (with breathing and
+// The animation clip mixes still moments and big moves. Ronie holds a still pose (with breathing and
 // mouse-follow layered on top) and only plays the one clean jump when you answer him.
 const IDLE_AT = 12.8;                    // seconds: standing still
 const JUMP_FROM = 13.1, JUMP_TO = 15.3;  // seconds: crouch, one jump, land back in the idle pose
 let jumping = false, jumpW = 0;
 
-// The site's skill-bar colours (same hues as the dashboard's skill matrix), used for R.A.I.'s neon tubes.
+// The site's skill-bar colours (same hues as the dashboard's skill matrix), used for Ronie's neon tubes.
 const PALETTE = (() => {
   const items = D.skills.items, n = items.length;
   return items.map((_, i) => new THREE.Color().setHSL(((((75 - i * (330 / n)) % 360) + 360) % 360) / 360, 0.95, 0.55));
@@ -102,7 +102,7 @@ function init3D() {
   scene.fog = new THREE.Fog(BG, 6.5, 13);
   camera = new THREE.PerspectiveCamera(30, 1, 0.05, 60);
 
-  // Reflections: a cube camera photographs the room from R.A.I.'s chest a few times a second,
+  // Reflections: a cube camera photographs the room from Ronie's chest a few times a second,
   // and that becomes what his metal (and the glass tubes) reflect.
   cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
   cubeCam = new THREE.CubeCamera(0.05, 40, cubeRT);
@@ -142,7 +142,7 @@ function init3D() {
     ringArcs.push(arc); ringLights.push(light);
   }
   scene.add(cursorRing);
-  // listen on the whole R.A.I. view, so the light keeps following over the dialogue too
+  // listen on the whole Ronie view, so the light keeps following over the dialogue too
   root.addEventListener('pointermove', (e) => {
     const r = canvas.getBoundingClientRect();
     cursor.x = ((e.clientX - r.left) / r.width) * 2 - 1;
@@ -284,7 +284,7 @@ function onModel(gltf) {
   showWake();
 }
 
-// Neon tubes in the site's palette, standing in a ring around R.A.I.: clear glass with rounded ends, a glowing
+// Neon tubes in the site's palette, standing in a ring around Ronie: clear glass with rounded ends, a glowing
 // core, metal caps, a little floor stand and a cable going up. Tubes in front of him only appear in
 // reflections (ENV_ONLY), so they light his chest without blocking the view.
 function buildTubes() {
@@ -777,7 +777,7 @@ function compose(kind) {
   }
   if (answers.name) lines.push(`Name: ${answers.name}`);
   if (answers.email) lines.push(`Email: ${answers.email}`);
-  lines.push('', '— sent via R.A.I. on raunakpatil.com');
+  lines.push('', '— sent via Ronie on raunakpatil.com');
   const href = `mailto:${A.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
   const a = document.createElement('a');
   a.href = href;
