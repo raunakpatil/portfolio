@@ -1065,9 +1065,11 @@
     const svg = document.createElementNS(NS, 'svg');
     svg.setAttribute('class', 'cursor-trail');
     svg.setAttribute('aria-hidden', 'true');
-    svg.innerHTML = '<defs><linearGradient id="trail-grad" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%"/><stop offset="50%"/><stop offset="100%"/></linearGradient></defs><path stroke="url(#trail-grad)"/>';
+    // userSpaceOnUse: a bounding-box gradient disappears when the trail is a perfectly straight line
+    svg.innerHTML = '<defs><linearGradient id="trail-grad" gradientUnits="userSpaceOnUse"><stop offset="0%"/><stop offset="50%"/><stop offset="100%"/></linearGradient></defs><path stroke="url(#trail-grad)"/>';
     document.body.appendChild(svg);
     const path = svg.querySelector('path');
+    const grad = svg.querySelector('linearGradient');
     const stops = [...svg.querySelectorAll('stop')];
     const mouse = { x: 0, y: 0 };
     let pts = null, running = false;
@@ -1081,6 +1083,7 @@
       return d;
     };
     function step() {
+      if (!pts) { running = false; return; } // pointer left the window since this frame was queued
       for (let i = pts.length - 1; i > 0; i--) {
         pts[i].x += (pts[i - 1].x - pts[i].x) * FLOW;
         pts[i].y += (pts[i - 1].y - pts[i].y) * FLOW;
@@ -1088,6 +1091,10 @@
       pts[0].x = mouse.x; pts[0].y = mouse.y;
       const t = Date.now() / 1000;
       stops.forEach((s, k) => s.setAttribute('stop-color', `hsl(${(t * 120 + k * 120) % 360},100%,60%)`));
+      // stretch the gradient from the trail's head to its tail
+      const tl = pts[pts.length - 1];
+      grad.setAttribute('x1', pts[0].x); grad.setAttribute('y1', pts[0].y);
+      grad.setAttribute('x2', tl.x + (Math.abs(tl.x - pts[0].x) + Math.abs(tl.y - pts[0].y) < 1 ? 1 : 0)); grad.setAttribute('y2', tl.y);
       path.setAttribute('d', smooth(pts));
       const tail = pts[pts.length - 1];
       if (Math.hypot(tail.x - mouse.x, tail.y - mouse.y) < 0.5) { running = false; path.setAttribute('d', ''); return; }

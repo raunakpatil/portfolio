@@ -311,7 +311,7 @@ main { padding: 0 var(--gap) var(--gap); }
 
 /* ---- Cursor trail + click waves ---- */
 .cursor-trail { position: fixed; inset: 0; z-index: 9999; width: 100vw; height: 100vh; pointer-events: none; overflow: visible; }
-.cursor-trail path { fill: none; stroke-width: 1; stroke-linecap: round; opacity: .85; filter: drop-shadow(0 0 5px rgba(255, 255, 255, .4)); }
+.cursor-trail path { fill: none; stroke-width: 1.5; stroke-linecap: round; opacity: .9; filter: drop-shadow(0 0 4px rgba(255, 255, 255, .45)) drop-shadow(0 0 1px rgba(0, 0, 0, .15)); }
 .click-wave { position: fixed; z-index: 9998; width: 65px; height: 65px; margin: -32.5px 0 0 -32.5px; pointer-events: none; overflow: visible; mix-blend-mode: difference; }
 .click-wave path { fill: none; stroke: #fff; stroke-linecap: round; }
 
