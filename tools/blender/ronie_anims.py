@@ -1,7 +1,7 @@
 # Author Ronie's extra animations in Blender, starting from his idle pose (frame at 12.8 s of the source clip).
 # Poses are written as world-space rotations ("turn the head 25° to his left"), so the rig's bone axes don't matter.
 import bpy, sys, math
-from mathutils import Vector, Matrix
+from mathutils import Vector, Matrix, Quaternion
 
 args = sys.argv[sys.argv.index('--') + 1:]
 SRC, OUT = args[0], args[1]
@@ -80,6 +80,7 @@ def apply(offs):
     for side in ('L', 'R'):
         h = offs.get('F' + side)
         if h and FINGERS: curl(side, h.get('f', 0), h.get('t', 0))
+        if h and h.get('palm', 0) > 1e-3: palm_to_camera(side, h['palm'])   # after the fingers, so it sees the final hand
 
 # Hands: four fingers driven as one block by the Index1-3 chain, plus a thumb (Thumb1-3).
 # Pseudo-bones 'FL'/'FR' in a pose: {'f': finger curl, 't': thumb curl} in degrees. + closes towards a fist,
@@ -107,6 +108,25 @@ def curl(side, fdeg, tdeg):
             d = (pb[n].tail - pb[n].head).normalized()
             rot_axis(n, nrm.cross(d).normalized(), sign * deg * share)
 
+def palm_to_camera(side, w):
+    """Turn the hand so its palm faces the viewer and the hand continues the line of the forearm (w: 0..1)."""
+    sign = 1 if side == 'R' else -1
+    idx, thb = FING[side]
+    hand, fore = (HD_R, FA_R) if side == 'R' else (HD_L, FA_L)
+    d_f = (pb[idx[0]].tail - pb[idx[0]].head).normalized()
+    d_t = (pb[thb[0]].tail - pb[thb[0]].head).normalized()
+    palm = (-sign * d_f.cross(d_t)).normalized()            # the side the fingers curl towards
+    cx = (pb[hand].tail - pb[hand].head).normalized()
+    cy = (palm - palm.dot(cx) * cx).normalized(); cz = cx.cross(cy)
+    # the hand points halfway between the forearm's line and straight up, so the palm stays upright as it waves
+    tx = ((pb[fore].tail - pb[fore].head).normalized() + AX['up']).normalized()
+    front = AX['fwd']
+    ty = (front - front.dot(tx) * tx).normalized(); tz = tx.cross(ty)
+    C = Matrix((cx, cy, cz)).transposed(); T = Matrix((tx, ty, tz)).transposed()
+    q = Quaternion().slerp((T @ C.transposed()).to_quaternion(), w)
+    axis, ang = q.to_axis_angle()
+    if abs(ang) > 1e-4: rot_axis(hand, axis, math.degrees(ang))
+
 LASTQ = {}
 KEY_ALL = set()
 def key(names, f):
@@ -120,7 +140,10 @@ def key(names, f):
         pb[n].keyframe_insert('location', frame=f)
         if f in KEY_ALL: pb[n].keyframe_insert('scale', frame=f)
 
-def make(name, length, keys, touched, legs_from_jump=False, step=2):
+def make(name, length, keys, touched, legs_from_jump=False, step=2, fingers=None):
+    global FINGERS
+    keep = FINGERS
+    if fingers is not None: FINGERS = fingers
     act = bpy.data.actions.new(name)
     act.use_fake_user = True
     arm.animation_data.action = act
@@ -142,6 +165,7 @@ def make(name, length, keys, touched, legs_from_jump=False, step=2):
     for fc in getattr(act, 'fcurves', []):
         for kp in fc.keyframe_points: kp.interpolation = 'LINEAR'
     arm.animation_data.action = None
+    FINGERS = keep
     print('MADE', name, n, 'frames', len(names), 'bones')
 
 Z = {}
@@ -199,12 +223,13 @@ make('confused', 3.4, [(0, Z), (0.55, shrug), (1.2, shrug), (1.8, hmm), (2.5, hm
 
 # ---------------- wave: the hello after the wake-up leap ----------------
 # right arm up and out, forearm upright, swinging side to side; a little lean away and a head tilt into it
-up = {UA_R: {'fwd': -100, 'right': 14}, FA_R: {'fwd': -58}, HD_R: {'fwd': -6},
-      SP2: {'fwd': 4}, SP1: {'fwd': 2}, NK2: {'fwd': -7}, HEAD: {'fwd': -6}, UA_L: {'fwd': 6}}
-swing = lambda a, bob: {**up, FA_R: {'fwd': -58 + a}, HD_R: {'fwd': -6 + a * 0.4}, SP1: {'fwd': 2, 'right': bob}}
+hello = {'palm': 1, 'f': -42, 't': -36}           # open hand, palm towards the viewer
+up = {UA_R: {'fwd': -100, 'right': 14}, FA_R: {'fwd': -58},
+      SP2: {'fwd': 4}, SP1: {'fwd': 2}, NK2: {'fwd': -7}, HEAD: {'fwd': -6}, UA_L: {'fwd': 6}, 'FR': hello}
+swing = lambda a, bob: {**up, FA_R: {'fwd': -58 + a}, SP1: {'fwd': 2, 'right': bob}}
 make('wave', 2.7, [(0, Z), (0.35, up), (0.6, swing(-24, 2)), (0.85, swing(20, -1)), (1.1, swing(-24, 2)),
                    (1.35, swing(20, -1)), (1.6, swing(-22, 2)), (1.85, swing(16, -1)), (2.1, up), (2.7, Z)],
-     [SP1, SP2, NK2, HEAD, UA_R, FA_R, HD_R, UA_L])
+     [SP1, SP2, NK2, HEAD, UA_R, FA_R, HD_R, UA_L], fingers=True)
 
 # drop the source clip; export only the skeleton and the new actions
 bpy.data.actions.remove(src_action)
