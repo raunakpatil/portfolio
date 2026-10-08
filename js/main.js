@@ -41,16 +41,27 @@
   /* ---------- shared animation loop: only runs components that are on screen ---------- */
   const loops = [];
   function onFrame(el, fn) {
-    const entry = { fn, visible: false };
+    const entry = { el, fn, visible: false, warned: false };
     new IntersectionObserver((es) => { entry.visible = es[es.length - 1].isIntersecting; }).observe(el);
     loops.push(entry);
   }
   let prevT = performance.now();
   function frame(now) {
+    // schedule the next frame first, so nothing below can ever stop the loop
+    requestAnimationFrame(frame);
     const dt = Math.min(50, now - prevT);
     prevT = now;
-    if (!document.hidden) for (const l of loops) if (l.visible) l.fn(now, dt);
-    requestAnimationFrame(frame);
+    if (document.hidden) return;
+    for (const l of loops) {
+      // IntersectionObserver reports a frame late when a page is hidden; skip
+      // anything with no size (its view is display:none) instead of drawing at 0×0
+      if (!l.visible || !l.el.offsetWidth || !l.el.offsetHeight) continue;
+      try {
+        l.fn(now, dt);
+      } catch (err) {
+        if (!l.warned) { l.warned = true; console.error('Animation error (others keep running):', err); }
+      }
+    }
   }
 
   function fit(canvas) {
@@ -720,6 +731,7 @@
     // Rasterise the coastline once per size, then test each dot against the pixels.
     function buildDots() {
       dots = [];
+      if (W < 2 || Hh < 2) return; // hidden — nothing to draw
       const cols = Math.floor(W / SP), rows = Math.floor(Hh / SP);
       const ox = (W - (cols - 1) * SP) / 2, oy = (Hh - (rows - 1) * SP) / 2;
       let land = null;
