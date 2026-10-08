@@ -57,7 +57,9 @@ const lights = {};
 const BG = new THREE.Color(0x0d0d0d);
 // the cursor is a little light source: it moves on a plane just in front of R.A.I. and lights his armour
 const cursor = { x: 0, y: 0, inside: false, level: 0 };
-let cursorLight, cursorOrb;
+let cursorRing; // the cursor's neon ring light: three coloured lights + a ring seen only in reflections
+const ringLights = [], ringArcs = [];
+const RING_R = 0.22;
 const _ray = new THREE.Raycaster(), _plane = new THREE.Plane(), _hit = new THREE.Vector3(), _ndc = new THREE.Vector2();
 
 // The animation clip mixes still moments and big moves. R.A.I. holds a still pose (with breathing and
@@ -126,10 +128,19 @@ function init3D() {
     const l = new THREE.PointLight(PALETTE[(i * 2) % PALETTE.length], 0, 12, 2);
     tubeLights.push(l); scene.add(l);
   }
-  cursorLight = new THREE.PointLight(0xfff1e0, 0, 2.4, 2);
-  cursorOrb = new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
-  cursorOrb.layers.set(ENV_ONLY); // invisible to the viewer — only its light (and reflections) show
-  scene.add(cursorLight, cursorOrb);
+  // three arcs of neon, each with its own light, forming a ring that cycles through the hues
+  cursorRing = new THREE.Group();
+  for (let k = 0; k < 3; k++) {
+    const arc = new THREE.Mesh(new THREE.TorusGeometry(RING_R, 0.011, 10, 40, (Math.PI * 2) / 3), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    arc.rotation.z = (k * Math.PI * 2) / 3;
+    arc.layers.set(ENV_ONLY); // never drawn for the viewer — it only shows up as a reflection on him
+    const light = new THREE.PointLight(0xffffff, 0, 2.6, 2);
+    const mid = ((k + 0.5) * Math.PI * 2) / 3;
+    light.position.set(Math.cos(mid) * RING_R, Math.sin(mid) * RING_R, 0);
+    cursorRing.add(arc, light);
+    ringArcs.push(arc); ringLights.push(light);
+  }
+  scene.add(cursorRing);
   // listen on the whole R.A.I. view, so the light keeps following over the dialogue too
   root.addEventListener('pointermove', (e) => {
     const r = canvas.getBoundingClientRect();
@@ -448,18 +459,27 @@ function resize() {
 }
 
 function updateCursorLight(dt) {
-  if (!cursorLight) return;
+  if (!cursorRing) return;
   // project the mouse onto a plane ~0.7 in front of his chest (facing the viewer)
   _plane.setFromNormalAndCoplanarPoint(facing, _hit.copy(target).addScaledVector(facing, 0.7));
   _ray.setFromCamera(_ndc.set(cursor.x, cursor.y), camera);
-  if (_ray.ray.intersectPlane(_plane, _hit)) { cursorLight.position.copy(_hit); cursorOrb.position.copy(_hit); }
+  if (_ray.ray.intersectPlane(_plane, _hit)) cursorRing.position.copy(_hit);
+  cursorRing.lookAt(camera.position);            // the ring faces him/the viewer…
+  cursorRing.rotateZ(performance.now() / 1000 * 0.9); // …and slowly spins
   // on whenever the mouse is over the scene (awake or asleep); fades in and out softly
   const goal = cursor.inside ? 1 : 0;
   cursor.level += (goal - cursor.level) * Math.min(1, dt * 6);
-  // a softer, more local glow while he's asleep (a torch in a dark room); brighter once he's awake
-  cursorLight.intensity = (1.1 + 1.4 * power) * cursor.level;
-  cursorOrb.visible = cursor.level > 0.02;
-  cursorOrb.material.color.setScalar(0.4 + 3 * cursor.level);
+  // cycles through the spectrum like the cursor trail; the three arcs sit 40° apart in hue so the ring
+  // reads as one rich, shifting colour (120° apart would mix back to white on his armour)
+  const t = Date.now() / 1000;
+  const strength = (0.55 + 0.75 * power) * cursor.level; // softer while he's asleep
+  for (let k = 0; k < 3; k++) {
+    _c.setHSL(((t * 120 + k * 40) % 360) / 360, 1, 0.55); // same speed as the trail
+    ringLights[k].color.copy(_c);
+    ringLights[k].intensity = strength;
+    ringArcs[k].material.color.copy(_c).multiplyScalar(0.3 + 3 * cursor.level);
+  }
+  cursorRing.visible = cursor.level > 0.02;
 }
 
 function startJump() {
