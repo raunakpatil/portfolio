@@ -80,9 +80,10 @@ const JUMP_FROM = 13.1, JUMP_TO = 15.3;  // seconds: crouch, one jump, land back
 let jumping = false, jumpW = 0;
 // Waking up: he waits further back in the room, then takes one huge leap to his spot.
 // The leap reuses the clip's biggest jump (crouch 6.6 s → take-off 7.35 s → landing 8.0 s → settled 8.8 s),
-// stretched for extra hang time, with a higher arc and the forward travel added on top.
-const LEAP_BACK = 2.0, LEAP_HEIGHT = 0.95;            // metres behind his spot, extra arc height
-const LEAP_DELAY = 0.9, LEAP_CROUCH = 0.55, LEAP_AIR = 1.05, LEAP_LAND = 0.8; // seconds after waking
+// with a little extra arc, forward travel, and the body leaning into the jump on top.
+const LEAP_BACK = 2.0, LEAP_HEIGHT = 0.08;            // metres behind his spot, extra arc height
+const LEAP_DELAY = 0.9, LEAP_CROUCH = 0.6, LEAP_AIR = 0.75, LEAP_LAND = 0.9; // seconds after waking
+const modelQuat = new THREE.Quaternion(), _lean = new THREE.Quaternion();
 let leapAction = null, leapW = 0, landed = false, shake = 0, contact;
 const homePos = new THREE.Vector3();
 
@@ -292,6 +293,7 @@ function onModel(gltf) {
   (head || model).getWorldPosition(headHome);
   target.set(headHome.x, headHome.y - 0.24, headHome.z); // headroom for his jump
   homePos.copy(model.position);
+  modelQuat.copy(model.quaternion);
   placeForLeap(performance.now());
 
   buildTubes();
@@ -418,6 +420,14 @@ function buildAtmosphere() {
 
   // smoke: camera-facing puffs with a lit (Lambert) material, so the tube colours and the mouse light tint them
   smokeMat = new THREE.MeshLambertMaterial({ map: smokeTexture(), color: 0x9a9a9a, transparent: true, opacity: 0, depthWrite: false });
+  // each puff is a flat sprite; where one dips into the floor it would show a hard straight edge,
+  // so the smoke fades out over the last 0.6 m above the floor
+  smokeMat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vSmokeY;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvSmokeY = (modelMatrix * vec4(transformed, 1.0)).y;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vSmokeY;')
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a *= smoothstep(0.0, 0.6, vSmokeY);');
+  };
   for (let i = 0; i < 18; i++) {
     const ang = rand(i + 500) * Math.PI * 2, r = 1.6 + rand(i + 600) * 4;
     // keep the space right between him and the camera clear
@@ -621,24 +631,38 @@ function updateCursorLight(dt) {
 
 // where he is during the wake-up leap, and which moment of the clip he's in
 const lerp = (a, b, k) => a + (b - a) * k;
+const smooth = (k) => k * k * (3 - 2 * k);
 function placeForLeap(now) {
   if (!model) return 0;
   const since = awake ? (now - wakeAt) / 1000 - LEAP_DELAY : -1;
-  let clipT = 6.6, prog = 0, lift = 0, w = 0;
+  let clipT = 6.6, prog = 0, lift = 0, w = 0, lean = 0;
   if (!MOTION || since >= LEAP_CROUCH + LEAP_AIR + LEAP_LAND) prog = 1;   // done (or motion reduced: just be there)
   else if (since >= 0 && since < LEAP_CROUCH) {
-    const k = since / LEAP_CROUCH;
-    clipT = lerp(6.6, 7.35, k); w = Math.min(1, k * 4);
+    // wind-up: ease down into the crouch, leaning forward and rocking back a touch
+    const k = smooth(since / LEAP_CROUCH);
+    clipT = lerp(6.6, 7.35, k); w = smooth(Math.min(1, (since / LEAP_CROUCH) * 2.5));
+    lean = 0.14 * k; prog = -0.03 * k;
   } else if (since >= LEAP_CROUCH && since < LEAP_CROUCH + LEAP_AIR) {
-    const k = (since - LEAP_CROUCH) / LEAP_AIR;
-    clipT = lerp(7.35, 8.0, k); prog = k; lift = LEAP_HEIGHT * 4 * k * (1 - k); w = 1;
+    // air: explosive take-off and landing, a moment of hang at the top (clip runs fast-slow-fast)
+    const k = (since - LEAP_CROUCH) / LEAP_AIR, u = 2 * k - 1;
+    clipT = 7.675 + 0.325 * Math.sign(u) * Math.abs(u) ** 0.6;
+    prog = -0.03 + 0.98 * k;                                  // steady forward speed, like a thrown body
+    lift = LEAP_HEIGHT * 4 * k * (1 - k);
+    lean = lerp(0.2, -0.1, smooth(k));                        // dives forward, then leans back to brake
+    w = 1;
   } else if (since >= LEAP_CROUCH + LEAP_AIR) {
+    // landing: absorb the impact, slide the last few centimetres, straighten up
     const k = (since - LEAP_CROUCH - LEAP_AIR) / LEAP_LAND;
-    clipT = lerp(8.0, 8.8, k); prog = 1; w = 1 - Math.max(0, (k - 0.4) / 0.6);
+    clipT = lerp(8.0, 8.8, k);
+    prog = 0.95 + 0.05 * (1 - (1 - Math.min(1, k * 2.5)) ** 2);
+    lean = -0.1 * (1 - smooth(Math.min(1, k * 1.6)));
+    w = 1 - smooth(Math.max(0, (k - 0.45) / 0.55));
     if (!landed) { landed = true; landingBurst(); }
   }
   model.position.copy(homePos).addScaledVector(facing, -LEAP_BACK * (1 - prog));
   model.position.y += lift;
+  // lean around his feet, about the viewer's left-right axis (+ tips him towards the camera)
+  model.quaternion.copy(modelQuat).premultiply(_lean.setFromAxisAngle(_right.crossVectors(UP, facing), lean));
   if (contact) {
     contact.position.set(model.position.x, 0.003, model.position.z);
     contact.scale.setScalar(1 - Math.min(0.5, lift * 0.5));
@@ -717,7 +741,7 @@ function loop(now) {
     // asleep he slumps forward; after waking he lifts his head as the room lights up
     const since = awake ? (now - wakeAt) / 1000 : -1;
     const slumpGoal = since > 0.7 ? 0 : 1;
-    slump += (slumpGoal - slump) * Math.min(1, dt * (MOTION ? 1.8 : 60));
+    slump += (slumpGoal - slump) * Math.min(1, dt * (MOTION ? (awake ? 3 : 1.8) : 60));
     // follow the mouse when awake, on top of slow breathing and a gentle sway
     const k = awake ? 1 - slump : 0;
     look.x += (ptr.x * k - look.x) * Math.min(1, dt * 4);
