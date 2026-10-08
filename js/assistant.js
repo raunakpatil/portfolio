@@ -94,7 +94,7 @@ const LEAP_BACK = 2.45, LEAP_APEX = 0.5;              // metres behind his spot;
 const LEAP_DELAY = 0.9, LEAP_CROUCH = 0.6, LEAP_AIR = 0.72, LEAP_LAND = 0.9; // seconds after waking
 let hipBone = null, hipTakeoff = 0, hipLanding = 0, airK = -1; // hip heights (above his feet) at take-off and landing
 const modelQuat = new THREE.Quaternion(), _lean = new THREE.Quaternion();
-let leapAction = null, leapW = 0, landed = false, shake = 0, contact;
+let leapAction = null, leapW = 0, landed = false, waved = false, shake = 0, contact;
 const homePos = new THREE.Vector3();
 
 // The site's skill-bar colours (same hues as the dashboard's skill matrix), used for Ronie's neon tubes.
@@ -928,9 +928,10 @@ function loadGestures(idleClip) {
 }
 
 // play one of the moves (only when he's standing in his spot and not already busy)
-function playGesture(name) {
+function playGesture(name, duringLanding = false) {
   const a = gestures[name];
-  if (!a || !MOTION || !awake || !landed || leapW > 0.01 || jumping) return false;
+  if (!a || !MOTION || !awake || jumping) return false;
+  if (!duringLanding && (!landed || leapW > 0.01)) return false;
   if (playing && (IDLE_MOVES.includes(name) || a === gesture)) return false;   // an idle never cuts a move short
   if (fading === a) { a.stop(); fading = null; fadingW = 0; }
   if (gesture === a) {
@@ -1003,6 +1004,11 @@ function placeForLeap(now) {
     lean = -0.1 * (1 - smooth(Math.min(1, k * 1.6)));
     w = 1 - smooth(Math.max(0, (k - 0.45) / 0.55));
     if (!landed) { landed = true; landingBurst(); }
+    // as he straightens up from the landing, an excited wave hello (it blends over the end of the landing)
+    if (!waved && k > 0.4) {
+      waved = true;
+      if (playGesture('wave', true)) { setFace('happy'); nextIdleMove = now + 9000; }
+    }
   }
   model.position.copy(homePos).addScaledVector(facing, -LEAP_BACK * (1 - prog));
   // lean around his feet, about the viewer's left-right axis (+ tips him towards the camera)

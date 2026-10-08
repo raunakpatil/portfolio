@@ -197,6 +197,15 @@ hmm = {**shrug, HEAD: {'fwd': -6, 'up': -3, 'right': -3}, NK2: {'fwd': -9, 'up':
 make('confused', 3.4, [(0, Z), (0.55, shrug), (1.2, shrug), (1.8, hmm), (2.5, hmm), (3.4, Z)],
      [HEAD, NK2, SP2, CL_L, CL_R, UA_L, UA_R, FA_L, FA_R, HD_L, HD_R])
 
+# ---------------- wave: the hello after the wake-up leap ----------------
+# right arm up and out, forearm upright, swinging side to side; a little lean away and a head tilt into it
+up = {UA_R: {'fwd': -100, 'right': 14}, FA_R: {'fwd': -58}, HD_R: {'fwd': -6},
+      SP2: {'fwd': 4}, SP1: {'fwd': 2}, NK2: {'fwd': -7}, HEAD: {'fwd': -6}, UA_L: {'fwd': 6}}
+swing = lambda a, bob: {**up, FA_R: {'fwd': -58 + a}, HD_R: {'fwd': -6 + a * 0.4}, SP1: {'fwd': 2, 'right': bob}}
+make('wave', 2.7, [(0, Z), (0.35, up), (0.6, swing(-24, 2)), (0.85, swing(20, -1)), (1.1, swing(-24, 2)),
+                   (1.35, swing(20, -1)), (1.6, swing(-22, 2)), (1.85, swing(16, -1)), (2.1, up), (2.7, Z)],
+     [SP1, SP2, NK2, HEAD, UA_R, FA_R, HD_R, UA_L])
+
 # drop the source clip; export only the skeleton and the new actions
 bpy.data.actions.remove(src_action)
 for o in bpy.data.objects: o.select_set(False)
