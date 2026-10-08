@@ -4,6 +4,11 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 
 const D = window.PORTFOLIO;
 const A = D.assistant;
@@ -38,33 +43,47 @@ export function open() {
   if (!started) { started = true; init(); }
 }
 
-/* ======================= 3D: the robot ======================= */
-let renderer, scene, camera, mixer, model, head, neck, spine, dust;
+/* ======================= 3D: R.A.I. in a neon room ======================= */
+let renderer, composer, bloomComposer, scene, camera, mixer, model, head, neck, spine, dust, idleAction, jumpAction;
 const rest = new Map();
 const facing = new THREE.Vector3(0, 0, 1);
 const target = new THREE.Vector3();
-const lookAt = new THREE.Vector3();
-let power = MOTION ? 0.1 : 1;     // 0 = dark, 1 = fully on
-let powerGoal = 0.1;
-let nod = 0;                       // a quick nod when you answer
+const headHome = new THREE.Vector3();  // head position in the idle pose — the camera frames this and stays still
+let power = 0;                          // room light: 0 = off, 1 = on (follows the tubes after waking)
+let slump = 1;                          // 1 = asleep, head down; 0 = upright
 const look = { x: 0, y: 0 };
 const ptr = { x: 0, y: 0 };
 const lights = {};
+const BG = new THREE.Color(0x0d0d0d);
+// the cursor is a little light source: it moves on a plane just in front of R.A.I. and lights his armour
+const cursor = { x: 0, y: 0, inside: false, level: 0 };
+let cursorLight, cursorOrb;
+const _ray = new THREE.Raycaster(), _plane = new THREE.Plane(), _hit = new THREE.Vector3(), _ndc = new THREE.Vector2();
 
-// The site's skill-bar colours (same hues as the dashboard's skill matrix), used for R.A.I.'s neon room.
+// The animation clip mixes still moments and big moves. R.A.I. holds a still pose (with breathing and
+// mouse-follow layered on top) and only plays the one clean jump when you answer him.
+const IDLE_AT = 12.8;                    // seconds: standing still
+const JUMP_FROM = 13.1, JUMP_TO = 15.3;  // seconds: crouch, one jump, land back in the idle pose
+let jumping = false, jumpW = 0;
+
+// The site's skill-bar colours (same hues as the dashboard's skill matrix), used for R.A.I.'s neon tubes.
 const PALETTE = (() => {
   const items = D.skills.items, n = items.length;
   return items.map((_, i) => new THREE.Color().setHSL(((((75 - i * (330 / n)) % 360) + 360) % 360) / 360, 0.95, 0.55));
 })();
 const ENV_ONLY = 1;              // layer seen by the reflection camera but not by the viewer
-let cubeRT, cubeCam, backdrop, softbox, envTick = 0, wakeAt = 0;
-const bars = [];
-const barLights = [];
-const OFF_TUBE = new THREE.Color(0x141414), _lit = new THREE.Color();
+const GLOW = 2;                  // layer of things allowed to bloom (only the tube cores)
+const BLACK = new THREE.MeshBasicMaterial({ color: 0x000000 });
+const _saved = new Map(), _hidden = [];
+let cubeRT, cubeCam, softbox, envTick = 0, wakeAt = 0;
+const tubes = [];
+const tubeLights = [];
+const OFF_CORE = new THREE.Color(0x1a1a1a), _c = new THREE.Color();
+const rand = (i) => ((Math.sin(i * 12.9898 + 4.1) * 43758.5453) % 1 + 1) % 1;
 
 function init3D() {
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
   } catch (e) {
     loading.textContent = "My 3D body didn't load on this device — but I can still talk.";
     return false;
@@ -72,47 +91,94 @@ function init3D() {
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(30, 1, 0.01, 100);
+  scene.background = BG.clone();
+  scene.fog = new THREE.Fog(BG, 6.5, 13);
+  camera = new THREE.PerspectiveCamera(30, 1, 0.05, 60);
 
-  // Reflections: a cube camera photographs the neon room from R.A.I.'s chest a few times a second,
-  // and that becomes the environment his metal reflects (so the bars show up on his armour).
+  // Reflections: a cube camera photographs the room from R.A.I.'s chest a few times a second,
+  // and that becomes what his metal (and the glass tubes) reflect.
   cubeRT = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
   cubeCam = new THREE.CubeCamera(0.05, 40, cubeRT);
   cubeCam.layers.enable(ENV_ONLY);
   cubeCam.children.forEach((c) => c.layers.enable(ENV_ONLY));
   scene.environment = cubeRT.texture;
-  // a dim studio around him, only visible in reflections: soft gradient walls + an overhead softbox
-  const sky = new THREE.SphereGeometry(14, 32, 16);
-  const cols = [];
-  for (let i = 0; i < sky.attributes.position.count; i++) {
-    const y = sky.attributes.position.getY(i) / 14;
-    const v = 0.012 + 0.05 * Math.max(0, y);
-    cols.push(v, v, v * 1.05);
-  }
-  sky.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
-  backdrop = new THREE.Mesh(sky, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, toneMapped: false }));
-  backdrop.layers.set(ENV_ONLY);
-  softbox = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.4), new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 1, 1).multiplyScalar(1.6), side: THREE.DoubleSide, toneMapped: false }));
+  // an overhead softbox only visible in reflections (dims with the room)
+  softbox = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.4), new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, fog: false }));
   softbox.layers.set(ENV_ONLY);
-  scene.add(backdrop, softbox);
+  scene.add(softbox);
 
-  lights.hemi = new THREE.HemisphereLight(0xffffff, 0x101010, 0.25);
-  lights.key = new THREE.DirectionalLight(0xffffff, 1.2);
-  scene.add(lights.hemi, lights.key);
-  // coloured fill lights, one per pair of palette colours, placed around him
+  // lights: a faint cold rim even when the room is off, a soft key that casts his shadow, palette fills
+  lights.moon = new THREE.DirectionalLight(0x7d9cff, 0.55);
+  lights.hemi = new THREE.HemisphereLight(0xffffff, 0x0a0a0a, 0);
+  lights.key = new THREE.DirectionalLight(0xfff3e6, 0);
+  lights.key.castShadow = true;
+  lights.key.shadow.mapSize.set(1024, 1024);
+  Object.assign(lights.key.shadow.camera, { left: -2.2, right: 2.2, top: 2.6, bottom: -0.4, near: 0.5, far: 14 });
+  lights.key.shadow.bias = -0.0004;
+  lights.key.shadow.radius = 6;
+  lights.key.target.position.set(0, 1, 0);
+  scene.add(lights.moon, lights.hemi, lights.key, lights.key.target);
   for (let i = 0; i < 6; i++) {
     const l = new THREE.PointLight(PALETTE[(i * 2) % PALETTE.length], 0, 9, 2);
-    barLights.push(l); scene.add(l);
+    tubeLights.push(l); scene.add(l);
   }
+  cursorLight = new THREE.PointLight(0xfff1e0, 0, 3.2, 2);
+  cursorOrb = new THREE.Mesh(new THREE.SphereGeometry(0.012, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+  cursorOrb.layers.enable(GLOW);
+  scene.add(cursorLight, cursorOrb);
+  // listen on the whole R.A.I. view, so the light keeps following over the dialogue too
+  root.addEventListener('pointermove', (e) => {
+    const r = canvas.getBoundingClientRect();
+    cursor.x = ((e.clientX - r.left) / r.width) * 2 - 1;
+    cursor.y = -((e.clientY - r.top) / r.height) * 2 + 1;
+    cursor.inside = true;
+  }, { passive: true });
+  root.addEventListener('pointerleave', () => { cursor.inside = false; });
 
-  // drifting dust for depth
-  const N = 260, pos = new Float32Array(N * 3);
+  // glossy dark floor that catches the coloured light, plus a soft contact shadow under his feet
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 72), new THREE.MeshPhysicalMaterial({
+    color: 0x0b0b0b, roughness: 0.3, metalness: 0.15, clearcoat: 0.8, clearcoatRoughness: 0.18,
+  }));
+  floor.rotation.x = -Math.PI / 2;
+  floor.receiveShadow = true;
+  scene.add(floor);
+  const blob = document.createElement('canvas'); blob.width = blob.height = 128;
+  const bx = blob.getContext('2d'); const bg = bx.createRadialGradient(64, 64, 4, 64, 64, 64);
+  bg.addColorStop(0, 'rgba(0,0,0,.75)'); bg.addColorStop(1, 'rgba(0,0,0,0)');
+  bx.fillStyle = bg; bx.fillRect(0, 0, 128, 128);
+  const contact = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(blob), transparent: true, depthWrite: false }));
+  contact.rotation.x = -Math.PI / 2; contact.position.y = 0.003;
+  scene.add(contact);
+
+  // drifting dust for depth (only visible once the room is lit)
+  const N = 220, pos = new Float32Array(N * 3);
   for (let i = 0; i < N; i++) { pos[i * 3] = (Math.random() - 0.5) * 6; pos[i * 3 + 1] = Math.random() * 3.2; pos[i * 3 + 2] = (Math.random() - 0.5) * 4 - 1; }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffb27a, size: 0.012, transparent: true, opacity: 0, depthWrite: false }));
+  dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffd2b0, size: 0.01, transparent: true, opacity: 0, depthWrite: false }));
   scene.add(dust);
+
+  // post-processing: selective bloom — only the neon cores glow (never glints on his armour).
+  // Pass 1 renders the scene with everything except the cores blacked out and blooms it;
+  // pass 2 renders the normal scene and adds that glow on top.
+  const hdr = { type: THREE.HalfFloatType };
+  bloomComposer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, hdr));
+  bloomComposer.renderToScreen = false;
+  bloomComposer.addPass(new RenderPass(scene, camera));
+  bloomComposer.addPass(new UnrealBloomPass(new THREE.Vector2(256, 256), 0.95, 0.5, 0));
+  composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, hdr));
+  composer.addPass(new RenderPass(scene, camera));
+  const mix = new ShaderPass(new THREE.ShaderMaterial({
+    uniforms: { baseTexture: { value: null }, bloomTexture: { value: bloomComposer.renderTarget2.texture } },
+    vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: 'uniform sampler2D baseTexture; uniform sampler2D bloomTexture; varying vec2 vUv; void main() { gl_FragColor = texture2D(baseTexture, vUv) + vec4(1.0) * texture2D(bloomTexture, vUv); }',
+  }), 'baseTexture');
+  mix.needsSwap = true;
+  composer.addPass(mix);
+  composer.addPass(new OutputPass());
 
   addEventListener('pointermove', (e) => {
     ptr.x = (e.clientX / innerWidth) * 2 - 1;
@@ -146,6 +212,7 @@ function onModel(gltf) {
   model.traverse((o) => {
     if (!o.isMesh) return;
     o.frustumCulled = false;
+    o.castShadow = true;
     // The body is exported as "transparent" though its texture is fully opaque; drawn that way the
     // back and inner faces show through the front. Render it as a solid surface instead.
     for (const m of [].concat(o.material)) {
@@ -169,7 +236,6 @@ function onModel(gltf) {
   head = findBone(/CC_Base_Head(_|$)/, /head/i);
   neck = findBone(/NeckTwist01/, /neck/i);
   spine = findBone(/Spine02/, /spine/i);
-  // remember rest poses: bones the animation doesn't drive are reset each frame, so the mouse-follow never accumulates
   for (const b of [head, neck, spine]) if (b) rest.set(b, b.quaternion.clone());
 
   // which way is the robot facing? (from its eyes, if it has them)
@@ -181,80 +247,123 @@ function onModel(gltf) {
     if (f.lengthSq() > 1e-8) facing.copy(f.normalize());
   }
 
-  buildNeonRoom();
-
+  // idle = the clip held at a still moment; jump = the same clip played from JUMP_FROM to JUMP_TO
   mixer = new THREE.AnimationMixer(model);
-  if (gltf.animations[0]) mixer.clipAction(gltf.animations[0]).play();
+  const clip = gltf.animations[0];
+  if (clip) {
+    idleAction = mixer.clipAction(clip);
+    idleAction.play();
+    idleAction.paused = true;
+    idleAction.time = IDLE_AT;
+    jumpAction = mixer.clipAction(clip.clone());
+    jumpAction.play();
+    jumpAction.paused = true;
+    jumpAction.time = JUMP_FROM;
+    jumpAction.setEffectiveWeight(0);
+    mixer.update(0);
+  }
+  model.updateMatrixWorld(true);
+  (head || model).getWorldPosition(headHome);
+  target.set(headHome.x, headHome.y - 0.24, headHome.z); // headroom for his jump
 
-  (head || model).getWorldPosition(lookAt);
-  target.copy(lookAt);
+  buildTubes();
   loading.hidden = true;
   showWake();
 }
 
-// Neon light bars in the site's palette, in a ring around R.A.I. The ones in front of him are
-// reflection-only (ENV_ONLY), so they light his chest without blocking the view.
-function haloTexture() {
-  const c = document.createElement('canvas'); c.width = 64; c.height = 256;
-  const x = c.getContext('2d');
-  const gx = x.createLinearGradient(0, 0, 64, 0);
-  gx.addColorStop(0, 'rgba(255,255,255,0)'); gx.addColorStop(0.5, 'rgba(255,255,255,1)'); gx.addColorStop(1, 'rgba(255,255,255,0)');
-  x.fillStyle = gx; x.fillRect(0, 0, 64, 256);
-  x.globalCompositeOperation = 'destination-in';
-  const gy = x.createLinearGradient(0, 0, 0, 256);
-  gy.addColorStop(0, 'rgba(0,0,0,0)'); gy.addColorStop(0.12, 'rgba(0,0,0,1)'); gy.addColorStop(0.88, 'rgba(0,0,0,1)'); gy.addColorStop(1, 'rgba(0,0,0,0)');
-  x.fillStyle = gy; x.fillRect(0, 0, 64, 256);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-function buildNeonRoom() {
+// Neon tubes in the site's palette, standing in a ring around R.A.I.: clear glass with rounded ends, a glowing
+// core, metal caps, a little floor stand and a cable going up. Tubes in front of him only appear in
+// reflections (ENV_ONLY), so they light his chest without blocking the view.
+function buildTubes() {
   const N = 22, R = 3.4;
   const base = Math.atan2(facing.x, facing.z);
-  const halo = haloTexture();
+  const glass = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff, metalness: 0, roughness: 0.03, transparent: true, opacity: 0.24,
+    clearcoat: 1, clearcoatRoughness: 0.02, envMapIntensity: 1.6, depthWrite: false,
+  });
+  const metal = new THREE.MeshStandardMaterial({ color: 0x2b2b2e, metalness: 1, roughness: 0.3 });
+  const cable = new THREE.MeshStandardMaterial({ color: 0x080808, roughness: 0.55 });
   for (let i = 0; i < N; i++) {
     const ang = (i / N) * Math.PI * 2;                   // 0 = straight in front of him
     const a = base + ang;
-    const col = PALETTE[i % PALETTE.length];
-    const h = 1.5 + ((Math.sin(i * 12.9898) * 43758.5453) % 1 + 1) % 1 * 1.9;
+    const h = 1.35 + rand(i) * 1.7;                      // glowing length
+    const y0 = 0.16;                                     // bottom of the glass
+    const yc = y0 + 0.045 + h / 2;                       // centre of the tube
+    const top = y0 + h + 0.09;
     const g = new THREE.Group();
-    g.position.set(Math.sin(a) * R, h / 2, Math.cos(a) * R);
-    const core = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, h, 8), new THREE.MeshBasicMaterial({ color: col.clone(), toneMapped: false }));
-    const glow = new THREE.Mesh(new THREE.PlaneGeometry(0.6, h + 0.5), new THREE.MeshBasicMaterial({
-      map: halo, color: col.clone(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
-    }));
-    g.add(core, glow);
-    // front arc (±75°) is reflection-only
-    const front = Math.cos(ang) > Math.cos((75 * Math.PI) / 180);
-    if (front) { core.layers.set(ENV_ONLY); glow.layers.set(ENV_ONLY); }
+    g.position.set(Math.sin(a) * R, 0, Math.cos(a) * R);
+    g.rotation.y = a;
+    const coreMat = new THREE.MeshBasicMaterial({ color: OFF_CORE.clone() });
+    const core = new THREE.Mesh(new THREE.CapsuleGeometry(0.017, h, 6, 12), coreMat);
+    core.position.y = yc;
+    core.layers.enable(GLOW);
+    const tube = new THREE.Mesh(new THREE.CapsuleGeometry(0.046, h, 10, 24), glass);
+    tube.position.y = yc;
+    const capB = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.064, 0.1, 24), metal);
+    capB.position.y = y0 + 0.03;
+    const capT = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.058, 0.1, 24), metal);
+    capT.position.y = top - 0.03;
+    const stand = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 0.025, 28), metal);
+    stand.position.y = 0.0125;
+    const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, y0 - 0.02, 10), metal);
+    rod.position.y = 0.025 + (y0 - 0.02) / 2;
+    const wireLen = 7 - top;
+    const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, wireLen, 6), cable);
+    wire.position.y = top + wireLen / 2;
+    g.add(core, tube, capB, capT, stand, rod, wire);
+    if (Math.cos(ang) > Math.cos((75 * Math.PI) / 180)) g.traverse((o) => o.layers.set(ENV_ONLY));
     scene.add(g);
-    bars.push({ g, core, glow, col, phase: i * 1.7, order: i, level: 0 });
+    // on wake each tube flickers like a fluorescent starter before it settles
+    const flicks = [];
+    let tt = 0;
+    const n = 2 + Math.floor(rand(i + 50) * 3);
+    for (let k = 0; k < n; k++) {
+      tt += 0.04 + rand(i * 7 + k) * 0.12; flicks.push([tt, k % 2 === 0 ? 1 : 0.05]);
+      tt += 0.03 + rand(i * 11 + k) * 0.1; flicks.push([tt, k % 2 === 0 ? 0.05 : 1]);
+    }
+    flicks.push([tt + 0.08, 1]);
+    tubes.push({ g, coreMat, col: PALETTE[i % PALETTE.length], phase: i * 1.7, start: 0.15 + i * 0.045 + rand(i + 99) * 0.35, flicks, level: 0, lit: false });
   }
-  barLights.forEach((l, i) => {
-    const a = base + ((i + 0.5) / barLights.length) * Math.PI * 2;
+  tubeLights.forEach((l, i) => {
+    const a = base + ((i + 0.5) / tubeLights.length) * Math.PI * 2;
     l.position.set(Math.sin(a) * 2.3, 1.6, Math.cos(a) * 2.3);
   });
   softbox.position.copy(facing).multiplyScalar(1.8).add(new THREE.Vector3(0, 3.8, 0));
   softbox.lookAt(0, 1.2, 0);
 }
 
-function updateNeon(now, dt) {
+function tubeState(tb, since) {
+  if (since < tb.start) return 0;
+  const x = since - tb.start;
+  let v = 0;
+  for (const [t, val] of tb.flicks) { if (x >= t) v = val; else break; }
+  return v;
+}
+
+function updateTubes(now, dt) {
   const t = now / 1000;
-  const sinceWake = awake ? (now - wakeAt) / 1000 : -1;
-  for (const b of bars) {
-    // asleep: completely off; on wake they switch on one after another
-    const on = sinceWake >= 0 && sinceWake > b.order * 0.05;
-    const goal = on ? 1 : 0;
-    b.level += (goal - b.level) * Math.min(1, dt * (on ? 6 : 3));
-    const breathe = 0.78 + 0.22 * Math.sin(t * 1.1 + b.phase);
-    const lvl = b.level * breathe;
-    // off = a dark, unlit glass tube; on = rich colour (reflections get a brighter copy, see updateReflections)
-    b.core.material.color.copy(OFF_TUBE).lerp(_lit.copy(b.col).multiplyScalar(1.07), lvl);
-    b.glow.material.opacity = 0.6 * lvl;
-    b.glow.rotation.y = Math.atan2(camera.position.x - b.g.position.x, camera.position.z - b.g.position.z);
+  const since = awake ? (now - wakeAt) / 1000 : -1;
+  let total = 0;
+  for (const tb of tubes) {
+    const goal = MOTION ? tubeState(tb, since) : (awake ? 1 : 0);
+    tb.level += (goal - tb.level) * Math.min(1, dt * 40);  // fast, so the flicker reads as a flicker
+    if (goal > 0.5 && !tb.lit) { tb.lit = true; buzz(); }
+    const breathe = 0.86 + 0.14 * Math.sin(t * 1.1 + tb.phase);
+    const lvl = tb.level * (tb.level > 0.9 ? breathe : 1);
+    // off = dark core behind clear glass; on = HDR colour that the bloom turns into a neon glow
+    tb.coreMat.color.copy(OFF_CORE).lerp(_c.copy(tb.col).multiplyScalar(2.6), lvl);
+    total += tb.level;
   }
-  // the coloured lights only exist once he's awake (they ramp up with the tubes)
-  const lit = bars.reduce((sum, b) => sum + b.level, 0) / bars.length;
-  barLights.forEach((l, i) => { l.intensity = 9 * lit * (0.85 + 0.15 * Math.sin(t * 1.1 + i)); });
+  const lit = tubes.length ? total / tubes.length : 0;
+  tubeLights.forEach((l, i) => { l.intensity = 9 * lit * (0.88 + 0.12 * Math.sin(t * 1.1 + i)); });
+  // the room light comes up once the tubes are mostly on
+  const roomGoal = awake && since > 0.55 ? 1 : 0;
+  power += (roomGoal - power) * Math.min(1, dt * (MOTION ? 1.6 : 60));
+  lights.key.intensity = 1.25 * power;
+  lights.hemi.intensity = 0.22 * power;
+  lights.moon.intensity = 0.55 - 0.3 * power;
+  softbox.material.color.setScalar(0.05 + 1.5 * power);
+  if (dust) dust.material.opacity = 0.45 * power;
 }
 
 // re-photograph the surroundings for reflections (every few frames is plenty)
@@ -263,12 +372,9 @@ function updateReflections() {
   if (envTick++ % 3) return;
   model.visible = false;
   if (dust) dust.visible = false;
-  // the reflection camera sees HDR-bright tubes, so they read clearly on the metal
-  for (const b of bars) { b.core.material.color.multiplyScalar(1 + 3 * b.level); b.glow.visible = false; }
-  cubeCam.position.set(lookAt.x, lookAt.y - 0.5, lookAt.z);
+  cubeCam.position.set(headHome.x, headHome.y - 0.5, headHome.z);
   cubeCam.update(renderer, scene);
   cubeRT.texture.needsPMREMUpdate = true;
-  for (const b of bars) { b.core.material.color.multiplyScalar(1 / (1 + 3 * b.level)); b.glow.visible = true; }
   model.visible = true;
   if (dust) dust.visible = true;
 }
@@ -295,12 +401,36 @@ function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   if (!w || !h) return;
   const s = renderer.getSize(new THREE.Vector2());
-  if (s.x !== w || s.y !== h) renderer.setSize(w, h, false);
+  if (s.x !== w || s.y !== h) {
+    renderer.setSize(w, h, false);
+    for (const c of [composer, bloomComposer]) { c.setPixelRatio(renderer.getPixelRatio()); c.setSize(w, h); }
+  }
   camera.aspect = w / h;
   // leave room for the dialogue: robot sits right of centre on wide screens, higher up on phones
   if (w > 820) camera.setViewOffset(w, h, -w * 0.14, 0, w, h);
   else camera.setViewOffset(w, h, 0, h * 0.26, w, h);
   camera.updateProjectionMatrix();
+}
+
+function updateCursorLight(dt) {
+  if (!cursorLight) return;
+  // project the mouse onto a plane ~0.7 in front of his chest (facing the viewer)
+  _plane.setFromNormalAndCoplanarPoint(facing, _hit.copy(target).addScaledVector(facing, 0.7));
+  _ray.setFromCamera(_ndc.set(cursor.x, cursor.y), camera);
+  if (_ray.ray.intersectPlane(_plane, _hit)) { cursorLight.position.copy(_hit); cursorOrb.position.copy(_hit); }
+  // on only while he's awake and the mouse is over the scene; fades in and out softly
+  const goal = awake && cursor.inside ? 1 : 0;
+  cursor.level += (goal - cursor.level) * Math.min(1, dt * 6);
+  cursorLight.intensity = 2.6 * cursor.level;
+  cursorOrb.visible = cursor.level > 0.02;
+  cursorOrb.material.color.setScalar(0.4 + 5.5 * cursor.level);
+}
+
+function startJump() {
+  if (!jumpAction || jumping || !MOTION) return;
+  jumping = true;
+  jumpAction.time = JUMP_FROM;
+  jumpAction.paused = false;
 }
 
 let last = performance.now();
@@ -310,49 +440,73 @@ function loop(now) {
   last = now;
   if (view.hidden || document.hidden) return;
   resize();
-
-  power += (powerGoal - power) * Math.min(1, dt * (MOTION ? 2.2 : 60));
-  renderer.toneMappingExposure = 0.06 + 0.94 * power;
-  lights.key.intensity = 0.3 + 1.1 * power;
-  if (bars.length) updateNeon(now, dt);
+  if (tubes.length) updateTubes(now, dt);
   if (dust) {
-    dust.material.opacity = 0.55 * power;
     dust.rotation.y += dt * 0.02;
     const p = dust.geometry.attributes.position;
     for (let i = 0; i < p.count; i++) { let y = p.getY(i) + dt * 0.04; if (y > 3.2) y = 0; p.setY(i, y); }
     p.needsUpdate = true;
   }
 
+  // fixed camera framing the idle pose — it doesn't chase him when he moves
+  const dist = 3.15 * Math.max(1, 1.05 / Math.max(camera.aspect, 0.3));
+  camera.position.copy(target).addScaledVector(facing, dist).add(new THREE.Vector3(0, 0.14, 0));
+  camera.lookAt(target);
+  _right.crossVectors(UP, facing); // the viewer's right, in world space
+  lights.key.position.copy(camera.position).add(new THREE.Vector3(1.6, 2.4, 0.4));
+  lights.moon.position.copy(facing).multiplyScalar(-4).add(new THREE.Vector3(-1.5, 3, 0));
+  updateCursorLight(dt);
+
   if (model) {
     for (const [b, q] of rest) b.quaternion.copy(q);
-    if (mixer) mixer.update(MOTION ? dt : 0);
+    if (mixer) {
+      // the jump plays once, then blends back into the still idle pose
+      if (jumping && jumpAction.time >= JUMP_TO) { jumping = false; jumpAction.paused = true; }
+      jumpW += ((jumping ? 1 : 0) - jumpW) * Math.min(1, dt * (jumping ? 10 : 3.5));
+      jumpAction.setEffectiveWeight(jumpW);
+      idleAction.setEffectiveWeight(1 - jumpW);
+      mixer.update(dt);
+    }
     model.updateMatrixWorld(true);
 
-    // keep the camera framed on the head (in case the animation moves the body)
-    const hp = (head || model).getWorldPosition(new THREE.Vector3());
-    lookAt.lerp(hp, 1 - Math.pow(0.001, dt));
-    target.set(lookAt.x, lookAt.y - 0.34, lookAt.z);
-    // narrow/portrait screens pull the camera back so the whole upper body fits above the dialogue
-    const dist = 2.9 * Math.max(1, 1.05 / Math.max(camera.aspect, 0.3));
-    camera.position.copy(target).addScaledVector(facing, dist).add(new THREE.Vector3(0, 0.14, 0));
-    camera.lookAt(target);
-    _right.crossVectors(UP, facing); // the viewer's right, in world space
-    lights.key.position.copy(camera.position).add(new THREE.Vector3(1.5, 2, 0));
-
-    // follow the mouse: a little from the spine, more from the neck and head
-    const k = awake ? 1 : 0.15;
-    look.x += (ptr.x * k - look.x) * Math.min(1, dt * 5);
-    look.y += (ptr.y * k - look.y) * Math.min(1, dt * 5);
-    nod *= Math.pow(0.02, dt);
-    const nodNow = Math.sin((1 - nod) * Math.PI * 2) * nod * 0.35;
+    const t = now / 1000;
+    // asleep he slumps forward; after waking he lifts his head as the room lights up
+    const since = awake ? (now - wakeAt) / 1000 : -1;
+    const slumpGoal = since > 0.7 ? 0 : 1;
+    slump += (slumpGoal - slump) * Math.min(1, dt * (MOTION ? 1.8 : 60));
+    // follow the mouse when awake, on top of slow breathing and a gentle sway
+    const k = awake ? 1 - slump : 0;
+    look.x += (ptr.x * k - look.x) * Math.min(1, dt * 4);
+    look.y += (ptr.y * k - look.y) * Math.min(1, dt * 4);
+    const breathe = MOTION ? Math.sin(t * 1.7) * 0.016 : 0;
+    const sway = MOTION ? Math.sin(t * 0.45) * 0.035 + Math.sin(t * 0.23 + 1) * 0.02 : 0;
     // +yaw turns towards the viewer's right, +pitch looks down
-    const yaw = look.x * 0.75, pitch = look.y * 0.35 + nodNow;
-    turn(spine, yaw * 0.25, pitch * 0.15);
-    turn(neck, yaw * 0.3, pitch * 0.3);
-    turn(head, yaw * 0.45, pitch * 0.55);
+    const yaw = look.x * 0.75, pitch = look.y * 0.35;
+    turn(spine, yaw * 0.25 + sway * 0.6, pitch * 0.15 + breathe + slump * 0.18);
+    turn(neck, yaw * 0.3 + sway * 0.3, pitch * 0.3 + breathe * 0.5 + slump * 0.25);
+    turn(head, yaw * 0.45 + sway * 0.4, pitch * 0.55 + slump * 0.5);
     updateReflections();
   }
-  renderer.render(scene, camera);
+  renderWithGlow();
+}
+
+function renderWithGlow() {
+  // black out everything that isn't allowed to glow, bloom it, put the real materials back, composite
+  const bg = scene.background, fog = scene.fog;
+  scene.background = null; scene.fog = null;
+  scene.traverse((o) => {
+    if (!(o.isMesh || o.isPoints) || o.layers.isEnabled(GLOW)) return;
+    // see-through things (glass, the contact shadow, dust) are skipped so they don't hide the cores;
+    // everything solid is drawn black so it still blocks the glow correctly
+    if (o.material.transparent || o.isPoints) { if (o.visible) { _hidden.push(o); o.visible = false; } }
+    else { _saved.set(o, o.material); o.material = BLACK; }
+  });
+  bloomComposer.render();
+  for (const [o, m] of _saved) o.material = m;
+  for (const o of _hidden) o.visible = true;
+  _saved.clear(); _hidden.length = 0;
+  scene.background = bg; scene.fog = fog;
+  composer.render();
 }
 
 /* ======================= power on ======================= */
@@ -365,9 +519,8 @@ function wake() {
   awake = true;
   wakeAt = performance.now();
   wakeBtn.hidden = true;
-  powerGoal = 1;
-  if (MOTION) { root.classList.add('rai-glitch-on'); setTimeout(() => root.classList.remove('rai-glitch-on'), 800); }
-  setTimeout(() => { panel.hidden = false; go(A.start); }, MOTION ? 650 : 0);
+  // the tubes flicker on, the room light rises, then he lifts his head and starts talking
+  setTimeout(() => { panel.hidden = false; go(A.start); }, MOTION ? 1500 : 0);
 }
 
 /* ======================= sound (optional typing blips) ======================= */
@@ -376,6 +529,17 @@ let audio = null;
 function syncSound() {
   soundBtn.setAttribute('aria-pressed', String(soundOn));
   soundBtn.classList.toggle('on', soundOn);
+}
+function buzz() {
+  if (!soundOn) return;
+  try {
+    audio ||= new (window.AudioContext || window.webkitAudioContext)();
+    const len = Math.floor(audio.sampleRate * 0.05), buf = audio.createBuffer(1, len, audio.sampleRate), d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    const src = audio.createBufferSource(), f = audio.createBiquadFilter(), g = audio.createGain();
+    src.buffer = buf; f.type = 'bandpass'; f.frequency.value = 900 + Math.random() * 600; g.gain.value = 0.05;
+    src.connect(f).connect(g).connect(audio.destination); src.start();
+  } catch { /* no audio */ }
 }
 function blip() {
   if (!soundOn) return;
@@ -451,7 +615,7 @@ function go(id, push = true) {
   typeLine(lineFor(id, step)).then(() => showActions(id, step));
 }
 
-function react() { nod = 1; }
+function react() { startJump(); }
 
 // lines that just talk and move on by themselves aren't worth going "back" to
 const isInteractive = (id) => { const s = A.steps[id]; return !!(s && (s.input || s.choices || s.story)); };
@@ -524,7 +688,7 @@ function showActions(id, step) {
     return;
   }
   if (step.story) {
-    button('Next →', 'rai-choice rai-next', () => { react(); go(step.story); }, 0);
+    button('Next →', 'rai-choice rai-next', () => go(step.story), 0);
     if (step.story !== 'story-done') button('Skip the story', 'rai-skip', () => go('story-done'), 80);
     return;
   }
