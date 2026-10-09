@@ -905,3 +905,10 @@ main { padding: 0 var(--gap) var(--gap); }
 /* Ronie's dialogue font: Nevera (Almeera Studio). Characters it lacks fall back to the site font. */
 @font-face { font-family: 'Nevera'; src: url('../fonts/nevera.woff2') format('woff2'); font-display: swap; }
 #rai-panel, #rai-panel input, #rai-panel textarea, #rai-panel button { font-family: 'Nevera', var(--font); letter-spacing: .02em; }
+
+/* the guessing game: answer buttons sit in a row, "Stop playing" on its own line */
+.rai-actions.row { flex-direction: row; flex-wrap: wrap; }
+.rai-actions.row .rai-choice { padding: 9px 16px; }
+.rai-actions.row .rai-skip { flex-basis: 100%; }
+.rai-game { color: #ffb27a; }
+.rai-game:hover { color: #fff; }
