@@ -16,7 +16,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="stylesheet" href="css/style.css?v=20261010210000">
+  <link rel="stylesheet" href="css/style.css?v=20261010213000">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -137,14 +137,17 @@
 
     <!-- ============ LIBRARY: case studies (a shelf of books) + certificates (library cards) ============ -->
     <section class="view" data-view="library" hidden>
-      <div class="page-head"><h1 class="page-title">Library</h1></div>
+      <h1 class="sr-only">Library</h1>
+      <div class="page-head lib-head">
+        <h2 class="page-title" id="lib-cases">Case Studies</h2>
+        <h2 class="page-title" id="lib-certs">Certificates</h2>
+      </div>
       <div class="lib">
         <section class="lib-half" aria-labelledby="lib-cases">
-          <p class="lib-label"><span id="lib-cases">Case studies</span><span>hover a book to pull it out · click to read</span></p>
           <div class="shelf-wrap"><div class="shelf" id="cases"></div></div>
         </section>
         <section class="lib-half" aria-labelledby="lib-certs">
-          <p class="lib-label"><span id="lib-certs">Certificates &amp; courses</span><span id="certs-count"></span></p>
+          <p class="page-title lib-title-m" aria-hidden="true">Certificates</p>
           <div class="fd-stage"><div class="fd" id="folder" data-open="false"></div></div>
         </section>
       </div>
@@ -242,8 +245,8 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261010210000"></script>
+  <script src="js/data.js?v=20261010213000"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
-  <script src="js/main.js?v=20261010210000" defer></script>
+  <script src="js/main.js?v=20261010213000" defer></script>
 </body>
 </html>
