@@ -919,8 +919,6 @@ main { padding: 0 var(--gap) var(--gap); }
 }
 .fd-inside li button span { font-family: var(--mono); font-size: 10px; color: #8a7a62; padding-top: 2px; }
 .fd-inside li button:hover { background: rgba(255, 255, 255, .45); }
-.fd-close { margin-top: auto; align-self: flex-start; padding: 6px 12px; border-radius: 999px; border: 1px solid #29241e; font-size: 12px; color: #29241e; transition: background .25s, color .25s; }
-.fd-close:hover { background: #29241e; color: #f6f1e4; }
 /* the certificate inside */
 .fd-doc { position: relative; height: 100%; display: flex; flex-direction: column; gap: 5px; padding: 16px 34px 14px 16px; /* clear of the notes tucked in on the right */ color: #1d1d1d; border-top: 6px solid var(--note); animation: swap .5s var(--open-ease) var(--doc-delay, 0s) backwards; }
 .fd-doc-top { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: #8a8478; }
