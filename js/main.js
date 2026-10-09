@@ -1294,21 +1294,124 @@
         </div>
       </div>`;
     const page = $('#fd-page', fd);
+    // ---- each certificate is a different page of an agent's dossier (c.doc), in the books' riso style ----
+    const INK = '#1d1a16', RED = '#e8553b', BLUE = '#2f6fd6', CREAM = '#f6f1e4';
+    // small flat illustrations for the "photo" spots (an issuer's logo, c.logo, takes their place)
+    const ART = {
+      llm: (n) => `<rect width="100" height="100" fill="${n}"/><path d="M18 26h56a9 9 0 0 1 9 9v24a9 9 0 0 1-9 9H46L30 81V68H18a9 9 0 0 1-9-9V35a9 9 0 0 1 9-9Z" fill="${CREAM}"/><circle cx="31" cy="47" r="4.5" fill="${INK}"/><circle cx="46" cy="47" r="4.5" fill="${INK}"/><circle cx="61" cy="47" r="4.5" fill="${INK}"/><path d="M81 8l3.5 9 9 3.5-9 3.5L81 33l-3.5-9-9-3.5 9-3.5Z" fill="${RED}"/>`,
+      agent: (n) => `<rect width="100" height="100" fill="${n}"/><path d="M50 12v12" stroke="${INK}" stroke-width="4"/><circle cx="50" cy="10" r="6" fill="${RED}"/><rect x="20" y="24" width="60" height="48" rx="12" fill="${INK}"/><circle cx="38" cy="46" r="8" fill="${CREAM}"/><circle cx="62" cy="46" r="8" fill="${CREAM}"/><circle cx="40" cy="47" r="3.5" fill="${BLUE}"/><circle cx="64" cy="47" r="3.5" fill="${BLUE}"/><rect x="38" y="60" width="24" height="4" rx="2" fill="${CREAM}"/><rect x="28" y="76" width="44" height="18" rx="5" fill="${BLUE}"/>`,
+      board: (n) => `<rect width="100" height="100" fill="${n}"/><rect x="10" y="14" width="80" height="72" rx="5" fill="${CREAM}"/>${[16, 40, 64].map((x, k) => `<rect x="${x}" y="22" width="20" height="5" rx="2" fill="${INK}"/>` + [0, 1, 2].slice(0, 3 - k).map((j) => `<rect x="${x}" y="${32 + j * 16}" width="20" height="12" rx="2" fill="${[RED, BLUE, INK][(k + j) % 3]}" opacity="${j ? .85 : 1}"/>`).join('')).join('')}`,
+      shield: (n) => `<rect width="100" height="100" fill="${n}"/><path d="M50 12 80 24v22c0 20-13 34-30 42C33 80 20 66 20 46V24Z" fill="${BLUE}"/><path d="M50 30l5 11 12 1-9 8 3 12-11-7-11 7 3-12-9-8 12-1Z" fill="${CREAM}"/>`,
+      terminal: (n) => `<rect width="100" height="100" fill="${n}"/><rect x="10" y="18" width="80" height="64" rx="6" fill="${INK}"/><circle cx="20" cy="27" r="3" fill="${RED}"/><circle cx="29" cy="27" r="3" fill="#f6dd5f"/><circle cx="38" cy="27" r="3" fill="#a8e39f"/><path d="M20 44l10 7-10 7" fill="none" stroke="${CREAM}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><rect x="36" y="56" width="22" height="4" rx="2" fill="${CREAM}"/>`,
+      laptop: (n) => `<rect width="100" height="100" fill="${n}"/><rect x="18" y="20" width="64" height="44" rx="4" fill="${INK}"/><path d="M8 72h84l-6 10H14Z" fill="${INK}"/><path d="M42 34l-8 8 8 8M58 34l8 8-8 8" fill="none" stroke="${CREAM}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`,
+      bulb: (n) => `<rect width="100" height="100" fill="${n}"/><circle cx="50" cy="42" r="22" fill="#f6dd5f"/><rect x="40" y="62" width="20" height="14" rx="3" fill="${INK}"/><path d="M50 8v8M22 18l6 6M78 18l-6 6M12 42h8M80 42h8" stroke="${RED}" stroke-width="4" stroke-linecap="round"/><path d="M42 44l8-8 8 8-8 8Z" fill="${RED}"/>`,
+    };
+    const pic = (c, note) => c.logo
+      ? `<img class="fd-logo" src="${esc(c.logo)}" alt="${esc(c.issuer)} logo">`
+      : `<svg class="fd-art" viewBox="0 0 100 100" aria-hidden="true">${(ART[c.art] || ART.llm)(note)}</svg>`;
+    const CLIP = '<svg class="fd-clip" viewBox="0 0 22 56" aria-hidden="true"><path d="M7 50V12a6 6 0 0 1 12 0v32a3.5 3.5 0 0 1-7 0V16" fill="none" stroke="#8e8e8e" stroke-width="2.4" stroke-linecap="round"/></svg>';
+    const PRINT = `<svg class="fd-print" viewBox="0 0 60 76" aria-hidden="true">${Array.from({ length: 9 }, (_, k) => {
+      const r = 5 + k * 3.2; return `<path d="M${30 - r} ${44} a${r} ${r * 1.25} 0 1 1 ${2 * r} 0" fill="none" stroke="${INK}" stroke-width="1.6" stroke-dasharray="${8 + k * 3} ${2 + (k % 3)}" opacity=".75"/>`;
+    }).join('')}</svg>`;
+    const year = (c) => String(c.date).slice(-4);
+    const skills = (c) => (c.skills || []).join(', ');
+    const link = (c) => (c.url ? `<a class="cert-link" href="${esc(c.url)}" target="_blank" rel="noopener">Show credential ↗</a>` : '');
+    const DOCS = {
+      // a mission briefing: bold headline, the course as a highlighted objective, a map to HQ, stat boxes
+      briefing: (c, i, n) => `
+        <p class="fdk">File ${no(i)} · ${esc(c.date)}</p>
+        <h3 class="fd-h-sans">Mission briefing:</h3>
+        <p class="fd-hl"><span>${esc(c.title)}</span></p>
+        <p class="fd-brief">${esc(c.brief || '')}</p>
+        <div class="fd-map" aria-hidden="true"><svg viewBox="0 0 200 70" preserveAspectRatio="none"><path d="M0 52 C40 40 60 60 100 44 S160 20 200 30" stroke="#fff" stroke-width="6" fill="none"/><path d="M30 0 C40 30 20 50 44 70M120 0 C110 30 140 40 130 70M0 20 H200" stroke="#fff" stroke-width="3" fill="none" opacity=".8"/><path d="M18 58 C60 50 90 30 150 22" stroke="${RED}" stroke-width="2.2" stroke-dasharray="5 4" fill="none"/><circle cx="150" cy="22" r="6" fill="${RED}"/><circle cx="150" cy="22" r="2.4" fill="#fff"/></svg><span>HQ · ${esc(c.issuer)}</span></div>
+        <div class="fd-stats"><span><b>${String((c.skills || []).length).padStart(2, '0')}</b>skills</span><span><b>${esc(year(c))}</b>year</span><span><b>✓</b>done</span></div>
+        ${link(c)}`,
+      // an agent profile form: ruled fields, a taped-in photo, "special abilities" and notes
+      profile: (c, i, n) => `
+        <p class="fdk">Agent profile · No. ${no(i)}</p>
+        <div class="fd-form">
+          <dl>
+            <div><dt>Course</dt><dd>${esc(c.title)}</dd></div>
+            <div><dt>Issued by</dt><dd>${esc(c.issuer)}</dd></div>
+            <div><dt>Date</dt><dd>${esc(c.date)}</dd></div>
+          </dl>
+          <div class="fd-photo taped">${pic(c, n)}</div>
+        </div>
+        <div class="fd-row"><dt>Special abilities</dt><dd>${esc(skills(c))}</dd></div>
+        <div class="fd-row fd-grow"><dt>Notes</dt><dd class="fd-hand">${esc(c.brief || '')}</dd></div>
+        ${link(c)}`,
+      // a confidential sheet: a paper-clipped polaroid over a table, with a couple of lines redacted
+      confidential: (c, i, n) => `
+        <div class="fd-polaroid">${CLIP}${pic(c, n)}</div>
+        <div class="fd-sheet">
+          <p class="fd-conf">Confidential information</p>
+          <div class="fd-table">
+            <span>Subject</span><b>${esc(c.title)}</b>
+            <span>Source</span><b>${esc(c.issuer)}</b>
+            <span>Dated</span><b>${esc(c.date)}</b>
+            <span>Skills</span><b>${esc(skills(c))}</b>
+            <span>Remarks</span><b><i class="fd-redact" style="width:70%"></i><i class="fd-redact" style="width:45%"></i></b>
+          </div>
+        </div>
+        ${link(c)}`,
+      // a clearance pass: lanyard slot, issuer band, photo, barcode
+      pass: (c, i, n) => `
+        <div class="fd-pass">
+          <i class="fd-slot"></i>
+          <p class="fd-band">Training clearance · ${esc(year(c))}</p>
+          <div class="fd-pass-body">
+            <div class="fd-pass-photo">${pic(c, n)}</div>
+            <div><p class="fdk">Holder</p><p class="fd-holder">${esc(D.name)}</p><p class="fdk">Clearance</p><p class="fd-pass-t">${esc(c.title)}</p></div>
+          </div>
+          <p class="fd-pass-by">${esc(c.issuer)}</p>
+          ${c.id ? `<p class="fd-pass-id">ID ${esc(c.id)}</p>` : ''}
+          <i class="fd-barcode"></i>
+        </div>
+        ${link(c)}`,
+      // a telegram: typed strips pasted onto a yellow form
+      telegram: (c, i, n) => `
+        <p class="fd-tele-head">Telegram<span>No. ${no(i)} · urgent</span></p>
+        <p class="fd-tele-meta">To: HQ &nbsp;·&nbsp; From: Agent ${esc(D.name.split(' ')[0])}</p>
+        <div class="fd-strips">
+          <span>Training complete stop</span>
+          <span>${esc(c.title)} stop</span>
+          <span>Issued by ${esc(c.issuer)} stop</span>
+          <span>${esc(c.date)} stop</span>
+          <span>Skills ${esc(skills(c))} stop</span>
+          ${c.id ? `<span>Ref ${esc(c.id.slice(0, 16))}… stop</span>` : ''}
+        </div>
+        <div class="fd-tele-art">${pic(c, n)}</div>
+        ${link(c)}`,
+      // an index card: red top rule, blue lines, handwritten entries, a "verified" stamp
+      card: (c, i, n) => `
+        <p class="fd-card-top"><span>Evidence card</span><span>No. ${String(i + 1).padStart(3, '0')}</span></p>
+        <p class="fd-card-row"><span>Course</span><i>${esc(c.title)}</i></p>
+        <p class="fd-card-row"><span>By</span><i>${esc(c.issuer)}</i></p>
+        <p class="fd-card-row"><span>Date</span><i>${esc(c.date)}</i></p>
+        ${c.id ? `<p class="fd-card-row"><span>ID</span><i>${esc(c.id)}</i></p>` : ''}
+        <p class="fd-card-row"><span>Note</span><i>${esc(c.brief || '')}</i></p>
+        <span class="fd-verified" aria-hidden="true">Verified</span>
+        ${link(c)}`,
+      // a case report: issuer's emblem, a fingerprint, fields and findings
+      report: (c, i, n) => `
+        <p class="fd-rep-head"><b>Case report</b><span>No. ${no(i)}</span></p>
+        <div class="fd-rep-top">
+          <div class="fd-rep-photo">${pic(c, n)}</div>
+          <div class="fd-rep-print">${PRINT}<span>print</span></div>
+        </div>
+        <div class="fd-row"><dt>Case</dt><dd>${esc(c.title)}</dd></div>
+        <div class="fd-row"><dt>Authority</dt><dd>${esc(c.issuer)} · ${esc(c.date)}</dd></div>
+        <div class="fd-row fd-grow"><dt>Findings</dt><dd>${esc(c.brief || '')}</dd></div>
+        ${link(c)}`,
+    };
+    const ORDER = Object.keys(DOCS);
     const show = (i) => {
-      const c = C[i];
-      // opening the folder: the certificate fades in once the cover has swung clear; switching while open: at once
+      const c = C[i], note = NOTE[i % NOTE.length];
+      const kind = DOCS[c.doc] ? c.doc : ORDER[i % ORDER.length];
+      // opening the folder: the page fades in once the cover has swung clear; switching while open: at once
       const delay = fd.dataset.open === 'true' ? 0 : 0.45;
-      page.innerHTML = `<article class="fd-doc${c.title.length > 48 ? ' long' : ''}" style="--note:${NOTE[i % NOTE.length]};--doc-delay:${delay}s">
-        <p class="fd-doc-top"><span>No. ${no(i)}</span><span>${esc(c.date)}</span></p>
-        <p class="fd-doc-kind">Certificate</p>
-        <h3>${esc(c.title)}</h3>
-        <p class="fd-doc-by">issued by <b>${esc(c.issuer)}</b></p>
-        ${c.id ? `<p class="fd-doc-id">ID ${esc(c.id)}</p>` : ''}
-        <div class="cert-skills">${(c.skills || []).map((x) => `<span>${esc(x)}</span>`).join('')}</div>
-        ${c.url ? `<a class="cert-link" href="${esc(c.url)}" target="_blank" rel="noopener">Show credential ↗</a>` : ''}
-        <button class="fd-back" type="button">← close</button>
-        <span class="fd-stamp" aria-hidden="true"></span>
-      </article>`;
+      page.innerHTML = `<article class="fd-doc fd-doc--${kind}" style="--note:${note};--doc-delay:${delay}s">${DOCS[kind](c, i, note)}
+        <button class="fd-back" type="button">← close</button></article>`;
       $$('.fd-note', fd).forEach((n) => n.classList.toggle('on', +n.dataset.i === i));
       fd.dataset.open = 'true';
     };
