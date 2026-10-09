@@ -175,7 +175,7 @@ window.PORTFOLIO = {
      (`short` is what's written on the note; click it and the folder opens on that certificate).
      Each opens as a different page of an agent's dossier — `doc`: briefing | profile | confidential | pass | telegram |
      card | report — with a little illustration (`art`: llm | agent | board | shield | terminal | laptop | bulb) and a
-     one-line `brief` of what it covered; `logo` (an issuer's emblem, in img/logos/) takes the illustration's place.
+     one-line `brief` of what it covered; `photo` (a picture in img/certs/) or `logo` (an issuer's emblem, in img/logos/) takes the illustration's place.
      url: link for "Show credential" (leave '' to hide the link). */
   certifications: [
     { short: 'Generative AI & LLMs', doc: 'briefing', art: 'llm', brief: 'How transformer models and large language models work, and how to put them to work.', title: 'Generative AI: Working with Large Language Models', issuer: 'LinkedIn Learning', date: 'Apr 2026', skills: ['Transformer Models', 'NLP', 'LLMs'], url: 'https://www.linkedin.com/in/raunakpatil/details/certifications/' },
