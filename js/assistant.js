@@ -1804,19 +1804,56 @@ function showChat(id, step, offerEmail = false) {
 }
 
 /* ======================= guessing game ======================= */
-// A picture of whoever he guesses, from Wikipedia's free API. Only freely licensed images (pilicense=free), so no
-// film stills or posters; when there isn't one, the polaroid just carries the name.
-async function findPicture(name) {
-  const api = 'https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1'
-    + `&generator=search&gsrsearch=${encodeURIComponent(name)}&gsrlimit=1`
-    + '&prop=pageimages&piprop=thumbnail&pithumbsize=400&pilicense=free';
+// A picture of whoever he guesses. Only freely licensed pictures (Wikimedia Commons), so no film stills or posters.
+// Wikidata first: of the things matching the name, people, characters and animals come before books, films and
+// places (so "Harry Potter" is the boy, not the book series), and a film character with no free picture of their
+// own gets the actor who played them. If that finds nothing, Wikipedia's free page images; else just the name.
+const WD = 'https://www.wikidata.org/w/api.php?format=json&origin=*';
+const NOT_PIC = /logo|wordmark|signature|emblem|icon|symbol|flag|coat of arms|title card|poster|map|seal|autograph|districts/i;
+const WHO = /character|actor|actress|singer|player|politician|cricketer|footballer|athlete|person|scientist|physicist|writer|author|musician|rapper|youtuber|businessperson|entrepreneur|mascot|species|animal|superhero|villain|wizard|detective|princess|king|queen|president|human|comedian|director|dancer|model|influencer|celebrity|leader/i;
+const NOT_IT = /novel|book|film|video game|series|album|song|painting|sculpture|record label|pub|company|episode|experiment|television|franchise|play|musical|comic book|magazine|newspaper|ship|disambiguation|province|district|city|town|village|river|county|municipality|region|family name|given name/i;
+async function getJSON(url) {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 6000);
-  try {
-    const j = await (await fetch(api, { signal: ctl.signal })).json();
-    const page = j.query && Object.values(j.query.pages || {})[0];
-    return page && page.thumbnail ? page.thumbnail.source : null;
-  } catch { return null; } finally { clearTimeout(timer); }
+  try { return await (await fetch(url, { signal: ctl.signal })).json(); } catch { return null; } finally { clearTimeout(timer); }
+}
+const claims = (e, prop) => ((e && e.claims && e.claims[prop]) || []).map((c) => c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value).filter(Boolean);
+// its pictures, minus logos; "Daniel Radcliffe as Harry Potter" (the actor in the role) beats a drawing
+const goodFile = (e) => { const f = claims(e, 'P18').filter((n) => !NOT_PIC.test(n)); return f.find((n) => / as /i.test(n)) || f[0]; };
+async function commonsThumb(file) {
+  const j = await getJSON('https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&prop=imageinfo&iiprop=url&iiurlwidth=400'
+    + `&titles=${encodeURIComponent(`File:${file}`)}`);
+  const page = j && j.query && Object.values(j.query.pages || {})[0];
+  return (page && page.imageinfo && page.imageinfo[0] && page.imageinfo[0].thumburl) || null;
+}
+async function findPicture(raw) {
+  const name = raw.replace(/^(a|an|the)\s+/i, '');           // "Is it a lion?" → lion
+  const found = await getJSON(`${WD}&action=wbsearchentities&language=en&uselang=en&type=item&limit=7&search=${encodeURIComponent(name)}`);
+  const ids = ((found && found.search) || []).map((r) => r.id);
+  if (ids.length) {
+    const ents = ((await getJSON(`${WD}&action=wbgetentities&props=claims|descriptions&languages=en&ids=${ids.join('|')}`)) || {}).entities || {};
+    const ranked = ids.map((id, i) => {
+      const d = (ents[id] && ents[id].descriptions && ents[id].descriptions.en && ents[id].descriptions.en.value) || '';
+      return { id, score: (WHO.test(d) ? 3 : NOT_IT.test(d) ? -2 : 0) - i * 0.1 };
+    }).filter((c) => c.score > -1).sort((x, y) => y.score - x.score);
+    for (const { id } of ranked) {
+      const own = goodFile(ents[id]);
+      if (own) return commonsThumb(own);
+      // a film or TV character: the actor who played them
+      const actor = claims(ents[id], 'P175')[0];
+      if (actor && actor.id) {
+        const a = ((await getJSON(`${WD}&action=wbgetentities&props=claims&ids=${actor.id}`)) || {}).entities;
+        const file = a && goodFile(a[actor.id]);
+        if (file) return commonsThumb(file);
+      }
+    }
+  }
+  const j = await getJSON('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1'
+    + `&generator=search&gsrsearch=${encodeURIComponent(name)}&gsrlimit=1`
+    + '&prop=pageimages&piprop=thumbnail&pithumbsize=400&pilicense=free');
+  const page = j && j.query && Object.values(j.query.pages || {})[0];
+  const src = page && page.thumbnail && page.thumbnail.source;
+  return src && !NOT_PIC.test(decodeURIComponent(src)) && !/\.svg/i.test(src) ? src : null;
 }
 // The polaroid. When he guesses, he crouches ('pickup'), comes up holding a photo of the guess by his face, and
 // later throws it away: 'toss_happy' when he got it right, 'toss_angry' when he didn't, 'toss' when the game stops.
@@ -1864,8 +1901,9 @@ function drawCard() {
   x.fillStyle = '#1b1b1b'; x.fillRect(m, m, side, side);
   x.textAlign = 'center'; x.textBaseline = 'middle';
   if (img) {
+    x.fillStyle = '#ece8e0'; x.fillRect(m, m, side, side);
     const sz = Math.min(img.width, img.height);
-    x.drawImage(img, (img.width - sz) / 2, (img.height - sz) * 0.25, sz, sz, m, m, side, side);
+    x.drawImage(img, (img.width - sz) / 2, (img.height - sz) * 0.12, sz, sz, m, m, side, side);   // heads sit near the top
   } else {
     x.fillStyle = '#3c3c3c'; x.font = '300 230px "Inter Tight", sans-serif';
     x.fillText('?', W / 2, m + side / 2 + 10);
@@ -2240,4 +2278,5 @@ function init() {
   });
   if (!init3D()) showWake();
 }
+
 
