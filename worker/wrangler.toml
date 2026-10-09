@@ -7,13 +7,13 @@ workers_dev = true
 [ai]
 binding = "AI"
 
-# 12 questions per minute per visitor
+# 30 chat or game turns per minute per visitor (game answers come quickly)
 [[ratelimits]]
 name = "LIMITER"
 namespace_id = "1001"
 
   [ratelimits.simple]
-  limit = 12
+  limit = 30
   period = 60
 
 # the quick voice: up to 40 spoken lines per minute per visitor

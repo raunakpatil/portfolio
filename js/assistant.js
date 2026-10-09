@@ -1622,6 +1622,8 @@ function showChat(id, step, offerEmail = false) {
   err.className = 'rai-error';
   actions.appendChild(err);
   if (offerEmail) button('Email Raunak instead', 'rai-choice', () => { location.href = `mailto:${A.email}`; }, 60);
+  actions.classList.remove('row');
+  if (G.link && A.chatUrl) button(G.link, 'rai-skip rai-game', startGame, 90);
   // someone else at this computer? let them give their own name
   if (answers.name) {
     button(`Not ${answers.name}?`, 'rai-skip', () => {
@@ -1673,6 +1675,148 @@ function showChat(id, step, offerEmail = false) {
     }
   };
   setTimeout(() => el.focus({ preventScroll: true }), 50);
+}
+
+/* ======================= guessing game ======================= */
+// Like Akinator: the visitor thinks of someone or something; Ronie asks yes/no questions (worker mode 'game') and
+// guesses. Every game opens with the same first question so the model starts on the right foot.
+const G = A.game || {};
+const GAME_ANSWERS = ['Yes', 'No', 'Probably', 'Probably not', "Don't know"];
+const GAME_MAX = 24;
+const game = { log: [], asked: 0, token: 0 };
+const gfill = (s, extra = {}) => fill(s).replace(/\{answer\}/g, extra.answer || '');
+
+async function askGame() {
+  if (!A.chatUrl) return null;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 25000);
+  try {
+    const r = await fetch(A.chatUrl, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl.signal,
+      body: JSON.stringify({ mode: 'game', messages: game.log.slice(-60), asked: game.asked, name: answers.name || '' }),
+    });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return typeof j.reply === 'string' && j.reply.trim() ? j : null;
+  } catch { return null; } finally { clearTimeout(timer); }
+}
+
+function gameButtons(list) {
+  actions.innerHTML = '';
+  actions.onsubmit = (e) => e.preventDefault();
+  actions.classList.toggle('row', list.length > 2);
+  list.forEach(([label, cls, fn], i) => button(label, cls, fn, i * 50));
+}
+
+async function startGame() {
+  const my = ++game.token;
+  Object.assign(game, { log: [], asked: 0 });
+  clearTimeout(autoTimer);
+  prevEl.classList.remove('show');
+  bar.style.width = '0%';
+  setFace('excited'); setIcon('question', 3000); playGesture('present');
+  actions.innerHTML = '';
+  await typeLine(gfill(pick(G.intro || ['Think of someone. Ready?'])));
+  if (my !== game.token) return;
+  gameButtons([["I'm ready", 'rai-choice', () => gameAsk(my, true)], ['Never mind', 'rai-skip', endGame]]);
+}
+
+// Ronie's turn: the fixed first question, or whatever the model asks next
+async function gameAsk(my, first = false) {
+  if (my !== game.token) return;
+  if (first) {
+    game.log.push({ role: 'user', content: "I've thought of something. Start asking!" });
+    game.log.push({ role: 'assistant', content: G.first });
+    game.asked = 1;
+    return showQuestion(my, { reply: G.first, face: 'curious', move: 'think' });
+  }
+  actions.innerHTML = '';
+  setFace('thinking'); setIcon('dots', 30000); playGesture('think');
+  sayEl.classList.remove('done'); sayEl.textContent = '…';
+  const res = await askGame();
+  if (my !== game.token) return;
+  if (!res) {
+    game.log.pop();
+    setFace('sleepy'); setIcon('zzz', 5000);
+    await typeLine(gfill(G.fallback || 'Let me try again in a bit.'));
+    if (my !== game.token) return;
+    return gameButtons([['Try again', 'rai-choice', () => gameAnswer(my, game.lastAnswer)], ['Stop playing', 'rai-skip', endGame]]);
+  }
+  game.log.push({ role: 'assistant', content: res.reply });
+  if (!res.guess) game.asked++;
+  showQuestion(my, res);
+}
+
+async function showQuestion(my, res) {
+  bar.style.width = `${Math.min(1, game.asked / GAME_MAX) * 100}%`;
+  setFace(FACES[res.face] ? res.face : res.guess ? 'excited' : 'curious');
+  setIcon(res.guess ? 'idea' : null, 4000);
+  if (res.move && gestures[res.move]) playGesture(res.move);
+  else if (res.guess) playGesture('point');
+  await typeLine(res.reply);
+  if (my !== game.token) return;
+  if (res.guess) {
+    return gameButtons([['Yes, you got it!', 'rai-choice rai-next', () => gameWon(my)],
+      ['No, keep going', 'rai-choice', () => gameAnswer(my, 'No, that is not it. Keep asking.')], ['Stop playing', 'rai-skip', endGame]]);
+  }
+  if (game.asked > GAME_MAX) return gameLost(my);
+  gameButtons([...GAME_ANSWERS.map((a) => [a, 'rai-choice', () => gameAnswer(my, a)]), ['Stop playing', 'rai-skip', endGame]]);
+}
+
+function gameAnswer(my, a) {
+  if (my !== game.token) return;
+  game.lastAnswer = a;
+  game.log.push({ role: 'user', content: a });
+  prevEl.textContent = `You: ${a.replace('No, that is not it. Keep asking.', 'No, keep going')}`;
+  prevEl.classList.add('show');
+  gameAsk(my);
+}
+
+async function gameWon(my) {
+  if (my !== game.token) return;
+  actions.innerHTML = '';
+  bar.style.width = '100%';
+  setFace('excited'); setIcon('star', 5000); playGesture('excited');
+  await typeLine(gfill(pick(G.win || ['Got it!'])));
+  if (my !== game.token) return;
+  gameButtons([['Play again', 'rai-choice rai-next', startGame], ['Back to chat', 'rai-skip', endGame]]);
+}
+
+async function gameLost(my) {
+  actions.innerHTML = '';
+  setFace('sad'); setIcon('sweat', 4000); playGesture('facepalm');
+  await typeLine(gfill(pick(G.lose || ['You win! Who was it?'])));
+  if (my !== game.token) return;
+  // let them tell him who it was
+  actions.classList.remove('row');
+  actions.innerHTML = '';
+  const field = document.createElement('div');
+  field.className = 'rai-field';
+  const el = document.createElement('input');
+  el.type = 'text'; el.maxLength = 60; el.placeholder = 'Who was it?'; el.setAttribute('aria-label', 'Who you were thinking of');
+  const send = document.createElement('button');
+  send.type = 'submit'; send.className = 'rai-send'; send.setAttribute('aria-label', 'Send'); send.textContent = '→';
+  field.append(el, send);
+  actions.appendChild(field);
+  button('Back to chat', 'rai-skip', endGame, 100);
+  actions.onsubmit = async (e) => {
+    e.preventDefault();
+    const who = el.value.trim().slice(0, 60);
+    if (!who) { el.focus(); return; }
+    prevEl.textContent = `You: ${who}`; prevEl.classList.add('show');
+    actions.innerHTML = '';
+    setFace('surprised'); playGesture('facepalm');
+    await typeLine(gfill(pick(G.reveal || ['{answer}! Rematch?']), { answer: who }));
+    if (my !== game.token) return;
+    gameButtons([['Play again', 'rai-choice rai-next', startGame], ['Back to chat', 'rai-skip', endGame]]);
+  };
+  setTimeout(() => el.focus({ preventScroll: true }), 50);
+}
+
+function endGame() {
+  game.token++;
+  actions.classList.remove('row');
+  go('ask');
 }
 
 function showActions(id, step) {

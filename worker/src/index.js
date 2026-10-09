@@ -75,6 +75,54 @@ async function speak(env, body, cors) {
 
 const json = (body, status, headers) => new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json' } });
 
+// A guessing game like Akinator: the visitor thinks of someone or something, Ronie asks yes/no questions and guesses.
+const GAME_FACES = ['thinking', 'curious', 'excited', 'happy', 'surprised', 'confused', 'smug', 'nervous', 'determined'];
+const GAME_MOVES = ['think', 'nod', 'shake', 'scratch', 'point', 'none'];
+const GAME_SYSTEM = `You are Ronie — R.O.N.I.E., the awkward but witty robot on Raunak Patil's website — playing a guessing game like Akinator with a visitor.
+The visitor is thinking of a famous real person, a fictional character, an animal or an object. They can only answer: yes, no, probably, probably not, or don't know.
+
+Rules:
+- Your questions are about the hidden person or thing — "Is it…?", "Does it…?", "Is this person…?" — never about the visitor ("Do you…?" is wrong: they are not the answer).
+- Ask exactly ONE short yes/no question per turn (under 20 words), then stop. Never ask something already answered. If an answer was "don't know", move on to a different, more general trait.
+- Good questions look like: "Is this person a man?", "Is the character from a book?", "Does it have magic powers?", "Is it known for sport?", "Is the character a child?"
+- Play like Akinator: narrow down with general traits first — real or fictional? human? male? alive? famous for sport, music, films, books, games, science, history? magic or powers? a hero? a child? from which country? — and only ask about a specific franchise, film, book or team after about 8 questions.
+- Never name a specific person or character in a question unless it's your guess. A guess begins with [guess] and is phrased "Is it NAME?". Make one only when you're fairly sure, and at the latest once you've asked about 18 questions.
+- If a guess was wrong, keep asking and guess something else later; never repeat a wrong guess.
+- A tiny awkward or witty aside is welcome, but keep every turn short. Plain text only — no lists, markdown or emoji.
+- Keep it family-friendly. Never ask for personal information.
+- Begin every reply with [face:NAME] [move:NAME] — face: ${GAME_FACES.join(', ')}; move: ${GAME_MOVES.join(', ')}.`;
+
+async function game(env, body, cors) {
+  const messages = (Array.isArray(body.messages) ? body.messages : [])
+    .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
+    .slice(-60)
+    .map((m) => ({ role: m.role, content: m.content.slice(0, 200) }));
+  if (!messages.length || messages[messages.length - 1].role !== 'user') return json({ error: 'bad request' }, 400, cors);
+  const asked = Math.max(0, Math.min(60, Number(body.asked) || 0));
+  const nudge = asked >= 18 ? `\nYou've asked ${asked} questions — make your best guess now.` : `\nQuestions asked so far: ${asked}.`;
+  try {
+    const out = await env.AI.run(MODEL, {
+      messages: [{ role: 'system', content: `${GAME_SYSTEM}${nudge}\n/no_think` }, ...messages],
+      max_tokens: 120,
+      temperature: 0.4,
+    });
+    let reply = String((out && (out.response ?? out.choices?.[0]?.message?.content)) || '');
+    reply = reply.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\*\*?|__|#+ /g, '').trim();
+    const tag = (kind) => { const m = reply.match(new RegExp(`\\[\\s*${kind}\\s*:\\s*([a-z]+)\\s*\\]`, 'i')); return m ? m[1].toLowerCase() : null; };
+    let face = tag('face'), move = tag('move');
+    if (!GAME_FACES.includes(face)) face = null;
+    if (!GAME_MOVES.includes(move) || move === 'none') move = null;
+    // a guess: tagged, or any "Is it / Was it / Did you mean <Name>?" that names someone
+    const guess = /\[\s*guess\s*\]/i.test(reply) || /\b([Ii]s it|[Ww]as it|[Dd]id you mean|[Aa]re you thinking of)\s+(the\s+)?["“]?[A-Z][a-z]+/.test(reply.replace(/\[[^\]]*\]/g, ''));
+    reply = reply.replace(/\[\s*[a-z]+\s*(:\s*[a-z]*\s*)?\]/gi, '').replace(/\s*\n+\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+    reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\(\s*\w+ly\s*\)\s*/g, '').trim();
+    if (!reply) return json({ error: 'empty' }, 502, cors);
+    return json({ reply, face, move, guess }, 200, cors);
+  } catch {
+    return json({ error: 'unavailable' }, 503, cors);
+  }
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
@@ -99,6 +147,7 @@ export default {
     let body;
     try { body = await request.json(); } catch { return json({ error: 'bad request' }, 400, cors); }
     if (path === '/speak') return speak(env, body, cors);
+    if (body.mode === 'game') return game(env, body, cors);
     const messages = (Array.isArray(body.messages) ? body.messages : [])
       .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
       .slice(-8)

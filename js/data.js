@@ -474,5 +474,28 @@ window.PORTFOLIO = {
         ],
       },
     },
+    // the guessing game (like Akinator): the visitor thinks of someone or something, Ronie asks and guesses
+    game: {
+      link: "Play: I'll guess who you're thinking of",
+      first: 'Is it a real person, not a fictional character?',
+      intro: [
+        "Okay {name}: think of a famous person, a character, an animal or a thing. Don't tell me. I'll read your mind. With questions. Ready?",
+        "Game time! Think of someone or something famous — real or fictional. I'll guess it. Probably. Ready?",
+      ],
+      win: [
+        "I knew it! I mean — I calculated it. Same thing. Another round, {name}?",
+        "Yes! Mind: read. Fans: spinning with joy. Again?",
+        "Got it! Don't tell Raunak, but that was my favourite part of today.",
+      ],
+      lose: [
+        "Okay, you beat me, {name}. My circuits are humbled. Who was it?",
+        "I give up. That's… not something I say often. Who were you thinking of?",
+      ],
+      reveal: [
+        "{answer}! Of course. I was one question away. Probably. Rematch?",
+        "{answer}?! That's — fine. That's fine. I'm fine. Rematch?",
+      ],
+      fallback: "My guessing brain just went to sleep, {name}. Let's try again in a bit.",
+    },
   },
 };
