@@ -20,6 +20,7 @@ NK1, NK2, HEAD = B('NeckTwist01'), B('NeckTwist02'), B('Head')
 CL_L, UA_L, FA_L, HD_L = B('L_Clavicle'), B('L_Upperarm'), B('L_Forearm'), B('L_Hand')
 CL_R, UA_R, FA_R, HD_R = B('R_Clavicle'), B('R_Upperarm'), B('R_Forearm'), B('R_Hand')
 LEGS = [n for n in pb.keys() if any(k in n for k in ('Thigh', 'Calf', 'Foot', 'Toe', 'Knee'))]
+LEG = {s: (B(f'{s}_Thigh'), B(f'{s}_Calf'), B(f'{s}_Foot')) for s in ('L', 'R')}
 ORDER = [HIP, PELVIS, WAIST, SP1, SP2, NK1, NK2, HEAD, CL_L, UA_L, FA_L, HD_L, CL_R, UA_R, FA_R, HD_R]
 
 # world axes → armature space.  He faces -Y in Blender; his right is -X.
@@ -80,14 +81,19 @@ def offsets_at(keys, t):
 
 FEET_MID = None
 REACH_TARGET = {}
+FOOT_REF = {}          # each foot's idle position and orientation (armature space): a crouch keeps them planted
 def apply(offs):
     def turn(bone):
         for ax in ('up', 'right', 'fwd'):
             d = offs[bone].get(ax, 0)
             if abs(d) > 1e-4:
                 rot_world(bone, ax, d, FEET_MID if bone == HIP else None)
+    cr = offs.get('CR')
+    crouching = bool(cr) and (cr.get('d', 0) > 1e-4 or abs(cr.get('b', 0)) > 1e-4)
+    if crouching: drop_hips(cr.get('d', 0), cr.get('b', 0))
     for bone in ORDER:
         if bone in offs and bone not in (HD_L, HD_R): turn(bone)
+    if crouching: plant_legs()
     for side in ('L', 'R'):
         r = offs.get('R' + side)
         if r and r.get('w', 0) > 1e-3 and side in REACH_TARGET: reach(side, REACH_TARGET[side], r['w'])
@@ -152,7 +158,12 @@ REACH = {
     'face':    (HEAD, (-0.02, -0.27, -0.04)),
     'scratch': (HEAD, (-0.21, 0.09, -0.04)),
     'chest':   (SP2, (-0.02, -0.30, 0.02)),
+    # the photo on the floor, in front of and just outside his right foot (the feet stay planted, so this holds still)
+    'floor':   (B('R_Foot'), (-0.07, -0.34, -0.06)),
+    # a hand resting on top of the left knee while he crouches
+    'knee':    (B('L_Calf'), (0.03, -0.12, 0.10)),
 }
+REACH_POLE_DOWN = {'R': (-1.0, 0.4, 0.5), 'L': (1.0, 0.4, 0.5)}   # reaching down: elbows out, back and up
 def reach(side, where, w):
     UA, FA, HD = (UA_R, FA_R, HD_R) if side == 'R' else (UA_L, FA_L, HD_L)
     bone, off = REACH[where]
@@ -163,7 +174,8 @@ def reach(side, where, w):
     d = max(abs(a - b) + 1e-3, min(a + b - 1e-3, (T - S).length))
     n = (T - S).normalized(); T = S + n * d
     x = (a * a - b * b + d * d) / (2 * d); h = math.sqrt(max(0.0, a * a - x * x))
-    pole = wvec(*(REACH_POLE_FACE if where in ('chin', 'face') else REACH_POLE)[side]).normalized()
+    poles = REACH_POLE_FACE if where in ('chin', 'face') else REACH_POLE_DOWN if where in ('floor', 'knee') else REACH_POLE
+    pole = wvec(*poles[side]).normalized()
     perp = (pole - n * pole.dot(n)).normalized()
     E2 = S + n * x + perp * h
     q = (E - S).normalized().rotation_difference((E2 - S).normalized())
@@ -176,6 +188,38 @@ def reach(side, where, w):
     if w < 0.999:
         ik = {n: pb[n].rotation_quaternion.copy() for n in (UA, FA)}
         for n in (UA, FA): pb[n].rotation_quaternion = fk[n].slerp(ik[n], max(0.0, w))
+        bpy.context.view_layer.update()
+
+# ---- crouching: the hips go down (and back); each leg is re-solved so its foot stays exactly where it stood
+KNEE_POLE = {'R': (-0.3, -1.0, 0.1), 'L': (0.3, -1.0, 0.1)}           # knees bend forward and a little outward
+def drop_hips(d, back):
+    p = pb[HIP]; M = p.matrix.copy(); sc = p.scale.copy()
+    M.translation = M.translation + wvec(0, back, -d)
+    p.matrix = M; p.scale = sc
+    bpy.context.view_layer.update()
+
+def plant_legs():
+    for side in ('L', 'R'):
+        TH, CA, FT = LEG[side]
+        T, FM = FOOT_REF[side]
+        S, E, W = pb[TH].head.copy(), pb[CA].head.copy(), pb[FT].head.copy()
+        a, b = (E - S).length, (W - E).length
+        d = max(abs(a - b) + 1e-3, min(a + b - 1e-3, (T - S).length))
+        n = (T - S).normalized()
+        x = (a * a - b * b + d * d) / (2 * d); h = math.sqrt(max(0.0, a * a - x * x))
+        pole = wvec(*KNEE_POLE[side]).normalized()
+        perp = (pole - n * pole.dot(n)).normalized()
+        E2 = S + n * x + perp * h
+        q = (E - S).normalized().rotation_difference((E2 - S).normalized())
+        axis, ang = q.to_axis_angle()
+        if abs(ang) > 1e-5: rot_axis(TH, axis, math.degrees(ang))
+        E, W = pb[CA].head.copy(), pb[FT].head.copy()
+        q = (W - E).normalized().rotation_difference((S + n * d - E).normalized())
+        axis, ang = q.to_axis_angle()
+        if abs(ang) > 1e-5: rot_axis(CA, axis, math.degrees(ang))
+        # the foot keeps its idle orientation: flat on the floor
+        f = pb[FT]; M = FM.copy(); M.translation = f.matrix.translation.copy(); sc = f.scale.copy()
+        f.matrix = M; f.scale = sc
         bpy.context.view_layer.update()
 
 LASTQ = {}
@@ -205,6 +249,7 @@ def make(name, length, keys, touched, legs_from_jump=False, step=2, fingers=None
     KEY_ALL.clear(); KEY_ALL.update({0, int(round(length * FPS))})
     set_basis(BASE)
     FEET_MID = (pb[B('L_Foot')].head + pb[B('R_Foot')].head) / 2
+    for side in ('L', 'R'): FOOT_REF[side] = (pb[LEG[side][2]].head.copy(), pb[LEG[side][2]].matrix.copy())
     names = set(touched) | set(FINGER_BONES) | ({HIP, PELVIS, WAIST, SP1, SP2} | set(LEGS) if legs_from_jump else set())
     n = int(round(length * FPS))
     for f in list(range(0, n, step)) + [n]:
@@ -328,6 +373,57 @@ make('flex', 2.6, [(0, Z), (0.5, flex), (0.8, {**flex, UA_R: {'fwd': -93, 'right
 
 chest = {'RR': {'w': 1}, HEAD: {'right': -4, 'fwd': 4}, SP2: {'right': 2}}
 make('chest', 2.4, [(0, Z), (0.5, chest), (1.7, chest), (2.4, Z)], [HEAD, SP2, *ARM_R], reach_to={'R': 'chest'})
+
+# ---------------- the mind-reading game: pick up a photo of the guess, show it, throw it away ----------------
+# pickup: he crouches, grabs the photo off the floor with his right hand (GRAB s), stands and holds it up by his face.
+# It ends in HOLD, and the page holds that last frame until one of the throws (which all start from HOLD) takes over.
+LEGS_IK = [HIP, PELVIS, *LEG['L'], *LEG['R']]
+GRAB = 1.0
+HOLD = {UA_R: {'right': 52, 'fwd': 26}, FA_R: {'right': 90}, HD_R: {'right': -10},
+        SP2: {'up': 6, 'right': 2}, HEAD: {'fwd': 7, 'up': 5}, NK2: {'up': 3}, UA_L: {'fwd': 4}}
+# (a desktop frames him from the hips up, so the crouch only has to read from there: the hand heads for the floor,
+#  but he stays deep enough in shot that his head and shoulders never leave the frame)
+squat = {'CR': {'d': 0.4, 'b': 0.14}, WAIST: {'right': -8}, SP1: {'right': -18}, SP2: {'right': -20},
+         NK2: {'right': -4}, HEAD: {'right': -16}, CL_R: {'right': 10}, 'RR': {'w': 1}, 'RL': {'w': 1}}
+peek = {HEAD: {'right': -14}, NK2: {'right': -6}, SP2: {'right': -4}}
+make('pickup', 2.6, [(0, Z), (0.3, peek), (0.85, squat), (1.1, {**squat, HEAD: {'right': -10}}),
+                     (1.9, HOLD), (2.2, {**HOLD, UA_R: {'right': 58, 'fwd': 26}, SP2: {'up': 6, 'right': 5}}), (2.6, HOLD)],
+     [*LEGS_IK, WAIST, SP1, SP2, NK2, HEAD, *ARM_R, *ARM_L], step=1, reach_to={'R': 'floor', 'L': 'knee'})
+
+# toss_happy: fling the photo high into the air (released at 0.5 s), then both arms up and a hop of joy
+fling_back = {**HOLD, UA_R: {'right': 40, 'fwd': 6}, FA_R: {'right': 100}, SP2: {'right': -4}, HEAD: {'right': -4}}
+fling = {UA_R: {'right': 165, 'fwd': -10}, FA_R: {'right': 10}, SP2: {'right': 8}, HEAD: {'right': 10}, NK2: {'right': 5}}
+make('toss_happy', 2.6, [(0, HOLD), (0.28, fling_back), (0.5, fling), (0.62, fling), (0.95, arms_up), (1.2, arms_up),
+                         (1.5, pump), (1.75, pump), (2.6, Z)],
+     [SP2, NK2, HEAD, UA_L, UA_R, FA_L, FA_R, HD_R], legs_from_jump=True, step=1)
+
+# toss_angry: wind up over his head, hurl it down at the floor (released at 0.52 s), then a frustrated head shake
+windup = {UA_R: {'right': 150, 'fwd': -25}, FA_R: {'right': 70}, SP1: {'right': 6, 'up': 8}, SP2: {'right': 8, 'up': 6},
+          HEAD: {'right': 6}, UA_L: {'right': -12}}
+hurl = {UA_R: {'right': 25, 'fwd': 10}, FA_R: {'right': 10}, SP1: {'right': -14, 'up': -6}, SP2: {'right': -18, 'up': -6},
+        HEAD: {'right': -14}, NK2: {'right': -4}, UA_L: {'right': -18}}
+fume = lambda u: {SP1: {'right': -6}, SP2: {'right': -8}, HEAD: {'right': -10, 'up': u}, NK2: {'up': u * 0.5},
+                  UA_L: {'fwd': 10}, UA_R: {'fwd': -10}}
+make('toss_angry', 2.8, [(0, HOLD), (0.38, windup), (0.52, {**hurl, UA_R: {'right': 70, 'fwd': 0}}), (0.66, hurl), (0.9, hurl),
+                         (1.15, fume(16)), (1.4, fume(-16)), (1.65, fume(13)), (1.9, fume(-9)), (2.8, Z)],
+     [SP1, SP2, NK2, HEAD, *ARM_R, UA_L])
+
+# toss: a casual flick out to his right when the game stops mid-guess (released at 0.42 s)
+across = {**HOLD, UA_R: {'right': 50, 'fwd': 22}, FA_R: {'right': 85}, SP2: {'up': 12}}
+flick = {UA_R: {'right': 55, 'fwd': -55}, FA_R: {'right': 25}, SP2: {'up': -10}, HEAD: {'up': -8}}
+make('toss', 1.7, [(0, HOLD), (0.26, across), (0.42, flick), (0.6, flick), (1.7, Z)], [SP2, HEAD, NK2, *ARM_R, UA_L])
+
+# where the photo has to lie for his hand to find it (printed for js/assistant.js, in glTF coordinates: x, y up, z)
+arm.animation_data.action = bpy.data.actions['pickup']
+scene.frame_set(int(round(GRAB * FPS)))
+mw = arm.matrix_world
+for label, bone in (('wrist', HD_R), ('finger', B('R_Index1'))):
+    w = mw @ pb[bone].head
+    print(f'GRAB_{label} gltf=({w.x:.4f}, {w.z:.4f}, {-w.y:.4f})')
+tb, off = REACH['floor']
+tw = mw @ (pb[tb].head + wvec(*off))
+print(f'GRAB_target gltf=({tw.x:.4f}, {tw.z:.4f}, {-tw.y:.4f})  miss={(mw @ pb[HD_R].head - tw).length:.3f}')
+arm.animation_data.action = None
 
 # drop the source clip; export only the skeleton and the new actions
 bpy.data.actions.remove(src_action)
