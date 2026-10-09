@@ -339,6 +339,9 @@
       const torn = tear && now < tear.until;
       const flick = live ? (Math.random() < 0.025 ? 0.55 : 0.93 + 0.07 * Math.sin(t * 31)) : 1;
       const scanRow = live ? ((t / 2.8) % 1) * (art.h + 10) - 5 : -99;
+      // the scan line takes the skill bars' colours as it travels down him (yellow at his head → green at his feet)
+      const scanHue = (((75 - clamp(scanRow / art.h, 0, 1) * 330) % 360) + 360) % 360;
+      const SCAN = `hsl(${scanHue.toFixed(0)} 85% 64%)`;
 
       // the projector: a cone of light rising from rings under his feet
       const fx = ox + bw * 0.5, fy = oy + bh - ch * 0.4, rx = bw * 0.36;
@@ -367,6 +370,7 @@
         if (torn) for (const [a, b, s] of tear.bands) if (r >= a && r < b) dx = s;
         const scan = Math.abs(r - scanRow) < 1.2;
         const y = oy + r * ch;
+        ctx.fillStyle = scan ? SCAN : HOLO;
         for (let c = 0; c < art.w; c++) {
           const code = row.charCodeAt(c);
           const x = ox + c * cw + dx;
@@ -406,7 +410,7 @@
       ctx.fillRect(ox - 20, oy - 20, bw + 40, bh + 40);
       ctx.restore();
       if (scanRow > -2 && scanRow < art.h + 2) {
-        ctx.fillStyle = HOLO; ctx.globalAlpha = 0.22;
+        ctx.fillStyle = SCAN; ctx.globalAlpha = 0.55;
         ctx.fillRect(ox - 10, oy + scanRow * ch, bw + 20, 1);
         ctx.globalAlpha = 1;
       }
