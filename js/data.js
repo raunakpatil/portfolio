@@ -171,16 +171,17 @@ window.PORTFOLIO = {
     },
   ],
 
-  /* Certificates & courses — shown as library cards under the Library bookshelf.
+  /* Certificates & courses — a file folder on the Library page, with a sticky note poking out for each one
+     (`short` is what's written on the note; click it and the folder opens on that certificate).
      url: link for "Show credential" (leave '' to hide the link). */
   certifications: [
-    { title: 'Generative AI: Working with Large Language Models', issuer: 'LinkedIn Learning', date: 'Apr 2026', skills: ['Transformer Models', 'NLP', 'LLMs'], url: 'https://www.linkedin.com/in/raunakpatil/details/certifications/' },
-    { title: 'Agentic AI Fundamentals: Architectures, Frameworks, and Applications', issuer: 'LinkedIn Learning', date: 'Apr 2026', skills: ['AI Agents', 'Agentic AI', 'AI Frameworks'], url: 'https://www.linkedin.com/in/raunakpatil/details/certifications/' },
-    { title: 'AI in Project Management', issuer: 'LinkedIn Learning', date: 'Apr 2026', skills: ['AI for Business', 'Project Management', 'AI'], url: 'https://www.linkedin.com/in/raunakpatil/details/certifications/' },
-    { title: 'DIAT Certified Artificial Intelligence Professional', issuer: 'Defence Institute of Advanced Technology (DIAT), DRDO', date: 'Jul 2021', id: 'OTCC/AIML/B2/2021/1145', skills: ['SQL', 'Deep Neural Networks', 'AI / ML'], url: '' },
-    { title: 'Python: Python Programming for Artificial Intelligence', issuer: 'Datai Team', date: 'Aug 2021', id: 'UC-13e67c75-000f-4b88-ae98-24036e560021', skills: ['Python', 'AI'], url: 'https://www.udemy.com/certificate/UC-13e67c75-000f-4b88-ae98-24036e560021/' },
-    { title: 'NIELIT Certified Programming in Python', issuer: 'National Institute of Electronics & IT (NIELIT)', date: 'Jul 2021', id: 'HDO01242', skills: ['Python'], url: '' },
-    { title: 'Elements of AI: Introduction to AI', issuer: 'University of Helsinki', date: 'Jul 2021', skills: ['AI fundamentals'], url: 'https://www.elementsofai.com/' },
+    { short: 'Generative AI & LLMs', title: 'Generative AI: Working with Large Language Models', issuer: 'LinkedIn Learning', date: 'Apr 2026', skills: ['Transformer Models', 'NLP', 'LLMs'], url: 'https://www.linkedin.com/in/raunakpatil/details/certifications/' },
+    { short: 'Agentic AI', title: 'Agentic AI Fundamentals: Architectures, Frameworks, and Applications', issuer: 'LinkedIn Learning', date: 'Apr 2026', skills: ['AI Agents', 'Agentic AI', 'AI Frameworks'], url: 'https://www.linkedin.com/in/raunakpatil/details/certifications/' },
+    { short: 'AI in Project Mgmt', title: 'AI in Project Management', issuer: 'LinkedIn Learning', date: 'Apr 2026', skills: ['AI for Business', 'Project Management', 'AI'], url: 'https://www.linkedin.com/in/raunakpatil/details/certifications/' },
+    { short: 'DIAT · AI Professional', title: 'DIAT Certified Artificial Intelligence Professional', issuer: 'Defence Institute of Advanced Technology (DIAT), DRDO', date: 'Jul 2021', id: 'OTCC/AIML/B2/2021/1145', skills: ['SQL', 'Deep Neural Networks', 'AI / ML'], url: '' },
+    { short: 'Python for AI', title: 'Python: Python Programming for Artificial Intelligence', issuer: 'Datai Team', date: 'Aug 2021', id: 'UC-13e67c75-000f-4b88-ae98-24036e560021', skills: ['Python', 'AI'], url: 'https://www.udemy.com/certificate/UC-13e67c75-000f-4b88-ae98-24036e560021/' },
+    { short: 'NIELIT · Python', title: 'NIELIT Certified Programming in Python', issuer: 'National Institute of Electronics & IT (NIELIT)', date: 'Jul 2021', id: 'HDO01242', skills: ['Python'], url: '' },
+    { short: 'Elements of AI', title: 'Elements of AI: Introduction to AI', issuer: 'University of Helsinki', date: 'Jul 2021', skills: ['AI fundamentals'], url: 'https://www.elementsofai.com/' },
   ],
 
   /* My Profile page (open it from the menu, or go to #profile). */
