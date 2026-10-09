@@ -1306,9 +1306,11 @@
       laptop: (n) => `<rect width="100" height="100" fill="${n}"/><rect x="18" y="20" width="64" height="44" rx="4" fill="${INK}"/><path d="M8 72h84l-6 10H14Z" fill="${INK}"/><path d="M42 34l-8 8 8 8M58 34l8 8-8 8" fill="none" stroke="${CREAM}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`,
       bulb: (n) => `<rect width="100" height="100" fill="${n}"/><circle cx="50" cy="42" r="22" fill="#f6dd5f"/><rect x="40" y="62" width="20" height="14" rx="3" fill="${INK}"/><path d="M50 8v8M22 18l6 6M78 18l-6 6M12 42h8M80 42h8" stroke="${RED}" stroke-width="4" stroke-linecap="round"/><path d="M42 44l8-8 8 8-8 8Z" fill="${RED}"/>`,
     };
-    const pic = (c, note) => c.logo
-      ? `<img class="fd-logo" src="${esc(c.logo)}" alt="${esc(c.issuer)} logo">`
-      : `<svg class="fd-art" viewBox="0 0 100 100" aria-hidden="true">${(ART[c.art] || ART.llm)(note)}</svg>`;
+    const pic = (c, note) => c.photo
+      ? `<img class="fd-shot" src="${esc(c.photo)}" alt="">`
+      : c.logo
+        ? `<img class="fd-logo" src="${esc(c.logo)}" alt="${esc(c.issuer)} logo">`
+        : `<svg class="fd-art" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${(ART[c.art] || ART.llm)(note)}</svg>`;
     const CLIP = '<svg class="fd-clip" viewBox="0 0 22 56" aria-hidden="true"><path d="M7 50V12a6 6 0 0 1 12 0v32a3.5 3.5 0 0 1-7 0V16" fill="none" stroke="#8e8e8e" stroke-width="2.4" stroke-linecap="round"/></svg>';
     const PRINT = `<svg class="fd-print" viewBox="0 0 60 76" aria-hidden="true">${Array.from({ length: 9 }, (_, k) => {
       const r = 5 + k * 3.2; return `<path d="M${30 - r} ${44} a${r} ${r * 1.25} 0 1 1 ${2 * r} 0" fill="none" stroke="${INK}" stroke-width="1.6" stroke-dasharray="${8 + k * 3} ${2 + (k % 3)}" opacity=".75"/>`;
@@ -1316,65 +1318,58 @@
     const year = (c) => String(c.date).slice(-4);
     const skills = (c) => (c.skills || []).join(', ');
     const link = (c) => (c.url ? `<a class="cert-link" href="${esc(c.url)}" target="_blank" rel="noopener">Show credential ↗</a>` : '');
+    const title = (c) => `<h3 class="fd-t${c.title.length > 48 ? ' long' : ''}">${esc(c.title)}</h3>`;
     const DOCS = {
-      // a mission briefing: bold headline, the course as a highlighted objective, a map to HQ, stat boxes
+      // the certificate's picture filling the middle of the page, between its brief and three stat boxes
       briefing: (c, i, n) => `
-        <p class="fdk">File ${no(i)} · ${esc(c.date)}</p>
-        <h3 class="fd-h-sans">Mission briefing:</h3>
-        <p class="fd-hl"><span>${esc(c.title)}</span></p>
+        ${title(c)}
+        <p class="fdk">${esc(c.issuer)} · ${esc(c.date)}</p>
         <p class="fd-brief">${esc(c.brief || '')}</p>
-        <div class="fd-map" aria-hidden="true"><svg viewBox="0 0 200 70" preserveAspectRatio="none"><path d="M0 52 C40 40 60 60 100 44 S160 20 200 30" stroke="#fff" stroke-width="6" fill="none"/><path d="M30 0 C40 30 20 50 44 70M120 0 C110 30 140 40 130 70M0 20 H200" stroke="#fff" stroke-width="3" fill="none" opacity=".8"/><path d="M18 58 C60 50 90 30 150 22" stroke="${RED}" stroke-width="2.2" stroke-dasharray="5 4" fill="none"/><circle cx="150" cy="22" r="6" fill="${RED}"/><circle cx="150" cy="22" r="2.4" fill="#fff"/></svg><span>HQ · ${esc(c.issuer)}</span></div>
+        <div class="fd-brief-pic">${pic(c, n)}</div>
         <div class="fd-stats"><span><b>${String((c.skills || []).length).padStart(2, '0')}</b>skills</span><span><b>${esc(year(c))}</b>year</span><span><b>✓</b>done</span></div>
         ${link(c)}`,
-      // an agent profile form: ruled fields, a taped-in photo, "special abilities" and notes
+      // a ruled form with a taped-in photo
       profile: (c, i, n) => `
-        <p class="fdk">Agent profile · No. ${no(i)}</p>
+        ${title(c)}
         <div class="fd-form">
           <dl>
-            <div><dt>Course</dt><dd>${esc(c.title)}</dd></div>
             <div><dt>Issued by</dt><dd>${esc(c.issuer)}</dd></div>
             <div><dt>Date</dt><dd>${esc(c.date)}</dd></div>
           </dl>
           <div class="fd-photo taped">${pic(c, n)}</div>
         </div>
-        <div class="fd-row"><dt>Special abilities</dt><dd>${esc(skills(c))}</dd></div>
-        <div class="fd-row fd-grow"><dt>Notes</dt><dd class="fd-hand">${esc(c.brief || '')}</dd></div>
+        <div class="fd-row"><dt>Skills</dt><dd>${esc(skills(c))}</dd></div>
+        <div class="fd-row fd-grow"><dt>About</dt><dd class="fd-hand">${esc(c.brief || '')}</dd></div>
         ${link(c)}`,
-      // a confidential sheet: a paper-clipped polaroid over a table, with a couple of lines redacted
+      // a paper-clipped polaroid over a typed sheet
       confidential: (c, i, n) => `
         <div class="fd-polaroid">${CLIP}${pic(c, n)}</div>
         <div class="fd-sheet">
-          <p class="fd-conf">Confidential information</p>
+          ${title(c)}
           <div class="fd-table">
-            <span>Subject</span><b>${esc(c.title)}</b>
-            <span>Source</span><b>${esc(c.issuer)}</b>
-            <span>Dated</span><b>${esc(c.date)}</b>
+            <span>Issued by</span><b>${esc(c.issuer)}</b>
+            <span>Date</span><b>${esc(c.date)}</b>
             <span>Skills</span><b>${esc(skills(c))}</b>
-            <span>Remarks</span><b><i class="fd-redact" style="width:70%"></i><i class="fd-redact" style="width:45%"></i></b>
           </div>
         </div>
         ${link(c)}`,
-      // a clearance pass: lanyard slot, issuer band, photo, barcode
+      // an ID pass: lanyard slot, issuer band, photo, barcode
       pass: (c, i, n) => `
         <div class="fd-pass">
           <i class="fd-slot"></i>
-          <p class="fd-band">Training clearance · ${esc(year(c))}</p>
+          <p class="fd-band">${esc(c.issuer)}</p>
           <div class="fd-pass-body">
             <div class="fd-pass-photo">${pic(c, n)}</div>
-            <div><p class="fdk">Holder</p><p class="fd-holder">${esc(D.name)}</p><p class="fdk">Clearance</p><p class="fd-pass-t">${esc(c.title)}</p></div>
+            <div>${title(c)}<p class="fd-holder">${esc(D.name)}</p></div>
           </div>
-          <p class="fd-pass-by">${esc(c.issuer)}</p>
-          ${c.id ? `<p class="fd-pass-id">ID ${esc(c.id)}</p>` : ''}
+          <p class="fd-pass-meta">${esc(c.date)}${c.id ? ` · ID ${esc(c.id)}` : ''}</p>
           <i class="fd-barcode"></i>
         </div>
         ${link(c)}`,
-      // a telegram: typed strips pasted onto a yellow form
+      // typed strips pasted onto a yellow form
       telegram: (c, i, n) => `
-        <p class="fd-tele-head">Telegram<span>No. ${no(i)} · urgent</span></p>
-        <p class="fd-tele-meta">To: HQ &nbsp;·&nbsp; From: Agent ${esc(D.name.split(' ')[0])}</p>
+        ${title(c)}
         <div class="fd-strips">
-          <span>Training complete stop</span>
-          <span>${esc(c.title)} stop</span>
           <span>Issued by ${esc(c.issuer)} stop</span>
           <span>${esc(c.date)} stop</span>
           <span>Skills ${esc(skills(c))} stop</span>
@@ -1382,26 +1377,25 @@
         </div>
         <div class="fd-tele-art">${pic(c, n)}</div>
         ${link(c)}`,
-      // an index card: red top rule, blue lines, handwritten entries, a "verified" stamp
+      // an index card: blue lines, handwritten entries, a "verified" stamp
       card: (c, i, n) => `
-        <p class="fd-card-top"><span>Evidence card</span><span>No. ${String(i + 1).padStart(3, '0')}</span></p>
-        <p class="fd-card-row"><span>Course</span><i>${esc(c.title)}</i></p>
+        ${title(c)}
         <p class="fd-card-row"><span>By</span><i>${esc(c.issuer)}</i></p>
         <p class="fd-card-row"><span>Date</span><i>${esc(c.date)}</i></p>
         ${c.id ? `<p class="fd-card-row"><span>ID</span><i>${esc(c.id)}</i></p>` : ''}
         <p class="fd-card-row"><span>Note</span><i>${esc(c.brief || '')}</i></p>
+        <div class="fd-card-pic">${pic(c, n)}</div>
         <span class="fd-verified" aria-hidden="true">Verified</span>
         ${link(c)}`,
-      // a case report: issuer's emblem, a fingerprint, fields and findings
+      // the issuer's emblem beside a fingerprint, then the details
       report: (c, i, n) => `
-        <p class="fd-rep-head"><b>Case report</b><span>No. ${no(i)}</span></p>
+        ${title(c)}
         <div class="fd-rep-top">
           <div class="fd-rep-photo">${pic(c, n)}</div>
-          <div class="fd-rep-print">${PRINT}<span>print</span></div>
+          <div class="fd-rep-print">${PRINT}</div>
         </div>
-        <div class="fd-row"><dt>Case</dt><dd>${esc(c.title)}</dd></div>
-        <div class="fd-row"><dt>Authority</dt><dd>${esc(c.issuer)} · ${esc(c.date)}</dd></div>
-        <div class="fd-row fd-grow"><dt>Findings</dt><dd>${esc(c.brief || '')}</dd></div>
+        <div class="fd-row"><dt>Issued by</dt><dd>${esc(c.issuer)} · ${esc(c.date)}</dd></div>
+        <div class="fd-row fd-grow"><dt>About</dt><dd>${esc(c.brief || '')}</dd></div>
         ${link(c)}`,
     };
     const ORDER = Object.keys(DOCS);
