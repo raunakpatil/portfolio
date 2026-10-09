@@ -1268,8 +1268,10 @@
     const no = (i) => String(i + 1).padStart(2, '0');
     const tilt = (i) => (seeded(`note${i}`)() - 0.5) * 4;
     fd.innerHTML = `
+      <span class="fd-side" aria-hidden="true"></span>
       <div class="fd-body">
         <span class="fd-tab" aria-hidden="true"></span>
+        <span class="fd-sheets" aria-hidden="true"></span>
         <div class="fd-page" id="fd-page" aria-live="polite"></div>
         <div class="fd-notes">${C.map((c, i) => `<button class="fd-note" type="button" data-i="${i}" aria-label="Open certificate: ${esc(c.title)}"
           style="--note:${NOTE[i % NOTE.length]};--tilt:${tilt(i).toFixed(2)}deg;top:${(6 + i * (86 / C.length)).toFixed(2)}%;animation-delay:${200 + i * 60}ms"><span>${esc(c.short || c.title)}</span></button>`).join('')}</div>

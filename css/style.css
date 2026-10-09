@@ -794,21 +794,21 @@ main { padding: 0 var(--gap) var(--gap); }
 .modal-cover { position: absolute; inset: 0; display: grid; place-items: center; background: var(--spine); }
 .modal-cover .cover { width: auto; height: 86%; aspect-ratio: 3 / 4; border-radius: 3px 6px 6px 3px; box-shadow: 0 18px 40px rgba(0, 0, 0, .35); }
 
-/* Library: two halves — case studies (the bookshelf) and certificates (a file folder) */
-.lib {
-  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  min-height: calc(100vh - var(--bar) - 120px); min-height: calc(100dvh - var(--bar) - 120px);
-  background: var(--surface); border-radius: var(--radius); box-shadow: 0 0 0 1px rgba(0, 0, 0, .05);
+/* Library: two cards side by side — case studies (a bookshelf) and certificates (a file folder), each with its title */
+.lib { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: calc(var(--gap) * 2); }
+.lib-col { display: flex; flex-direction: column; min-width: 0; }
+.lib-title { padding: 14px 10px 18px; }
+.lib-card {
+  position: relative; flex: 1; display: flex; min-width: 0;
+  min-height: calc(100vh - var(--bar) - 150px); min-height: calc(100dvh - var(--bar) - 150px);
+  background: #fbfbfa; border-radius: var(--radius); box-shadow: 0 0 0 1px rgba(0, 0, 0, .06);
+  container-type: inline-size;              /* the books and the folder size themselves from their card */
 }
-.lib-half { position: relative; display: flex; flex-direction: column; min-width: 0; padding: 18px 20px 20px; }
-.lib-half + .lib-half { border-left: 1px solid #ededed; }
-.lib-head { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-.lib-head .page-title + .page-title { text-align: right; }      /* "Certificates" on the opposite side */
-.lib-title-m { display: none; }                                  /* its stand-in when the halves stack */
 .lib .shelf-wrap { flex: 1; display: flex; background: none; box-shadow: none; border-radius: 0; }
-.lib .shelf { --bw: 250px; --bh: 334px; --bd: 50px; flex: 1; min-height: 0; padding: 30px 10px; }
-.lib .book { width: 128px; }
-.lib .book:hover, .lib .book:focus-visible { width: 258px; }
+/* the books stand half-turned (covers and spines both showing), each tucked against the next */
+.lib .shelf { --bw: clamp(140px, 27cqw, 270px); --bh: calc(var(--bw) * 1.34); --bd: calc(var(--bw) * .25); flex: 1; min-height: 0; padding: 30px 10px; gap: 0; }
+.lib .book { --ry: 44deg; width: calc(var(--bw) * .78); margin-right: calc(var(--bw) * -.05); }
+.lib .book:hover, .lib .book:focus-visible { --ry: 14deg; width: calc(var(--bw) * 1.05); }
 
 /* the folder: a kraft file, closed; its cover swings open like a book */
 .cert-skills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: auto; padding-top: 8px; }
@@ -817,17 +817,26 @@ main { padding: 0 var(--gap) var(--gap); }
 .cert-link:hover { background: #1d1d1d; color: #fff; }
 .fd-stage { flex: 1; display: grid; place-items: center; min-height: 440px; perspective: 1700px; overflow: hidden; }
 .fd {
-  --fw: 262px; --fh: 352px; --kraft: #d7ae74; --kraft-2: #c79b5f;
+  --fw: clamp(200px, 34cqw, 300px); --fh: max(calc(var(--fw) * 1.36 + 30px), 362px); --thick: 13px; --kraft: #d7ae74; --kraft-2: #c79b5f;
   --open-ease: cubic-bezier(.33, .01, .17, 1);       /* a soft, smooth swing (the site's --ease snaps too hard here) */
   position: relative; width: var(--fw); height: var(--fh);
-  transform: translateX(-46px); transform-style: preserve-3d;   /* keeps the stage's perspective for the cover */
+  transform: translateX(calc(var(--fw) * -.16)) rotateY(17deg) rotateX(3deg); transform-style: preserve-3d;   /* (keeps the stage's perspective for the cover) */
   transition: transform 1.1s var(--open-ease);
   animation: rise .8s var(--ease) backwards;          /* backwards only: a filled animation would block the slide */
 }
-.fd[data-open="true"] { transform: translateX(84px); }
-@media (min-width: 1181px) and (max-width: 1440px) {   /* laptop widths: a slightly smaller folder so the open spread fits */
-  .fd { --fw: 232px; --fh: 340px; transform: translateX(-40px); }
-  .fd[data-open="true"] { transform: translateX(66px); }
+.fd[data-open="true"] { transform: translateX(calc(var(--fw) * .33)); }
+/* its thickness: the side of the folder, seen because it's turned */
+.fd-side {
+  position: absolute; left: 0; top: 2px; bottom: 0; width: var(--thick); transform-origin: left center; transform: rotateY(90deg);
+  border-radius: 3px 0 0 3px; background: linear-gradient(90deg, #b88b51, #a87c45);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .2);
+}
+/* the edges of the papers inside, peeking over the front cover */
+.fd-sheets {
+  position: absolute; z-index: 1; left: 9px; right: 14px; top: 3px; height: 12px; border-radius: 2px 2px 0 0;
+  background: repeating-linear-gradient(180deg, #f8f4ea 0 2px, #e2dacb 2px 3px);
+}
+@media (min-width: 1181px) and (max-width: 1440px) {   /* laptop widths: tighter type in the smaller folder */
   .fd-title { font-size: 27px; }
   .fd-doc h3 { font-size: 21px; }
   .fd-doc.long h3 { font-size: 18px; }
@@ -854,14 +863,14 @@ main { padding: 0 var(--gap) var(--gap); }
 .fd-note {
   position: absolute; z-index: 1; left: calc(100% - 30px); pointer-events: auto;   /* tucked behind the page */ width: 128px; min-height: 36px; padding: 6px 10px 6px 38px;
   display: flex; align-items: center; text-align: left;
-  background: var(--note); color: #29241e; font-size: 10.5px; font-weight: 500; line-height: 1.15;
-  border-radius: 1px 3px 3px 1px; box-shadow: 0 2px 4px rgba(0, 0, 0, .12);
+  background-color: var(--note); color: #241f19; font-size: 11px; font-weight: 600; line-height: 1.15;
+  /* chunky tabs: a soft sheen on top, a darker lip along the bottom */
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, .3), rgba(255, 255, 255, 0) 55%);
+  border-radius: 2px 7px 7px 2px;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .13), inset -2px 0 0 rgba(0, 0, 0, .05), 0 3px 6px rgba(0, 0, 0, .14);
   transform: rotate(var(--tilt)); transform-origin: left center;
   animation: note-in .6s var(--ease) backwards;
   transition: transform .35s var(--ease), box-shadow .35s;
-}
-.fd-note::after { /* the sticky strip */
-  content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 7px; background: rgba(255, 255, 255, .28);
 }
 .fd-note:hover, .fd-note:focus-visible { transform: translateX(8px) rotate(var(--tilt)); box-shadow: 0 6px 12px rgba(0, 0, 0, .16); }
 .fd-note.on { z-index: 3; transform: translateX(14px) rotate(0deg); box-shadow: 0 6px 14px rgba(0, 0, 0, .2); }   /* the open one lies on the page */
@@ -1037,10 +1046,7 @@ main { padding: 0 var(--gap) var(--gap); }
 /* ===================== Responsive ===================== */
 @media (max-width: 1180px) {
   .lib { grid-template-columns: minmax(0, 1fr); }
-  .lib-head { grid-template-columns: minmax(0, 1fr); }
-  .lib-head .page-title + .page-title { display: none; }
-  .lib-title-m { display: block; padding: 6px 2px 0; }
-  .lib-half + .lib-half { border-left: 0; border-top: 1px solid #ededed; }
+  .lib-card { min-height: 0; }
   .dash { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; height: auto; min-height: 0; }
   .card-hello, .card-time { grid-column: span 1; height: 380px; }
   .card-skills, .card-tunnel, .card-map { grid-column: 1 / -1; }
@@ -1070,10 +1076,8 @@ main { padding: 0 var(--gap) var(--gap); }
   .plist .c, .plist .yr { display: none; }
   .float-preview { display: none; }
   .shelf { --bw: 228px; --bh: 304px; --bd: 46px; justify-content: flex-start; min-height: 420px; padding: 40px 24px; }
-  .lib .shelf { --bw: 210px; --bh: 280px; padding: 26px 4px; }
-  .lib .book { width: 110px; }
-  .lib .book:hover, .lib .book:focus-visible { width: 210px; }
-  .fd { --fw: 214px; --fh: 380px; transform: translateX(-46px); }
+  .lib .shelf { --bw: 180px; padding: 26px 4px; }
+  .fd { --fw: 214px; --fh: 380px; transform: translateX(-46px) rotateY(12deg); }
   .fd[data-open="true"] { transform: translateX(-46px); }
   /* no room for the open spread on a phone: the cover swings away and the certificate fills the folder */
   .fd[data-open="true"] .fd-cover { transform: rotateY(-100deg); opacity: 0; transition: transform .8s var(--ease), opacity .5s .2s; }
