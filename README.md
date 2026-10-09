@@ -32,6 +32,13 @@ DNS for raunakpatil.com (at GoDaddy):
 - `A` records for `@` → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
 - `CNAME` record `www` → `raunakpatil.github.io`
 
+## Library: the certificates folder
+Each certificate (`certifications` in `js/data.js`) has a sticky note in the folder and opens as a different page of an
+agent's dossier, chosen by `doc`: `briefing`, `profile`, `confidential`, `pass`, `telegram`, `card` or `report`
+(templates: `DOCS` in `js/main.js`). `art` picks a small illustration for the photo spot and `brief` is a one-line
+summary. `logo` puts an issuer's emblem there instead: `img/logos/helsinki.svg` (University of Helsinki, public
+domain, Wikimedia Commons) and `img/logos/drdo.webp` (DRDO's emblem, used to identify the issuer of a certificate).
+
 ## Ronie's extra moves (Blender)
 `models/ronie-anims.glb` holds Ronie's idle variations, the chat moves, and the guessing game's photo moves
 (`pickup`, `toss_happy`, `toss_angry`, `toss`), authored in Blender 5.2 by
