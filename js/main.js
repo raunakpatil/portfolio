@@ -390,7 +390,7 @@
       ctx.fillRect(ox - 20, oy - 20, bw + 40, bh + 40);
       ctx.restore();
       if (scanRow > -2 && scanRow < art.h + 2) {
-        ctx.fillStyle = SCAN; ctx.globalAlpha = 0.55;
+        ctx.fillStyle = HOLO; ctx.globalAlpha = 0.4;   // the thin line stays white; only the characters take the blue
         ctx.fillRect(ox - 10, oy + scanRow * ch, bw + 20, 1);
         ctx.globalAlpha = 1;
       }
