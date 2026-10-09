@@ -3,6 +3,7 @@
 
 # Original cover art — the site uses the small .webp copies
 img/covers/*.png
+img/certs/*.png
 
 # OS clutter
 Thumbs.db
