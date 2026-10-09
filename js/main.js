@@ -447,8 +447,9 @@
         [[`CORE  ${'▮'.repeat(core)}${'▯'.repeat(6 - core)}`, HOLO]],
         [['MODE  STANDBY', HOLO]],
       ];
-      // a data column down the left, under the greeting
-      const ry = Math.max(title.offsetTop + title.offsetHeight + 14, h * 0.36), rx0 = 18;
+      // a data column in the bottom-left corner, just above the terminal line
+      const block = rows.length * 13 + 6 + 11;
+      const ry = Math.max(title.offsetTop + title.offsetHeight + 14, term.offsetTop - 14 - block), rx0 = 18;
       ctx.font = '9px "JetBrains Mono", monospace'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
       ctx.globalAlpha = 0.5; ctx.fillStyle = HOLO; ctx.fillRect(rx0, ry - 7, 26, 1);
       rows.forEach((parts, i) => {
