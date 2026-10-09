@@ -339,9 +339,9 @@
       const torn = tear && now < tear.until;
       const flick = live ? (Math.random() < 0.025 ? 0.55 : 0.93 + 0.07 * Math.sin(t * 31)) : 1;
       const scanRow = live ? ((t / 2.8) % 1) * (art.h + 10) - 5 : -99;
-      // the scan line takes the skill bars' colours as it travels down him (yellow at his head → green at his feet)
-      const scanHue = (((75 - clamp(scanRow / art.h, 0, 1) * 330) % 360) + 360) % 360;
-      const SCAN = `hsl(${scanHue.toFixed(0)} 85% 64%)`;
+      // the scan line runs through shades of blue as it travels down him: pale sky blue at his head, deep blue at his feet
+      const sp = clamp(scanRow / art.h, 0, 1);
+      const SCAN = `hsl(${(195 + sp * 45).toFixed(0)} ${(90 + sp * 8).toFixed(0)}% ${(76 - sp * 22).toFixed(0)}%)`;
 
       // the projector: a cone of light rising from rings under his feet
       const fx = ox + bw * 0.5, fy = oy + bh - ch * 0.4, rx = bw * 0.36;
