@@ -16,7 +16,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="stylesheet" href="css/style.css?v=20261010170000">
+  <link rel="stylesheet" href="css/style.css?v=20261010173000">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -31,7 +31,7 @@
       <span class="tabs-indicator" aria-hidden="true"></span>
       <a href="#dashboard" data-route="dashboard">Dashboard</a>
       <a href="#projects" data-route="projects">Projects</a>
-      <a href="#case-study" data-route="case-study">Case Study</a>
+      <a href="#library" data-route="library">Library</a>
     </nav>
     <button class="menu-btn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Menu"><span></span><span></span></button>
   </header>
@@ -135,9 +135,9 @@
       <div class="float-preview" id="float-preview" aria-hidden="true"></div>
     </section>
 
-    <!-- ============ CASE STUDY ============ -->
-    <section class="view" data-view="case-study" hidden>
-      <div class="page-head"><h1 class="page-title">Case Study</h1><p class="page-hint">Hover a book to pull it out · click to read</p></div>
+    <!-- ============ LIBRARY: case studies (a shelf of books) + certificates (library cards) ============ -->
+    <section class="view" data-view="library" hidden>
+      <div class="page-head"><h1 class="page-title">Library</h1><p class="page-hint">Case studies · hover a book to pull it out · click to read</p></div>
       <div class="shelf-wrap"><div class="shelf" id="cases"></div></div>
       <div class="page-head sub"><h2 class="section-title">Certificates &amp; courses</h2><p class="page-hint" id="certs-count"></p></div>
       <ol class="certs" id="certs"></ol>
@@ -235,8 +235,8 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261010170000"></script>
+  <script src="js/data.js?v=20261010173000"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
-  <script src="js/main.js?v=20261010170000" defer></script>
+  <script src="js/main.js?v=20261010173000" defer></script>
 </body>
 </html>

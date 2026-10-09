@@ -220,8 +220,11 @@
     };
     // Ronie has his own address, raunakpatil.com/ronie (ronie.html sends visitors in); every other page is /#page
     const onRonie = () => /^\/ronie\/?$/.test(location.pathname);
+    // old addresses that still work: the Case Study page is now the Library
+    const RENAMED = { 'case-study': 'library' };
     const go = () => {
-      const h = location.hash.slice(1);
+      let h = location.hash.slice(1);
+      if (RENAMED[h]) { h = RENAMED[h]; history.replaceState(null, '', `#${h}`); }
       const r = routes.includes(h) ? h : !h && onRonie() ? 'assistant' : 'dashboard';
       if (r === 'assistant' && (h || !onRonie())) history.replaceState(null, '', '/ronie');
       else if (r !== 'assistant' && onRonie()) history.replaceState(null, '', `/#${r}`);
@@ -1204,7 +1207,7 @@
     render();
   }
 
-  /* ---------- case study page: a shelf of 3D books ---------- */
+  /* ---------- library page: case studies as a shelf of 3D books ---------- */
   // Generated cover (used until the real cover image exists at c.cover).
   function coverHTML(c, i) {
     const rnd = seeded(c.title);

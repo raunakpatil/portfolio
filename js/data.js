@@ -134,7 +134,7 @@ window.PORTFOLIO = {
     },
   ],
 
-  /* Case study page — shown as standing 3D books. Built from the experience highlights
+  /* Library page, case studies — shown as standing 3D books. Built from the experience highlights
      on your GitHub README.
        spine      — spine colour; ink = spine text colour; coverInk = title colour on the cover
        coverTitle — short title printed on the generated cover
@@ -171,7 +171,7 @@ window.PORTFOLIO = {
     },
   ],
 
-  /* Certificates & courses — shown as library cards under the Case Study bookshelf.
+  /* Certificates & courses — shown as library cards under the Library bookshelf.
      url: link for "Show credential" (leave '' to hide the link). */
   certifications: [
     { title: 'Generative AI: Working with Large Language Models', issuer: 'LinkedIn Learning', date: 'Apr 2026', skills: ['Transformer Models', 'NLP', 'LLMs'], url: 'https://www.linkedin.com/in/raunakpatil/details/certifications/' },
@@ -400,7 +400,7 @@ window.PORTFOLIO = {
         say: ["Straight to the good stuff. Where to?", "Pick a door. They all lead somewhere impressive."],
         choices: [
           { label: 'Projects', href: '#projects' },
-          { label: 'Case studies', href: '#case-study' },
+          { label: 'His library', href: '#library' },
           { label: 'His profile', href: '#profile' },
           { label: 'Back', to: 'greeting' },
         ],
