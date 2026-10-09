@@ -784,16 +784,73 @@ const FACES = {
   angry:      { L: BAR(0.118, 0.055, 0.78), R: BAR(0.118, 0.055, 0.78), jitter: 1, look: [0, -0.02] },
   dizzy:      { L: EYE(0.1, 0.1, 0.1, { cross: 1 }), R: EYE(0.1, 0.1, 0.1, { cross: 1 }) },
   sleepy:     { L: BAR(0.11, 0.016), R: BAR(0.11, 0.016) },
+  // idle moments (see IDLE_BEATS)
+  bored:      { L: BAR(0.105, 0.032, -0.05), R: BAR(0.105, 0.032, -0.05), look: [0, -0.035] },
+  dreamy:     { L: ARC(0.092), R: ARC(0.092), look: [0.055, 0.065] },
+  squint:     { L: BAR(0.105, 0.02, 0.2), R: EYE(0.075, 0.062, 0.05), look: [0, 0.005] },   // one eye narrowed: suspicious
+  yawn:       { L: BAR(0.112, 0.013, -0.24), R: BAR(0.112, 0.013, -0.24), look: [0, 0.02] },
 };
 const face = {
   name: 'sleepy', L: [...FACES.sleepy.L], R: [...FACES.sleepy.R], look: [0, 0],
   glitch: 0, blinkAt: 0, blinkT: -1e9, talkUntil: 0, on: 0, skew: 0,
 };
 function setFace(name) {
+  faceSetAt = performance.now();
+  if (idle.beat) endBeat(true);
   if (!FACES[name] || name === face.name) return;
   face.name = name;
   face.glitch = 1;                                   // a short CRT glitch as the picture changes
 }
+// Idle faces: while nobody is talking to him he isn't just staring. Every few seconds he plays a little beat —
+// glances around, gets bored, nods off and jolts awake, hums, winks, daydreams, eyes the cursor, yawns — then goes
+// back to his face. Steps: [face, ms, { look: [x, y], icon, blink: count }]. Anything the conversation does
+// (a new face, typing, his voice, the game) cuts a beat short.
+const IDLE_BEATS = {
+  look:     [['neutral', 800, { look: [-0.075, 0.012] }], ['neutral', 800, { look: [0.075, 0.012] }], ['curious', 900]],
+  bored:    [['bored', 2800]],
+  doze:     [['bored', 1000], ['sleepy', 1700, { icon: 'zzz' }], ['surprised', 650], ['neutral', 500, { blink: 1 }]],
+  hum:      [['happy', 2800, { icon: 'music' }]],
+  wink:     [['wink', 650]],
+  daydream: [['dreamy', 2600, { icon: 'sparkle' }]],
+  squint:   [['squint', 2200]],
+  blinks:   [['neutral', 700, { blink: 2 }]],
+  shy:      [['shy', 1800, { icon: 'blush' }]],
+  yawn:     [['yawn', 1300], ['neutral', 350, { blink: 1 }]],
+  smug:     [['smug', 1700, { look: [0.06, 0] }]],
+};
+const idle = { beat: null, step: null, i: 0, stepEnd: 0, next: 0, last: '', icon: false };
+let faceSetAt = 0;
+function endBeat(cut = false) {
+  if (cut && idle.icon) setIcon(null);
+  idle.beat = null; idle.step = null; idle.icon = false;
+}
+function updateIdleFace(now) {
+  const quiet = awake && landed && MOTION && face.on >= 1 && face.name !== 'sleepy'
+    && !voiceSrc && !('speechSynthesis' in window && speechSynthesis.speaking) && !skipTyping
+    && now > face.talkUntil + 1500 && now > listenUntil + 3000 && now - faceSetAt > 6000
+    && (idle.beat || icon.hideAt < now) && card.state === 'off' && !/busy|game/.test((tagEl && tagEl.dataset.mode) || '');
+  if (!quiet) {
+    if (idle.beat) endBeat(true);
+    idle.next = Math.max(idle.next, now + 3500);
+    return;
+  }
+  if (!idle.beat) {
+    if (now < idle.next) return;
+    const names = Object.keys(IDLE_BEATS).filter((n) => n !== idle.last);
+    idle.last = names[(Math.random() * names.length) | 0];
+    Object.assign(idle, { beat: IDLE_BEATS[idle.last], i: -1, stepEnd: now });
+  }
+  if (now < idle.stepEnd) return;
+  idle.i++;
+  if (idle.i >= idle.beat.length) { endBeat(); idle.next = now + 5000 + Math.random() * 6000; return; }
+  const [name, ms, o = {}] = idle.beat[idle.i];
+  idle.step = { face: name, look: o.look };
+  idle.stepEnd = now + ms;
+  face.glitch = Math.max(face.glitch, 0.3);
+  if (o.icon) { setIcon(o.icon, ms); idle.icon = true; }
+  if (o.blink) { face.blinkT = now; face.blinkAt = now + (o.blink > 1 ? 280 : 2400); }
+}
+
 // which face goes with which moment of the chat (a step can also say { face: '…' } in data.js)
 function faceFor(id, step) {
   if (step && step.face) return step.face;
@@ -1015,8 +1072,9 @@ function updateFace(now, dt) {
   // the screen switches on just after the tubes start flickering
   const since = awake ? (now - wakeAt) / 1000 : -1;
   face.on = awake ? Math.min(1, Math.max(0, (since - 0.35) / (MOTION ? 0.7 : 0.01))) : 0;
-  // morph towards the current expression
-  const goal = FACES[face.name], k = 1 - Math.exp(-dt * 14);
+  // morph towards the current expression (or the idle beat's, while he's left to himself)
+  updateIdleFace(now);
+  const goal = FACES[idle.step ? idle.step.face : face.name], k = 1 - Math.exp(-dt * 14);
   for (let i = 0; i < 9; i++) { face.L[i] += (goal.L[i] - face.L[i]) * k; face.R[i] += (goal.R[i] - face.R[i]) * k; }
   // blink every few seconds (not when the eyes are already closed or drawn as shapes)
   if (now > face.blinkAt) { face.blinkAt = now + 2200 + Math.random() * 3800; face.blinkT = now; }
@@ -1027,7 +1085,7 @@ function updateFace(now, dt) {
   const loud = voiceLoudness();
   const talk = !MOTION ? 0 : voiceSrc ? loud : now < face.talkUntil ? Math.abs(Math.sin(t * 17)) : 0;
   // eyes follow the mouse; an expression can add its own glance, a laughing bounce or a nervous jitter
-  const g = goal.look || [0, 0];
+  const g = (idle.step && idle.step.look) || goal.look || [0, 0];
   const bounce = MOTION && goal.bounce ? Math.abs(Math.sin(t * 9)) * 0.03 * goal.bounce : 0;
   const jitter = MOTION && goal.jitter ? [(Math.random() - 0.5) * 0.012, (Math.random() - 0.5) * 0.008] : [0, 0];
   face.look[0] += (look.x * 0.07 + g[0] - face.look[0]) * k;
@@ -2278,5 +2336,6 @@ function init() {
   });
   if (!init3D()) showWake();
 }
+
 
 
