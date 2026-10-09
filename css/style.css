@@ -817,9 +817,11 @@ main { padding: 0 var(--gap) var(--gap); }
 .fd-stage { flex: 1; display: grid; place-items: center; min-height: 440px; perspective: 1700px; overflow: hidden; }
 .fd {
   --fw: 262px; --fh: 352px; --kraft: #d7ae74; --kraft-2: #c79b5f;
+  --open-ease: cubic-bezier(.33, .01, .17, 1);       /* a soft, smooth swing (the site's --ease snaps too hard here) */
   position: relative; width: var(--fw); height: var(--fh);
-  transform: translateX(-46px); transition: transform .9s var(--ease);
-  animation: rise .8s var(--ease) both;
+  transform: translateX(-46px); transform-style: preserve-3d;   /* keeps the stage's perspective for the cover */
+  transition: transform 1.1s var(--open-ease);
+  animation: rise .8s var(--ease) backwards;          /* backwards only: a filled animation would block the slide */
 }
 .fd[data-open="true"] { transform: translateX(84px); }
 @media (min-width: 1181px) and (max-width: 1440px) {   /* laptop widths: a slightly smaller folder so the open spread fits */
@@ -846,7 +848,7 @@ main { padding: 0 var(--gap) var(--gap); }
   background: var(--note); color: #29241e; font-size: 10.5px; font-weight: 500; line-height: 1.15;
   border-radius: 1px 3px 3px 1px; box-shadow: 0 2px 4px rgba(0, 0, 0, .12);
   transform: rotate(var(--tilt)); transform-origin: left center;
-  animation: note-in .6s var(--ease) both;
+  animation: note-in .6s var(--ease) backwards;
   transition: transform .35s var(--ease), box-shadow .35s;
 }
 .fd-note::after { /* the sticky strip */
@@ -857,8 +859,18 @@ main { padding: 0 var(--gap) var(--gap); }
 @keyframes note-in { from { opacity: 0; transform: translateX(-30px) rotate(var(--tilt)); } }
 .fd-cover {
   position: absolute; inset: 0; transform-origin: left center; transform-style: preserve-3d;
-  transition: transform 1s var(--ease);
+  transition: transform 1.2s var(--open-ease);
 }
+/* light as the cover turns: its front darkens as it swings away, its inside brightens as it comes round,
+   and the shadow it casts on the page fades as it lifts */
+.fd-front::after, .fd-inside::after, .fd-page::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; transition: opacity 1.2s var(--open-ease);
+}
+.fd-front::after { background: linear-gradient(90deg, rgba(40, 25, 5, .1), rgba(40, 25, 5, .45)); opacity: 0; }
+.fd-inside::after { background: linear-gradient(270deg, rgba(40, 25, 5, .05), rgba(40, 25, 5, .5)); opacity: 1; }
+.fd-page::after { z-index: 2; background: linear-gradient(90deg, rgba(40, 25, 5, .35), rgba(40, 25, 5, 0) 70%); opacity: 1; }
+.fd[data-open="true"] .fd-front::after { opacity: 1; transition-duration: .6s; }
+.fd[data-open="true"] .fd-inside::after, .fd[data-open="true"] .fd-page::after { opacity: 0; }
 .fd[data-open="true"] .fd-cover { transform: rotateY(-176deg); }
 .fd-front, .fd-inside {
   position: absolute; inset: 0; overflow: hidden; border-radius: 4px 10px 10px 4px;
@@ -893,7 +905,7 @@ main { padding: 0 var(--gap) var(--gap); }
 .fd-close { margin-top: auto; align-self: flex-start; padding: 6px 12px; border-radius: 999px; border: 1px solid #29241e; font-size: 12px; color: #29241e; transition: background .25s, color .25s; }
 .fd-close:hover { background: #29241e; color: #f6f1e4; }
 /* the certificate inside */
-.fd-doc { position: relative; height: 100%; display: flex; flex-direction: column; gap: 5px; padding: 16px 34px 14px 16px; /* clear of the notes tucked in on the right */ color: #1d1d1d; border-top: 6px solid var(--note); animation: swap .45s var(--ease); }
+.fd-doc { position: relative; height: 100%; display: flex; flex-direction: column; gap: 5px; padding: 16px 34px 14px 16px; /* clear of the notes tucked in on the right */ color: #1d1d1d; border-top: 6px solid var(--note); animation: swap .5s var(--open-ease) var(--doc-delay, 0s) backwards; }
 .fd-doc-top { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: #8a8478; }
 .fd-doc-kind { margin-top: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: #8a8478; }
 .fd-doc h3 { font-family: "Instrument Serif", Georgia, serif; font-size: 23px; font-weight: 400; line-height: 1.08; }
