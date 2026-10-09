@@ -537,12 +537,12 @@ main { padding: 0 var(--gap) var(--gap); }
 }
 .rai-prev.show { display: block; animation: rai-pop .4s var(--ease); }
 @keyframes rai-pop { from { opacity: 0; transform: translateY(6px) scale(.96); } }
-.rai-say {
+.rai-say { /* Ronie speaks in the site's terminal font: a machine talking */
   min-height: 3.9em; cursor: default;
-  font-size: clamp(21px, 2.1vw, 30px); font-weight: 300; line-height: 1.28; letter-spacing: -.015em;
+  font-family: var(--mono); font-size: clamp(18px, 1.75vw, 25px); font-weight: 300; line-height: 1.38; letter-spacing: -.02em;
 }
-.rai-say.long { font-size: clamp(18px, 1.6vw, 23px); line-height: 1.32; }
-.rai-say.xlong { font-size: clamp(16px, 1.3vw, 19px); line-height: 1.38; }
+.rai-say.long { font-size: clamp(16px, 1.4vw, 20px); line-height: 1.42; }
+.rai-say.xlong { font-size: clamp(14px, 1.15vw, 17px); line-height: 1.46; }
 .rai-scr { color: #38ffb3; }
 .rai-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 24px; }
 .rai-choice {
@@ -637,9 +637,9 @@ main { padding: 0 var(--gap) var(--gap); }
     left: 0; right: 0; top: auto; bottom: 34px; width: auto; transform: none;
     padding: 60px 18px 8px; background: linear-gradient(rgba(14, 14, 14, 0), rgba(14, 14, 14, .92) 38%);
   }
-  .rai-say { min-height: 3.2em; font-size: 20px; }
-  .rai-say.long { font-size: 17px; }
-  .rai-say.xlong { font-size: 15px; }
+  .rai-say { min-height: 3.2em; font-size: 17px; }
+  .rai-say.long { font-size: 15px; }
+  .rai-say.xlong { font-size: 13.5px; }
   .rai-panel { max-height: 72%; margin-left: 0; }
   .rai-actions { margin-top: 14px; }
   .rai-head { margin-bottom: 12px; }
