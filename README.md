@@ -37,7 +37,7 @@ Each certificate (`certifications` in `js/data.js`) has a sticky note in the fol
 agent's dossier, chosen by `doc`: `briefing`, `profile`, `confidential`, `pass`, `telegram`, `card` or `report`
 (templates: `DOCS` in `js/main.js`). `art` picks a small illustration for the photo spot and `brief` is a one-line
 summary. `logo` puts an issuer's emblem there instead: `img/logos/helsinki.svg` (University of Helsinki, public
-domain, Wikimedia Commons) and `img/logos/drdo.webp` (DRDO's emblem, used to identify the issuer of a certificate).
+domain, Wikimedia Commons) and `img/logos/drdo.webp` / `img/logos/nielit.webp` (DRDO's and NIELIT's emblems, used to identify who issued a certificate).
 
 ## Ronie's extra moves (Blender)
 `models/ronie-anims.glb` holds Ronie's idle variations, the chat moves, and the guessing game's photo moves
