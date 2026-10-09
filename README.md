@@ -1,7 +1,7 @@
 # Raunak Patil — Portfolio
 
 A dashboard-style portfolio (bento cards, ASCII greeting, hours gauge, skill matrix,
-3D project tunnel, dotted experience map) plus Projects and Case Study pages.
+3D project tunnel, dotted experience map) plus Projects and Library pages (case studies and certificates).
 Plain HTML/CSS/JS with no build step.
 
 ## Edit your content
