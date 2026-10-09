@@ -1630,17 +1630,32 @@ function moveFor(question, reply) {
 // in data.js. The last few messages go along so follow-up questions work. If the worker can't answer (free daily
 // allowance used up, offline…), Ronie says so in character and offers the menu.
 const chatLog = [];
+// Which model answers (Workers AI, or one of the Google fallbacks once its free allowance is used up) is settled
+// while the room loads: the worker pings down its list and names the first that responds. Every message then goes
+// straight to that model, and if a reply comes back from another one, Ronie sticks with that from then on.
+let brain = null;
+let brainReady = Promise.resolve();
+function pickBrain() {
+  if (!A.chatUrl) return;
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 12000);
+  brainReady = fetch(A.chatUrl.replace(/\/chat$/, '/pick'), { method: 'POST', signal: ctl.signal })
+    .then((r) => r.json()).then((j) => { if (typeof j.model === 'string') brain = j.model; })
+    .catch(() => {}).finally(() => clearTimeout(timer));
+}
 async function askRonie() {
   if (!A.chatUrl) return null;
+  await brainReady;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 25000);
   try {
     const r = await fetch(A.chatUrl, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: chatLog.slice(-8), name: answers.name || '' }), signal: ctl.signal,
+      body: JSON.stringify({ model: brain, messages: chatLog.slice(-8), name: answers.name || '' }), signal: ctl.signal,
     });
     if (!r.ok) return (await r.json().catch(() => ({}))).error === 'quota' ? { quota: true } : null;
     const j = await r.json();
+    if (typeof j.model === 'string') brain = j.model;
     // { reply, face?, icon? } — the face and icon are the model's pick for this answer
     return typeof j.reply === 'string' && j.reply.trim() ? { ...j, reply: j.reply.trim() } : null;
   } catch { return null; } finally { clearTimeout(timer); }
@@ -1777,15 +1792,17 @@ const gfill = (s, extra = {}) => fill(s).replace(/\{answer\}/g, extra.answer || 
 
 async function askGame() {
   if (!A.chatUrl) return null;
+  await brainReady;
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), 25000);
   try {
     const r = await fetch(A.chatUrl, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl.signal,
-      body: JSON.stringify({ mode: 'game', messages: game.log.slice(-60), asked: game.asked, name: answers.name || '' }),
+      body: JSON.stringify({ mode: 'game', model: brain, messages: game.log.slice(-60), asked: game.asked, name: answers.name || '' }),
     });
     if (!r.ok) return (await r.json().catch(() => ({}))).error === 'quota' ? { quota: true } : null;
     const j = await r.json();
+    if (typeof j.model === 'string') brain = j.model;
     return typeof j.reply === 'string' && j.reply.trim() ? j : null;
   } catch { return null; } finally { clearTimeout(timer); }
 }
@@ -2011,6 +2028,7 @@ function init() {
   $('#rai-credit').innerHTML = `3D model: <a href="${esc(m.creditUrl)}" target="_blank" rel="noopener">${esc(m.credit)}</a> by <a href="${esc(m.authorUrl)}" target="_blank" rel="noopener">${esc(m.author)}</a>, <a href="${esc(m.licenseUrl)}" target="_blank" rel="noopener">${esc(m.license)}</a>`;
   const saved = store.get('rai-name');
   if (saved) answers.name = saved;
+  pickBrain(); // settles which model answers while the room is still loading
   syncSound();
   soundBtn.addEventListener('click', () => {
     soundOn = !soundOn;
