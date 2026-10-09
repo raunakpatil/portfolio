@@ -1069,7 +1069,7 @@ main { padding: 0 var(--gap) var(--gap); }
     radial-gradient(120% 100% at 100% 100%, var(--c2) 0%, transparent 58%),
     #0f0f13;
 }
-.thumb img { width: 100%; height: 100%; object-fit: cover; }
+.thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }   /* exactly the card's box, so object-position (imageFocus) can pick the crop */
 .m { position: relative; box-shadow: 0 2cqw 6cqw rgba(0, 0, 0, .35); }
 .m i, .m b { display: block; }
 
