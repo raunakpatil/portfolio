@@ -272,7 +272,7 @@
 
   /* ---------- card 1: hello + Ronie as a hologram ---------- */
   // Ronie's ASCII turntable (the one on his loading screen, js/ronie-ascii.json) projected like a mecha HUD
-  // hologram: cyan light with a glow, scanlines, a sweeping scan bar, the odd glitch tear, target brackets, a
+  // hologram, in the site's white: a soft glow, scanlines, a sweeping scan bar, the odd glitch tear, target brackets, a
   // reticle on his head, a projector base under his feet and a column of readouts. Hover to turn him with the mouse.
   function initHello() {
     const H = D.hello;
@@ -285,7 +285,7 @@
     const ptr = trackPointer(card);
     const RAMP = ' .:-=+*#%@';
     const CW = 5.6, CH = 8.6;                    // a finer grid than the page's other ASCII: more of him shows
-    const HOLO = 'rgb(94, 242, 255)', HOT = '#ff7a1a';
+    const HOLO = '#f2f2f2', HOT = '#ffffff';    // the site's white, like the old donut
     let art = null;
     fetch(`js/ronie-ascii.json${ASSET_V ? `?v=${ASSET_V}` : ''}`).then((r) => r.json()).then((j) => {
       art = { w: j.w, h: j.h, frames: j.frames.map((f) => f.split('\n')) };
@@ -345,7 +345,7 @@
       ctx.save();
       ctx.globalCompositeOperation = 'lighter';
       const cone = ctx.createLinearGradient(0, fy, 0, oy);
-      cone.addColorStop(0, 'rgba(94, 242, 255, 0.13)'); cone.addColorStop(1, 'rgba(94, 242, 255, 0)');
+      cone.addColorStop(0, 'rgba(255, 255, 255, 0.07)'); cone.addColorStop(1, 'rgba(255, 255, 255, 0)');
       ctx.fillStyle = cone;
       ctx.beginPath(); ctx.moveTo(fx - rx, fy); ctx.lineTo(fx + rx, fy); ctx.lineTo(fx + rx * 1.5, oy); ctx.lineTo(fx - rx * 1.5, oy); ctx.closePath(); ctx.fill();
       ctx.strokeStyle = HOLO; ctx.lineWidth = 1;
@@ -391,7 +391,7 @@
       ctx.save();
       ctx.filter = 'blur(3px)';
       if (ctx.filter === 'blur(3px)') {
-        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6;
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.3;
         ctx.drawImage(canvas, 0, 0, w, h);
       }
       ctx.restore();
