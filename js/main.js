@@ -96,7 +96,12 @@
   const kindOf = (p) => KIND[String(p.category || '').toLowerCase()] || 'fun';
 
   function thumb(p) {
-    if (p.image) return `<div class="thumb"><img src="${esc(p.image)}" alt="" loading="lazy"></div>`;
+    // a picture either fills the card (cropped; imageFocus picks the part kept in view) or, with imageBg set, is
+    // shown whole on that colour (a device mockup on a flat background, so it suits wide and narrow cards alike)
+    if (p.image) {
+      const fit = p.imageBg ? `object-fit:contain;background:${esc(p.imageBg)}` : `object-position:${esc(p.imageFocus || '50% 50%')}`;
+      return `<div class="thumb"${p.imageBg ? ` style="background:${esc(p.imageBg)}"` : ''}><img src="${esc(p.image)}" alt="" loading="lazy" style="${fit}"></div>`;
+    }
     const rnd = seeded(p.title);
     const [c1, c2] = p.colors || ['#7c5cff', '#22d3ee'];
     const k = kindOf(p);
