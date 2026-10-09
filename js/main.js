@@ -218,9 +218,13 @@
       ind.style.width = `${a.offsetWidth}px`;
       ind.style.transform = `translateX(${a.offsetLeft - 3}px)`;
     };
+    // Ronie has his own address, raunakpatil.com/ronie (ronie.html sends visitors in); every other page is /#page
+    const onRonie = () => /^\/ronie\/?$/.test(location.pathname);
     const go = () => {
       const h = location.hash.slice(1);
-      const r = routes.includes(h) ? h : 'dashboard';
+      const r = routes.includes(h) ? h : !h && onRonie() ? 'assistant' : 'dashboard';
+      if (r === 'assistant' && (h || !onRonie())) history.replaceState(null, '', '/ronie');
+      else if (r !== 'assistant' && onRonie()) history.replaceState(null, '', `/#${r}`);
       $$('.view').forEach((v) => { v.hidden = v.dataset.view !== r; });
       links.forEach((a) => {
         const on = a.dataset.route === r;

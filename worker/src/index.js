@@ -51,28 +51,6 @@ const OFFTOPIC = [
 ];
 const nope = () => NOPE[Math.floor(Math.random() * NOPE.length)];
 
-// Ronie's server voice: Deepgram Aura (a natural male voice). Computers that can run it use the Kokoro voice in the
-// browser instead (free, no quota); this is for phones and for the first moments before Kokoro has loaded.
-const VOICE_MODEL = '@cf/deepgram/aura-1', VOICE_SPEAKER = 'arcas';
-async function speak(env, body, cors) {
-  const text = String(body.text || '').replace(/\s+/g, ' ').trim().slice(0, 400);
-  if (!text) return json({ error: 'bad request' }, 400, cors);
-  try {
-    const out = await env.AI.run(VOICE_MODEL, { text, speaker: VOICE_SPEAKER, encoding: 'mp3' });
-    let bytes = null;
-    if (out instanceof ReadableStream) bytes = new Uint8Array(await new Response(out).arrayBuffer());
-    else if (out instanceof ArrayBuffer) bytes = new Uint8Array(out);
-    else if (ArrayBuffer.isView(out)) bytes = new Uint8Array(out.buffer, out.byteOffset, out.byteLength);
-    else if (out && typeof out.audio === 'string') bytes = Uint8Array.from(atob(out.audio), (c) => c.charCodeAt(0));
-    if (!bytes || !bytes.length) return json({ error: 'empty' }, 502, cors);
-    // label WAV ("RIFF…") and MP3 correctly so every browser decodes it
-    const wav = bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46;
-    return new Response(bytes, { headers: { ...cors, 'Content-Type': wav ? 'audio/wav' : 'audio/mpeg', 'Cache-Control': 'no-store' } });
-  } catch {
-    return json({ error: 'unavailable' }, 503, cors);
-  }
-}
-
 const json = (body, status, headers) => new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json' } });
 
 // A guessing game like Akinator: the visitor thinks of someone or something, Ronie asks yes/no questions and guesses.
@@ -85,7 +63,9 @@ Rules:
 - Your questions are about the hidden person or thing — "Is it…?", "Does it…?", "Is this person…?" — never about the visitor ("Do you…?" is wrong: they are not the answer).
 - Ask exactly ONE short yes/no question per turn (under 20 words), then stop. Never ask something already answered. If an answer was "don't know", move on to a different, more general trait.
 - Good questions look like: "Is this person a man?", "Is the character from a book?", "Does it have magic powers?", "Is it known for sport?", "Is the character a child?"
-- Play like Akinator: narrow down with general traits first — real or fictional? human? male? alive? famous for sport, music, films, books, games, science, history? magic or powers? a hero? a child? from which country? — and only ask about a specific franchise, film, book or team after about 8 questions.
+- Play like Akinator: narrow down with general traits first — real or fictional? human? male? alive? famous for sport, music, films, books, games, science, history? magic or powers? a hero? a child? — and only ask about a specific franchise, film, book or team after about 8 questions.
+- Visitors come from all over the world, many from India. For a real person, ask about their country or region early (India? USA? UK?), then their field in that country — e.g. for India: Bollywood, Bhojpuri, Tamil or Telugu cinema, TV and reality shows, cricket, music, politics or business. Think of famous people from every country, not just Hollywood.
+- After about 12 questions, if you have a likely answer, guess it; if wrong, ask two or three more questions and guess again.
 - Never name a specific person or character in a question unless it's your guess. A guess begins with [guess] and is phrased "Is it NAME?". Make one only when you're fairly sure, and at the latest once you've asked about 18 questions.
 - If a guess was wrong, keep asking and guess something else later; never repeat a wrong guess.
 - A tiny awkward or witty aside is welcome, but keep every turn short. Plain text only — no lists, markdown or emoji.
@@ -101,27 +81,66 @@ async function game(env, body, cors) {
   const asked = Math.max(0, Math.min(60, Number(body.asked) || 0));
   const nudge = asked >= 18 ? `\nYou've asked ${asked} questions — make your best guess now.` : `\nQuestions asked so far: ${asked}.`;
   try {
-    const out = await env.AI.run(MODEL, {
-      messages: [{ role: 'system', content: `${GAME_SYSTEM}${nudge}\n/no_think` }, ...messages],
-      max_tokens: 120,
-      temperature: 0.4,
-    });
-    let reply = String((out && (out.response ?? out.choices?.[0]?.message?.content)) || '');
+    let reply = await generate(env, `${GAME_SYSTEM}${nudge}`, messages, { maxTokens: 120, temperature: 0.4 });
     reply = reply.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\*\*?|__|#+ /g, '').trim();
     const tag = (kind) => { const m = reply.match(new RegExp(`\\[\\s*${kind}\\s*:\\s*([a-z]+)\\s*\\]`, 'i')); return m ? m[1].toLowerCase() : null; };
     let face = tag('face'), move = tag('move');
     if (!GAME_FACES.includes(face)) face = null;
     if (!GAME_MOVES.includes(move) || move === 'none') move = null;
     // a guess: tagged, or any "Is it / Was it / Did you mean <Name>?" that names someone
-    const guess = /\[\s*guess\s*\]/i.test(reply) || /\b([Ii]s it|[Ww]as it|[Dd]id you mean|[Aa]re you thinking of)\s+(the\s+)?["“]?[A-Z][a-z]+/.test(reply.replace(/\[[^\]]*\]/g, ''));
+    const plain = reply.replace(/\[[^\]]*\]/g, '');
+    const guess = /\[\s*guess\s*\]/i.test(reply)
+      || /\b([Ii]s it|[Ww]as it|[Dd]id you mean|[Aa]re you thinking of)\s+(the\s+)?["“]?[A-Z][a-z]+/.test(plain)
+      // "Is this person / Is he / Is the character Narendra Modi?" — a full name (two capitalised words)
+      || /\b([Ii]s|[Ww]as) (this person|this character|the character|he|she)\s+["“]?[A-Z][a-z]+\s+[A-Z][a-z]+/.test(plain);
     reply = reply.replace(/\[\s*[a-z]+\s*(:\s*[a-z]*\s*)?\]/gi, '').replace(/\s*\n+\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
     reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\(\s*\w+ly\s*\)\s*/g, '').trim();
     if (!reply) return json({ error: 'empty' }, 502, cors);
     return json({ reply, face, move, guess }, 200, cors);
-  } catch {
-    return json({ error: 'unavailable' }, 503, cors);
+  } catch (err) {
+    return json({ error: quotaGone(err) ? 'quota' : 'unavailable' }, 503, cors);
   }
 }
+
+// One reply from the model. First choice: Workers AI (Qwen3). If that fails — most often because its free daily
+// allowance is used up — and a Gemini API key is set (wrangler secret put GEMINI_API_KEY), the same request goes
+// to Google's Gemma 4 on the Gemini API's free tier instead. Only if both fail does the error reach the visitor.
+const GEMMA = 'gemma-4-26b-a4b-it';
+async function generate(env, system, messages, { maxTokens, temperature }) {
+  try {
+    const out = await env.AI.run(MODEL, {
+      messages: [{ role: 'system', content: `${system}\n/no_think` }, ...messages],
+      max_tokens: maxTokens, temperature,
+    });
+    // models answer either { response } or OpenAI-style { choices: [{ message }] }
+    return String((out && (out.response ?? out.choices?.[0]?.message?.content)) || '');
+  } catch (err) {
+    if (!env.GEMINI_API_KEY) throw err;
+    try { return await gemma(env, system, messages, { maxTokens, temperature }); } catch { throw err; }
+  }
+}
+async function gemma(env, system, messages, { maxTokens, temperature }) {
+  // Gemma takes no separate system prompt: the instructions lead the first user turn
+  const contents = messages.map((m, i) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: [{ text: i === 0 && m.role === 'user' ? `${system}\n\n---\n\n${m.content}` : m.content }],
+  }));
+  if (contents[0] && contents[0].role !== 'user') contents.unshift({ role: 'user', parts: [{ text: system }] });
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMMA}:generateContent`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
+    body: JSON.stringify({ contents, generationConfig: { maxOutputTokens: maxTokens, temperature } }),
+  });
+  if (!r.ok) throw new Error(`gemini ${r.status}`);
+  const j = await r.json();
+  const parts = j.candidates?.[0]?.content?.parts || [];
+  const text = parts.filter((p) => !p.thought && typeof p.text === 'string').map((p) => p.text).join('').trim();
+  if (!text) throw new Error('gemini: empty');
+  return text;
+}
+
+// Workers AI's free daily allowance is used up (error 4006) — resets at 00:00 UTC
+const quotaGone = (err) => /4006|daily free allocation/i.test(String(err && err.message || err));
 
 export default {
   async fetch(request, env) {
@@ -134,19 +153,17 @@ export default {
     };
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
     const path = new URL(request.url).pathname;
-    if (request.method !== 'POST' || (path !== '/chat' && path !== '/speak')) return json({ error: 'not found' }, 404, cors);
+    if (request.method !== 'POST' || path !== '/chat') return json({ error: 'not found' }, 404, cors);
     if (!ALLOWED.includes(origin)) return json({ error: 'forbidden' }, 403, cors);
 
     // a few requests a minute per visitor keeps the free allowance for everyone
-    const limiter = path === '/speak' ? env.VOICE_LIMITER : env.LIMITER;
-    if (limiter) {
-      const { success } = await limiter.limit({ key: request.headers.get('CF-Connecting-IP') || 'anon' });
+    if (env.LIMITER) {
+      const { success } = await env.LIMITER.limit({ key: request.headers.get('CF-Connecting-IP') || 'anon' });
       if (!success) return json({ error: 'slow down' }, 429, cors);
     }
 
     let body;
     try { body = await request.json(); } catch { return json({ error: 'bad request' }, 400, cors); }
-    if (path === '/speak') return speak(env, body, cors);
     if (body.mode === 'game') return game(env, body, cors);
     const messages = (Array.isArray(body.messages) ? body.messages : [])
       .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string' && m.content.trim())
@@ -163,13 +180,7 @@ export default {
       : '';
 
     try {
-      const out = await env.AI.run(MODEL, {
-        messages: [{ role: 'system', content: `${SYSTEM}${who}\n/no_think` }, ...messages],
-        max_tokens: 180,
-        temperature: 0.3,
-      });
-      // models answer either { response } or OpenAI-style { choices: [{ message }] }; drop any <think> block
-      let reply = String((out && (out.response ?? out.choices?.[0]?.message?.content)) || '');
+      let reply = await generate(env, `${SYSTEM}${who}`, messages, { maxTokens: 180, temperature: 0.3 });
       reply = reply.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\*\*?|__|#+ /g, '').trim();
       // the face/icon tags: keep them only if they're on the lists, and never show them as text
       const tag = (kind) => { const m = reply.match(new RegExp(`\\[\\s*${kind}\\s*:\\s*([a-z]+)\\s*\\]`, 'i')); return m ? m[1].toLowerCase() : null; };
@@ -188,7 +199,7 @@ export default {
       return json({ reply, face, icon, move }, 200, cors);
     } catch (err) {
       // most often: the free daily allowance is used up — the site falls back to Ronie's scripted answers
-      return json({ error: 'unavailable' }, 503, cors);
+      return json({ error: quotaGone(err) ? 'quota' : 'unavailable' }, 503, cors);
     }
   },
 };

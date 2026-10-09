@@ -428,6 +428,7 @@ window.PORTFOLIO = {
           "So, {name} — questions about Raunak? Fire away. I'll answer as honestly as a robot can.",
         ],
         fallback: "Sorry {name}, my chat brain is taking a nap right now (free-tier robots need sleep too). Try again in a bit — or email Raunak at {email}.",
+        quota: "Okay, confession, {name}: I've talked so much today that I've used up my free brain juice. I recharge overnight — or email Raunak at {email}.",
       },
 
       'story-menu': {
@@ -496,6 +497,7 @@ window.PORTFOLIO = {
         "{answer}?! That's — fine. That's fine. I'm fine. Rematch?",
       ],
       fallback: "My guessing brain just went to sleep, {name}. Let's try again in a bit.",
+      quota: "I've played so much today that my free brain juice ran out, {name}. Rematch tomorrow?",
     },
   },
 };
