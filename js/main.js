@@ -1288,7 +1288,6 @@
         <div class="fd-inside">
           <p class="fd-kicker">Contents</p>
           <ol>${C.map((c, i) => `<li><button type="button" data-i="${i}"><span>${no(i)}</span>${esc(c.short || c.title)}</button></li>`).join('')}</ol>
-          <button class="fd-close" type="button">Close folder</button>
           <span class="grain"></span>
         </div>
       </div>`;
@@ -1319,7 +1318,7 @@
     fd.addEventListener('click', (e) => {
       const pick = e.target.closest('[data-i]');
       if (pick) return show(+pick.dataset.i);
-      if (e.target.closest('.fd-close, .fd-back')) return close();
+      if (e.target.closest('.fd-back')) return close();
       if (e.target.closest('.fd-front')) show(0);
     });
     // a click anywhere outside the folder, or Esc, closes it
