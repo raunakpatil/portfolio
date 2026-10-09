@@ -1277,7 +1277,7 @@
       </div>
       <div class="fd-cover">
         <button class="fd-front" type="button" aria-label="Open the certificates folder">
-          <span class="fd-seal" aria-hidden="true"><i></i><i></i><b></b></span>
+          <span class="fd-secret" aria-hidden="true">Not secret</span>
           <span class="fd-label">
             <span class="fd-kicker">No. 01–${no(C.length - 1)} · ${esc(span)}</span>
             <span class="fd-title">Certificates &amp; courses</span>
