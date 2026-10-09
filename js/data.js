@@ -490,7 +490,7 @@ window.PORTFOLIO = {
     // the guessing game (like Akinator): the visitor thinks of someone or something, Ronie asks and guesses
     game: {
       // the invite under the chat
-      offer: { kicker: 'mini game', title: 'Want me to read your mind?', sub: "Think of anyone, real or fictional. I'll guess who." },
+      offer: { kicker: 'Mini game · 20 questions or so', title: 'Want me to read your mind?', sub: "Think of anyone, real or fictional. I'll guess who." },
       first: 'Is it a real person, not a fictional character?',
       intro: [
         "Okay {name}: think of a famous person, a character, an animal or a thing. Don't tell me. I'll read your mind. With questions. Ready?",

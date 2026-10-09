@@ -1731,7 +1731,9 @@ function showChat(id, step, offerEmail = false) {
     t.type = 'button';
     t.className = 'rai-play';
     t.style.animationDelay = '220ms';
-    t.innerHTML = `<span class="rai-play-k">// ${esc(G.offer.kicker)}</span><b>${esc(G.offer.title)}</b><span class="rai-play-s">${esc(G.offer.sub)}</span><i aria-hidden="true">→</i>`;
+    // a four-point spark in the profile highlights' family of shapes; it turns on hover like theirs
+    t.innerHTML = '<span class="rai-play-tile" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5c.7 4.6 3.9 7.8 8.5 8.5-4.6.7-7.8 3.9-8.5 8.5-.7-4.6-3.9-7.8-8.5-8.5 4.6-.7 7.8-3.9 8.5-8.5Z"/></svg></span>'
+      + `<span class="rai-play-txt"><b>${esc(G.offer.title)}</b><span class="rai-play-sub">${esc(G.offer.kicker)}</span><span class="rai-play-s">${esc(G.offer.sub)}</span></span>`;
     t.addEventListener('click', startGame);
     actions.appendChild(t);
   }

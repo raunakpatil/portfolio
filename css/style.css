@@ -333,11 +333,11 @@ main { padding: 0 var(--gap) var(--gap); }
 .pin:hover .pin-label, .pin.active .pin-label { border-color: var(--c); color: #fff; }
 .map-info {
   position: absolute; left: 16px; bottom: 14px; z-index: 3; max-width: calc(100% - 32px);
-  display: grid; gap: 2px; padding: 10px 14px 10px 16px; border-radius: 10px;
-  background: rgba(22, 22, 22, .9); border: 1px solid #2c2c2c;
-  border-left: 3px solid var(--c, #c6f432);
+  display: grid; gap: 2px; padding: 10px 14px; border-radius: 12px;
+  background: rgba(22, 22, 22, .92); box-shadow: inset 0 0 0 1px #2c2c2c;
 }
-.map-info .mi-years { font-family: var(--mono); font-size: 10px; color: var(--c, #c6f432); }
+.map-info .mi-years { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 10px; color: #8a8a8a; }
+.map-info .mi-years::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--c, #c6f432); }
 .map-info b { font-size: 15px; font-weight: 500; }
 .map-info span:last-child { font-size: 12px; color: #a9a9a9; }
 .map-info.swap { animation: swap .5s var(--ease); }
@@ -586,21 +586,23 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai-chip:hover, .rai-chip:focus-visible { background: #fff; color: #111; box-shadow: none; }
 /* the guessing game, offered like the map's info card */
 .rai-play {
-  display: grid; grid-template-columns: 1fr auto; column-gap: 14px; row-gap: 2px; align-items: center;
-  width: 100%; margin-top: 14px; padding: 11px 12px 12px 15px; border-radius: 10px; text-align: left;
-  background: rgba(22, 22, 22, .9); border: 1px solid #2c2c2c; border-left: 3px solid #ff70f3;
-  animation: rise .5s var(--ease) both; transition: border-color .3s, background .3s;
+  display: flex; align-items: center; gap: 14px; width: 100%; margin-top: 14px; padding: 8px 16px 8px 8px;
+  border-radius: var(--radius); text-align: left;
+  background: rgba(21, 21, 21, .72); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .08);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  animation: rise .5s var(--ease) both; transition: background .35s, transform .45s var(--ease);
 }
-.rai-play-k { grid-column: 1; font-family: var(--mono); font-size: 10px; color: #ff70f3; }
-.rai-play b { grid-column: 1; font-size: 15px; font-weight: 500; color: #fff; }
-.rai-play-s { grid-column: 1; font-size: 12px; color: #a9a9a9; }
-.rai-play i {
-  grid-column: 2; grid-row: 1 / span 3; display: grid; place-items: center; width: 34px; height: 34px;
-  border-radius: 50%; font-style: normal; font-size: 16px; color: #fff; box-shadow: inset 0 0 0 1px #3a3a3a;
-  transition: background .3s, color .3s, transform .35s var(--ease), box-shadow .3s;
+.rai-play-tile {
+  flex: none; display: grid; place-items: center; width: 56px; height: 56px; border-radius: 12px;
+  background: #1f1f1f; box-shadow: inset 0 0 0 1px #2e2e2e;
 }
-.rai-play:hover, .rai-play:focus-visible { background: rgba(28, 28, 28, .95); border-color: #ff70f3; }
-.rai-play:hover i, .rai-play:focus-visible i { background: #ff70f3; color: #111; box-shadow: none; transform: translateX(3px); }
+.rai-play-tile svg { width: 22px; height: 22px; fill: #fff; transition: transform .6s var(--ease); }
+.rai-play-txt { display: grid; min-width: 0; }
+.rai-play b { font-size: 15px; font-weight: 500; letter-spacing: -.01em; color: #fff; }
+.rai-play-sub { margin: 1px 0 3px; font-size: 11px; color: #8a8a8a; }
+.rai-play-s { font-size: 12.5px; line-height: 1.4; color: #bdbdbd; }
+.rai-play:hover, .rai-play:focus-visible { background: rgba(30, 30, 30, .85); transform: translateX(4px); }
+.rai-play:hover .rai-play-tile svg, .rai-play:focus-visible .rai-play-tile svg { transform: rotate(90deg) scale(1.1); }
 /* "// talking to Priya · not you?" */
 .rai-who { margin-top: 10px; font-family: var(--mono); font-size: 10.5px; color: #6f6f6f; animation: rise .5s var(--ease) both; }
 .rai-who button { font-family: var(--mono); color: #8a8a8a; text-decoration: underline; text-underline-offset: 3px; }
@@ -645,8 +647,11 @@ main { padding: 0 var(--gap) var(--gap); }
   .rai-suggest { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -18px; padding-right: 18px; }
   .rai-suggest::-webkit-scrollbar { display: none; }
   .rai-chip { flex: none; white-space: nowrap; }
-  .rai-play { margin-top: 8px; padding: 9px 10px 9px 13px; }
+  .rai-play { margin-top: 8px; gap: 12px; padding: 6px 14px 6px 6px; }
+  .rai-play-tile { width: 42px; height: 42px; border-radius: 10px; }
+  .rai-play-tile svg { width: 18px; height: 18px; }
   .rai-play-s { display: none; }
+  .rai-play-sub { margin-bottom: 0; }
   .rai-who { margin-top: 6px; }
   .rai-sound { top: 14px; right: 66px; bottom: auto; }
 }
