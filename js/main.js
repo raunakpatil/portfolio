@@ -278,7 +278,6 @@
     const H = D.hello;
     const card = $('#card-hello');
     const canvas = $('#ascii');
-    const term = $('#terminal');
     const title = $('#hello-title');
     title.innerHTML = H.greeting.map((w) => `<span>${esc(w)}</span>`).join('');
 
@@ -293,28 +292,9 @@
     let spin = 0.62, vel = 0.00011, nextGlitch = 0, tear = null, scanPat = null, scanCtx = null;
     const noise = Float32Array.from({ length: 4096 }, Math.random);
 
-    // terminal: lines about Ronie, each scrambled in, held, then the next
-    const lines = [].concat(H.terminal);
-    let tStart = null, typed = false, li = 0;
-    const STEP = 26;
-    function terminal(now) {
-      if (tStart === null) tStart = now;
-      const text = lines[li], el = now - tStart, n = Math.floor(el / STEP);
-      if (n < text.length) {
-        const tail = Array.from({ length: Math.min(5, text.length - n) }, randGlyph).join('');
-        term.innerHTML = `${esc(text.slice(0, n))}<span class="scramble">${esc(tail)}</span>`;
-        typed = false;
-      } else if (!typed) {
-        term.innerHTML = `${esc(text.replace(/_$/, ''))}<span class="cursor">_</span>`;
-        typed = true;
-      }
-      if (el > text.length * STEP + 5200) { tStart = now; li = (li + 1) % lines.length; }
-    }
-
     onFrame(card, (now, dt) => {
       const { ctx, w, h } = fit(canvas);
       ctx.clearRect(0, 0, w, h);
-      terminal(now);
       if (!art) return;
       // turn: a slow turntable; hovering steers it (pointer left/right of centre)
       const want = ptr.inside ? ptr.nx * 0.0005 : 0.00011;
@@ -421,7 +401,7 @@
       const x0 = ox - 8 - br, y0 = oy - 6 - br, x1 = ox + bw + 8 + br, y1 = oy + bh + 2 + br;
       ctx.globalAlpha = 0.65;
       ctx.beginPath();
-      // (no bottom-left corner: that's where the terminal line runs)
+      // (no bottom-left corner: the readouts sit there)
       for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x1, y1, -1, -1]]) {
         ctx.moveTo(cx + sx * L, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy * L);
       }
@@ -447,9 +427,9 @@
         [[`CORE  ${'▮'.repeat(core)}${'▯'.repeat(6 - core)}`, HOLO]],
         [['MODE  STANDBY', HOLO]],
       ];
-      // a data column in the bottom-left corner, just above the terminal line
+      // a data column in the bottom-left corner
       const block = rows.length * 13 + 6 + 11;
-      const ry = Math.max(title.offsetTop + title.offsetHeight + 14, term.offsetTop - 14 - block), rx0 = 18;
+      const ry = Math.max(title.offsetTop + title.offsetHeight + 14, h - 18 - block), rx0 = 18;
       ctx.font = '9px "JetBrains Mono", monospace'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
       ctx.globalAlpha = 0.5; ctx.fillStyle = HOLO; ctx.fillRect(rx0, ry - 7, 26, 1);
       rows.forEach((parts, i) => {

@@ -135,12 +135,6 @@ main { padding: 0 var(--gap) var(--gap); }
   pointer-events: none;
 }
 .hello-title span { display: block; }
-.terminal {
-  position: absolute; left: 22px; right: 22px; bottom: 18px; z-index: 2;
-  min-height: 3em; font-family: var(--mono); font-size: 11px; line-height: 1.5; color: #e2e2e2;
-  text-shadow: 0 0 10px #151515; pointer-events: none;
-}
-.cursor { animation: blink 1s steps(1) infinite; }
 .scramble { color: rgb(0, 226, 141); }
 @keyframes blink { 50% { opacity: 0; } }
 
