@@ -319,6 +319,8 @@ function onModel(gltf) {
   modelQuat.copy(model.quaternion);
   buildEmblem();
   buildFace();
+  rHand = findBone(/CC_Base_R_Hand(_|$)/);
+  buildCard();
   placeForLeap(performance.now());
 
   buildTubes();
@@ -779,6 +781,7 @@ const FACES = {
   smug:       { L: BAR(0.105, 0.045, 0.1), R: BAR(0.105, 0.045, 0.1), look: [0.05, 0] },
   nervous:    { L: O(0.085), R: O(0.085), jitter: 1 },
   determined: { L: BAR(0.105, 0.06, 0.3), R: BAR(0.105, 0.06, 0.3) },
+  angry:      { L: BAR(0.118, 0.055, 0.78), R: BAR(0.118, 0.055, 0.78), jitter: 1, look: [0, -0.02] },
   dizzy:      { L: EYE(0.1, 0.1, 0.1, { cross: 1 }), R: EYE(0.1, 0.1, 0.1, { cross: 1 }) },
   sleepy:     { L: BAR(0.11, 0.016), R: BAR(0.11, 0.016) },
 };
@@ -877,7 +880,6 @@ void main() { vUv = uv; vVis = vis; gl_Position = projectionMatrix * modelViewMa
 const FACE_FRAG = `
 uniform vec4 uL, uR, uLx, uRx; uniform vec2 uLook, uCentre, uIconPos, uQ; uniform vec3 uIconTint;
 uniform float uIconEyes;                                // 1: the icon is drawn twice, in place of the eyes
-uniform sampler2D uPhoto; uniform float uPhotoAmt, uPhotoAspect;  // a picture of whoever he's guessing
 uniform float uAspect, uTime, uOn, uGlitch, uBright, uSkew, uIconSize, uIconAmt;
 uniform sampler2D uIcon;
 varying vec2 vUv; varying float vVis;
@@ -955,21 +957,8 @@ void main() {
   vec2 p = (uv - 0.5) * vec2(uAspect, 1.0);
   vec2 ca = vec2(0.007 + uGlitch * 0.025, 0.0);        // RGB fringing, like an old tube
   vec3 col = vec3(glow(faceAt(p + ca)), glow(faceAt(p)), glow(faceAt(p - ca)));
-  col *= vec3(1.0, 0.97, 0.93) * (1.0 - uIconEyes * uIconAmt) * (1.0 - uPhotoAmt);   // the eyes step aside
-  if (uIconAmt > 0.001) col += vec3(iconAt(p + ca), iconAt(p), iconAt(p - ca)) * uIconTint * uIconAmt * 0.95 * (1.0 - uPhotoAmt);
-  if (uPhotoAmt > 0.001) {
-    // the photo fills a rounded screen in the middle of the visor (cover-fit), with a thin glowing frame
-    vec2 pc = uCentre + vec2(0.0, -0.035), hs = vec2(0.25, 0.29);
-    float box = sdBox(p - pc, hs, 0.06);
-    vec2 q = (p - pc) / hs * 0.5 + 0.5;
-    float boxAspect = hs.x / hs.y;
-    if (uPhotoAspect > boxAspect) q.x = 0.5 + (q.x - 0.5) * boxAspect / uPhotoAspect;
-    else q.y = 0.5 + (q.y - 0.5) * uPhotoAspect / boxAspect;
-    float cq = ca.x * 0.6;
-    vec3 ph = vec3(texture2D(uPhoto, q + vec2(cq, 0.0)).r, texture2D(uPhoto, q).g, texture2D(uPhoto, q - vec2(cq, 0.0)).b);
-    float inside = smoothstep(0.0, -0.02, box);
-    col += ph * 0.95 * inside * uPhotoAmt + glow(abs(box) - 0.003) * 0.35 * uPhotoAmt;
-  }
+  col *= vec3(1.0, 0.97, 0.93) * (1.0 - uIconEyes * uIconAmt);   // the eyes step aside
+  if (uIconAmt > 0.001) col += vec3(iconAt(p + ca), iconAt(p), iconAt(p - ca)) * uIconTint * uIconAmt * 0.95;
   // AMOLED: the screen itself stays pure black; only the eyes and icons give off light, with the CRT look
   col *= 0.74 + 0.26 * sin(vUv.y * 6.2832 * 72.0);    // scanlines
   col *= 0.95 + 0.05 * sin(uTime * 57.0);              // mains flicker
@@ -998,7 +987,6 @@ async function buildFace() {
         uAspect: { value: sheet.aspect }, uTime: { value: 0 }, uOn: { value: 0 }, uGlitch: { value: 0 }, uBright: { value: 1 }, uSkew: { value: 0 },
         uIcon: { value: icon.tex }, uIconPos: { value: new THREE.Vector2() }, uIconSize: { value: 0.2 }, uIconAmt: { value: 0 },
         uIconTint: { value: new THREE.Vector3(1, 1, 1) }, uIconEyes: { value: 0 },
-        uPhoto: { value: null }, uPhotoAmt: { value: 0 }, uPhotoAspect: { value: 1 },
       },
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       polygonOffset: true, polygonOffsetFactor: -4,
@@ -1067,9 +1055,6 @@ function updateFace(now, dt) {
   u.uIconPos.value.set(slot.pos[0], slot.pos[1] + (MOTION && icon.slot === 'emote' ? Math.sin(t * 2.6) * 0.012 : 0));
   u.uIconTint.value.fromArray(icon.tint);
   u.uIconEyes.value = icon.slot === 'topic' ? 1 : 0;
-  photo.amt += ((photo.on && photo.tex ? 1 : 0) - photo.amt) * Math.min(1, dt * 6);
-  u.uPhotoAmt.value = photo.tex ? photo.amt : 0;
-  if (photo.tex) { u.uPhoto.value = photo.tex; u.uPhotoAspect.value = photo.aspect; }
   face.glitch *= Math.exp(-dt * 5);
   if (MOTION && Math.random() < dt * 0.08) face.glitch = Math.max(face.glitch, 0.5);  // the odd random glitch
   u.uGlitch.value = MOTION ? face.glitch : 0;
@@ -1140,7 +1125,8 @@ function playGesture(name, duringLanding = false) {
 function updateGestures(now, dt) {
   if (gesture) {
     // a finished move holds its last frame (which is the idle pose) while its weight fades out
-    if (playing && gesture.time >= gesture.getClip().duration - 0.001) playing = false;
+    // (except 'pickup': he keeps the photo up, on its last frame, until one of the throws takes over)
+    if (playing && gesture.time >= gesture.getClip().duration - 0.001 && !(gesture === gestures.pickup && card.state === 'held')) playing = false;
     gestureW += ((playing ? 1 : 0) - gestureW) * Math.min(1, dt * (playing ? 9 : 5));
     gesture.setEffectiveWeight(gestureW);
     if (!playing && gestureW < 0.005) { gesture.stop(); gesture = null; gestureW = 0; }
@@ -1168,7 +1154,11 @@ function placeForLeap(now) {
   const since = awake ? (now - wakeAt) / 1000 - LEAP_DELAY : -1;
   let clipT = 6.6, prog = 0, w = 0, lean = 0;
   airK = -1;
-  if (!MOTION || since >= LEAP_CROUCH + LEAP_AIR + LEAP_LAND) prog = 1;   // done (or motion reduced: just be there)
+  if (!MOTION || since >= LEAP_CROUCH + LEAP_AIR + LEAP_LAND) {
+    prog = 1;                                                // done (or motion reduced: just be there)
+    // a tab in the background may skip the landing frames entirely: he has still landed
+    if (awake && !landed) { landed = true; waved = true; }
+  }
   else if (since >= 0 && since < LEAP_CROUCH) {
     // wind-up: ease down into the crouch, leaning forward and rocking back a touch
     const k = smooth(since / LEAP_CROUCH);
@@ -1307,6 +1297,7 @@ function loop(now) {
     turn(neck, yaw * 0.5 + sway * 0.45, pitch * 0.5 + breathe * 0.5 + slump * 0.4);
     turn(head, yaw * 0.25 + sway * 0.25, pitch * 0.35 + slump * 0.35 + listen * 0.05);
     if (listen > 0.002) addWorldRotation(head, _q.setFromAxisAngle(facing, -0.17 * listen));   // a curious head tilt
+    updateCard(now, dt);
     updateReflections();
   }
   renderWithGlow();
@@ -1814,8 +1805,7 @@ function showChat(id, step, offerEmail = false) {
 
 /* ======================= guessing game ======================= */
 // A picture of whoever he guesses, from Wikipedia's free API. Only freely licensed images (pilicense=free), so no
-// film stills or posters; when there isn't one he simply keeps his idea icon.
-const photo = { tex: null, aspect: 1, on: false, token: 0, amt: 0 };
+// film stills or posters; when there isn't one, the polaroid just carries the name.
 async function findPicture(name) {
   const api = 'https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1'
     + `&generator=search&gsrsearch=${encodeURIComponent(name)}&gsrlimit=1`
@@ -1828,22 +1818,141 @@ async function findPicture(name) {
     return page && page.thumbnail ? page.thumbnail.source : null;
   } catch { return null; } finally { clearTimeout(timer); }
 }
-function showPicture(name) {
-  const my = ++photo.token;
-  findPicture(name).then((url) => {
-    if (!url || my !== photo.token) return;
-    new THREE.TextureLoader().setCrossOrigin('anonymous').load(url, (tex) => {
-      if (my !== photo.token) { tex.dispose(); return; }
-      tex.colorSpace = THREE.SRGBColorSpace;
-      if (photo.tex) photo.tex.dispose();
-      photo.tex = tex;
-      photo.aspect = tex.image.width / tex.image.height || 1;
-      photo.on = true;
-      setIcon(null);
-    });
-  });
+// The polaroid. When he guesses, he crouches ('pickup'), comes up holding a photo of the guess by his face, and
+// later throws it away: 'toss_happy' when he got it right, 'toss_angry' when he didn't, 'toss' when the game stops.
+// The photo turns up in his right hand at the bottom of the crouch (below the frame on a desktop), rides up with the
+// hand, turns to face the viewer while he holds it, and flies off with spin and gravity once he lets go.
+const PICK_GRAB = 1.0;                       // s into 'pickup': his hand is down at the floor
+const TOSS = {                               // when each throw lets go, and its push: [viewer's right, up, towards the viewer] m/s
+  toss_happy: { release: 0.5, push: [0.3, 4.6, -1.1], spin: 10 },
+  toss_angry: { release: 0.52, push: [-1.0, -3.2, 1.4], spin: 15 },
+  toss: { release: 0.42, push: [-2.6, 1.4, 0.3], spin: 8 },
+};
+const CARD_W = 0.27, CARD_H = 0.33;
+const card = {
+  group: null, tex: null, canvas: null, state: 'off', toss: null, token: 0, scale: 0, flyT: 0, name: '', img: null,
+  vel: new THREE.Vector3(), spin: new THREE.Vector3(), prev: new THREE.Vector3(), handVel: new THREE.Vector3(),
+};
+let rHand = null, busyUntil = 0;
+const _cv = new THREE.Vector3(), _cv2 = new THREE.Vector3(), _cq = new THREE.Quaternion(), _cq2 = new THREE.Quaternion();
+const _ce = new THREE.Euler(), _cz = new THREE.Vector3(0, 0, 1);
+const FLAT = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));   // lying face-up
+const untilFree = () => new Promise((r) => setTimeout(r, Math.max(0, busyUntil - performance.now())));
+
+function buildCard() {
+  card.canvas = document.createElement('canvas');
+  card.canvas.width = 512; card.canvas.height = 626;
+  card.tex = new THREE.CanvasTexture(card.canvas);
+  card.tex.colorSpace = THREE.SRGBColorSpace;
+  card.tex.anisotropy = 4;
+  // lit by the room, but with a little glow of its own so it reads in the dark
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(CARD_W, CARD_H), new THREE.MeshStandardMaterial({
+    map: card.tex, emissiveMap: card.tex, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.55 }));
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(CARD_W, CARD_H), new THREE.MeshStandardMaterial({
+    color: 0xe8e3d8, emissive: 0xe8e3d8, emissiveIntensity: 0.15, roughness: 0.85 }));
+  back.rotation.y = Math.PI;
+  card.group = new THREE.Group();
+  card.group.add(front, back);
+  card.group.visible = false;
+  scene.add(card.group);
 }
-function hidePicture() { photo.token++; photo.on = false; }
+
+// a polaroid: the picture (cover-fit, faces sit near the top of a portrait) and the name written underneath
+function drawCard() {
+  const c = card.canvas, x = c.getContext('2d'), W = c.width, H = c.height, m = 30, side = W - 2 * m, img = card.img;
+  x.fillStyle = '#f3efe6'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#1b1b1b'; x.fillRect(m, m, side, side);
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  if (img) {
+    const sz = Math.min(img.width, img.height);
+    x.drawImage(img, (img.width - sz) / 2, (img.height - sz) * 0.25, sz, sz, m, m, side, side);
+  } else {
+    x.fillStyle = '#3c3c3c'; x.font = '300 230px "Inter Tight", sans-serif';
+    x.fillText('?', W / 2, m + side / 2 + 10);
+  }
+  if (card.name) {
+    x.fillStyle = '#29241e';
+    let size = 56;
+    do { x.font = `italic ${size}px "Instrument Serif", Georgia, serif`; size -= 2; } while (x.measureText(card.name).width > W - 2 * m && size > 22);
+    x.fillText(card.name, W / 2, m + side + (H - m - side) * 0.4);   // high in the border: his fist holds the bottom
+  }
+  card.tex.needsUpdate = true;
+}
+
+// his guess: down he goes for a photo of it (false if he can't move right now)
+function pickUpPhoto(name) {
+  if (!card.group || !rHand || !gestures.pickup || !playGesture('pickup')) return false;
+  const my = ++card.token;
+  Object.assign(card, { state: 'wait', toss: null, scale: 0, name: name || '', img: null });
+  card.group.visible = false;
+  drawCard();
+  if (document.fonts) document.fonts.load('italic 56px "Instrument Serif"').then(() => { if (my === card.token) drawCard(); }).catch(() => {});
+  if (name) findPicture(name).then((url) => {
+    if (!url || my !== card.token) return;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => { if (my === card.token) { card.img = img; drawCard(); } };
+    img.src = url;
+  });
+  busyUntil = performance.now() + gestures.pickup.getClip().duration * 1000;
+  return true;
+}
+
+// throw the photo away with one of the throws; returns false if there was nothing in his hand
+function throwPhoto(kind) {
+  if (card.state === 'wait') { card.state = 'off'; card.group.visible = false; return false; }   // not picked up yet
+  if (card.state !== 'held') return false;
+  if (!playGesture(kind)) { letGo(TOSS[kind].push, TOSS[kind].spin); return true; }
+  card.toss = kind;
+  busyUntil = performance.now() + gestures[kind].getClip().duration * 1000;
+  return true;
+}
+
+function letGo(push, spin = 6) {
+  card.state = 'flying'; card.flyT = 0; card.toss = null;
+  card.vel.copy(card.handVel).multiplyScalar(0.5)
+    .addScaledVector(_right, push[0]).addScaledVector(UP, push[1]).addScaledVector(facing, push[2]);
+  card.spin.set((Math.random() - 0.5) * spin, (Math.random() - 0.5) * spin, (Math.random() - 0.5) * spin);
+}
+
+function updateCard(now, dt) {
+  if (!card.group || card.state === 'off') return;
+  const g = card.group, pick = gestures.pickup;
+  if (card.state === 'flying') {
+    card.flyT += dt;
+    card.vel.y -= 9.8 * dt;
+    g.position.addScaledVector(card.vel, dt);
+    if (g.position.y < 0.02) {               // the floor: a soft bounce, then it slides to a stop
+      g.position.y = 0.02;
+      card.vel.y = Math.abs(card.vel.y) * 0.3; card.vel.x *= 0.55; card.vel.z *= 0.55; card.spin.multiplyScalar(0.5);
+    }
+    g.quaternion.multiply(_cq2.setFromEuler(_ce.set(card.spin.x * dt, card.spin.y * dt, card.spin.z * dt)));
+    if (card.flyT > 1.6) card.scale -= dt * 3;
+    g.scale.setScalar(Math.max(0.001, card.scale));
+    if (card.scale <= 0) { card.state = 'off'; g.visible = false; }
+    return;
+  }
+  rHand.updateWorldMatrix(true, false);
+  rHand.getWorldPosition(_cv);
+  if (dt > 0) card.handVel.lerp(_cv2.subVectors(_cv, card.prev).divideScalar(dt), 0.5);
+  card.prev.copy(_cv);
+  const holding = gesture === pick, tossing = !!card.toss && gesture === gestures[card.toss];
+  if (card.state === 'wait') {
+    if (!holding) { card.state = 'off'; return; }          // interrupted before his hand got there
+    if (pick.time < PICK_GRAB) return;
+    card.state = 'held'; g.visible = true; card.handVel.set(0, 0, 0);
+  }
+  if (!holding && !tossing) return letGo([0, 0.5, 0.4]);    // whatever he was doing got cut short: it drops
+  if (tossing && gesture.time >= TOSS[card.toss].release) return letGo(TOSS[card.toss].push, TOSS[card.toss].spin);
+  // in his hand: flat and low at the grab, upright by his face (turned to the viewer, a little tilted) once he stands
+  const k = holding ? smooth(Math.min(1, Math.max(0, (pick.time - PICK_GRAB) / 0.8))) : 1;
+  card.scale = Math.min(1, card.scale + dt * 7);
+  g.position.copy(_cv).addScaledVector(UP, lerp(0.04, 0.2, k)).addScaledVector(facing, lerp(0.1, 0.05, k));
+  g.lookAt(camera.position);
+  _cq.copy(g.quaternion).multiply(_cq2.setFromAxisAngle(_cz, -0.1 + (MOTION ? Math.sin(now / 650) * 0.025 : 0)));
+  g.quaternion.copy(FLAT).slerp(_cq, k);
+  g.scale.setScalar(Math.max(0.001, card.scale));
+}
 const guessedName = (text) => {
   const m = text.match(/\b(?:is it|was it|did you mean|are you thinking of|is this person|was this person|is this character|is the character|is he|is she)\s+(?:the\s+)?["“]?([^?"”]{2,60}?)["”]?\s*\?/i);
   return m ? m[1].trim() : null;
@@ -1883,7 +1992,7 @@ function gameButtons(list) {
 
 async function startGame() {
   const my = ++game.token;
-  hidePicture();
+  throwPhoto('toss');
   Object.assign(game, { log: [], asked: 0 });
   clearTimeout(autoTimer);
   showYou(null);
@@ -1906,8 +2015,10 @@ async function gameAsk(my, first = false) {
     return showQuestion(my, { reply: G.first, face: 'curious', move: 'think' });
   }
   actions.innerHTML = '';
-  setFace('thinking'); setIcon('dots', 30000); playGesture('think');
   setStatus('mind reader · thinking…', 'game busy');
+  // (if he's still throwing away a wrong guess, he finishes that first)
+  if (performance.now() >= busyUntil) { setFace('thinking'); setIcon('dots', 30000); playGesture('think'); }
+  else untilFree().then(() => { if (my === game.token && sayEl.textContent === '…') { setFace('thinking'); setIcon('dots', 30000); } });
   sayEl.classList.remove('done'); sayEl.textContent = '…';
   const res = await askGame();
   if (my !== game.token) return;
@@ -1924,16 +2035,25 @@ async function gameAsk(my, first = false) {
 }
 
 async function showQuestion(my, res) {
+  await untilFree();                       // a photo still being thrown away lands first
+  if (my !== game.token) return;
   bar.style.width = `${Math.min(1, game.asked / GAME_MAX) * 100}%`;
   setStatus(res.guess ? 'mind reader · my guess' : `mind reader · Q ${String(game.asked).padStart(2, '0')}/${GAME_MAX}`, 'game');
-  setFace(FACES[res.face] ? res.face : res.guess ? 'excited' : 'curious');
-  setIcon(res.guess ? 'idea' : null, 4000);
-  if (res.guess && guessedName(res.reply)) showPicture(guessedName(res.reply));
-  if (res.move && gestures[res.move]) playGesture(res.move);
-  else if (res.guess) playGesture('point');
+  let held = false;
+  if (res.guess) {
+    // he's got it! down he goes for a photo of his guess, and comes up holding it, thrilled
+    setFace('excited'); setIcon(null);
+    held = pickUpPhoto(guessedName(res.reply));
+    if (!held) playGesture('point');
+  } else {
+    setFace(FACES[res.face] ? res.face : 'curious'); setIcon(null);
+    if (res.move && gestures[res.move]) playGesture(res.move);
+  }
   await typeLine(res.reply);
   if (my !== game.token) return;
   if (res.guess) {
+    if (held) await untilFree();           // the answers wait until he's up with the photo
+    if (my !== game.token) return;
     return gameButtons([['Yes, you got it!', 'rai-choice rai-next', () => gameWon(my)],
       ['No, keep going', 'rai-choice', () => gameAnswer(my, 'No, that is not it. Keep asking.')], ['Stop playing', 'rai-skip', endGame]]);
   }
@@ -1943,7 +2063,8 @@ async function showQuestion(my, res) {
 
 function gameAnswer(my, a) {
   if (my !== game.token) return;
-  hidePicture();
+  // a wrong guess: the photo gets hurled away in a huff
+  if (throwPhoto('toss_angry')) { setFace('angry'); setIcon(null); }
   game.lastAnswer = a;
   game.log.push({ role: 'user', content: a });
   showYou(a.replace('No, that is not it. Keep asking.', 'No, keep going'));
@@ -1955,7 +2076,9 @@ async function gameWon(my) {
   actions.innerHTML = '';
   bar.style.width = '100%';
   setStatus('mind reader · got it', 'game');
-  setFace('excited'); setIcon('star', 5000); playGesture('excited');
+  // right! the photo goes flying, with a little jump of joy
+  setFace('excited'); setIcon('star', 5000);
+  if (!throwPhoto('toss_happy')) playGesture('excited');
   await typeLine(gfill(pick(G.win || ['Got it!'])));
   if (my !== game.token) return;
   gameButtons([['Play again', 'rai-choice rai-next', startGame], ['Back to chat', 'rai-skip', endGame]]);
@@ -1984,7 +2107,6 @@ async function gameLost(my) {
     showYou(who);
     actions.innerHTML = '';
     setFace('surprised'); playGesture('facepalm');
-    showPicture(who);   // the one that got away, on his visor
     await typeLine(gfill(pick(G.reveal || ['{answer}! Rematch?']), { answer: who }));
     if (my !== game.token) return;
     gameButtons([['Play again', 'rai-choice rai-next', startGame], ['Back to chat', 'rai-skip', endGame]]);
@@ -1994,7 +2116,7 @@ async function gameLost(my) {
 
 function endGame() {
   game.token++;
-  hidePicture();
+  throwPhoto('toss');
   actions.classList.remove('row');
   go('ask');
 }
@@ -2118,3 +2240,4 @@ function init() {
   });
   if (!init3D()) showWake();
 }
+

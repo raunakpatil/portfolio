@@ -33,7 +33,8 @@ DNS for raunakpatil.com (at GoDaddy):
 - `CNAME` record `www` → `raunakpatil.github.io`
 
 ## Ronie's extra moves (Blender)
-`models/ronie-anims.glb` holds Ronie's idle variations plus `excited` and `confused`, authored in Blender 5.2 by
+`models/ronie-anims.glb` holds Ronie's idle variations, the chat moves, and the guessing game's photo moves
+(`pickup`, `toss_happy`, `toss_angry`, `toss`), authored in Blender 5.2 by
 `tools/blender/ronie_anims.py` on the original model (unzip `3dmodel/sci-fi_o.b._robot_unit_th-icc02_animated.zip`):
 
 ```
@@ -44,6 +45,13 @@ Poses are written as world-space rotations on top of his idle pose, so edit the 
 It also saves a `.blend` next to the output; `tools/blender/ronie_preview.py` (body) and `ronie_hands_preview.py` (hands)
 render poses from it to check them. Fingers: each hand has a finger block (Index1-3) and a thumb; poses for them
 (`FL`/`FR`) are in the script but switched off with `FINGERS = False`.
+
+Crouching: a pose's `CR` entry (`{'d': drop, 'b': hips back}`, metres) lowers his hips and re-solves both legs so
+the feet stay planted. In the guessing game he crouches (`pickup`) and comes up holding a polaroid of his guess by
+his face; the page holds that last frame until a throw takes over. The polaroid is a small card in the 3D scene
+(`updateCard` in `js/assistant.js`): picture from Wikipedia's free images, name written underneath. It rides on his
+right hand and flies off with spin and gravity at each throw's release time (`TOSS` in the same file — keep those
+in step with the clips' timings).
 
 ## Ronie's chat (Cloudflare Workers AI)
 "Ask me anything" sends visitors' questions to a tiny Cloudflare Worker (`worker/`) running a small model on
