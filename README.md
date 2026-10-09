@@ -68,13 +68,20 @@ With sound on (the default), Ronie speaks every line, using no server and no AI 
   English voice it has).
 A server voice (Deepgram Aura) was tried and removed: ~150 neurons per line used up the free allowance the chat needs.
 
-### Model fallback (Gemma 4 on the Gemini API)
-If Workers AI fails (e.g. its 10,000-neuron daily allowance is used up), the worker retries on Google's Gemma 4
-(`gemma-4-26b-a4b-it`, Gemini API free tier) — once a key is set as a worker secret:
+### Model fallback chain (Gemini API free tier)
+If Workers AI fails (e.g. its 10,000-neuron daily allowance is used up), the worker walks down a list of Google
+models (`GOOGLE` in `worker/src/index.js`: Gemini 2.5 Flash-Lite, Flash-Lite latest, 3.1 / 3.5 Flash-Lite,
+2.5 Flash), each with its own free rate limit. Gemma 4 was tried and dropped: it always thinks first (60 s+).
+
+The model is settled while the room loads: the page calls `POST /pick`, the worker pings down the list and names
+the first that answers, and every message then goes straight to it (`model` in the request; the reply says which
+model answered, and the page sticks with that). The worker remembers a used-up Workers AI until 00:00 UTC and a
+rate-limited Google model for 5 minutes, so neither costs a wasted round trip.
+
+The key is a worker secret. In PowerShell, from `worker/` (a hidden prompt, so the key never shows or lands in history):
 
 ```
-cd worker
-npx -y -p node@22 -p wrangler@4 -- wrangler secret put GEMINI_API_KEY
+$k = Read-Host 'Gemini key' -AsSecureString; [Net.NetworkCredential]::new('', $k).Password | npx.cmd -y -p node@22 -p wrangler@4 -- wrangler secret put GEMINI_API_KEY
 ```
 
 ### Address
