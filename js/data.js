@@ -22,8 +22,17 @@ window.PORTFOLIO = {
      Local images need the site served over http (see README). */
   hello: {
     greeting: ['Hello', 'Stranger'],
-    terminal: '>>> model.ask("who built this?")  "An AI engineer who knows what the model doesn\'t know."_',
-    asciiImage: '',
+    // the terminal line under the hologram cycles through these (each ends with a blinking cursor)
+    terminal: [
+      '>>> ronie.name  "Raunak\'s Own Neural Intelligence Engine"_',
+      '>>> ronie.status()  "online. awake. mildly over-caffeinated."_',
+      '>>> ronie.knows("raunak")  True  # everything. twice._',
+      '>>> ronie.play("mind reader")  "think of anyone. I\'ll guess who."_',
+      '>>> ronie.skills  ["small talk", "big leaps", "reading minds"]_',
+      '>>> ronie.ask("should I hire him?")  "an enthusiastic yes."_',
+      '>>> ronie.voice  "natural, male, slightly awkward"_',
+      '>>> ronie.wake()  # click this card. he jumps._',
+    ],
   },
 
   /* Card 2 — hours dial. The total keeps growing by a random-but-fixed 4–6 h every day
