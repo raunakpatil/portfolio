@@ -1255,20 +1255,68 @@
     });
   }
 
-  /* ---------- certificates: library cards ---------- */
+  /* ---------- certificates: a file folder with a sticky note poking out for each ---------- */
+  // Closed, it's a kraft folder with a label and a printed seal. Click a note (or the folder) and the cover swings
+  // open like a book: its inside lists every certificate, and the page on the right shows the one you picked.
   function initCerts() {
     const C = D.certifications || [];
-    const el = $('#certs');
-    $('#certs-count').textContent = `${C.length} credentials`;
-    const STRIPES = ['#e8553b', '#2f6fd6', '#1c1c1c', '#c6a700', '#2f9e6b', '#b18cff', '#ff7ab6'];
-    el.innerHTML = C.map((c, i) => `<li class="cert" style="--stripe:${STRIPES[i % STRIPES.length]};animation-delay:${i * 50}ms">
-      <div class="cert-top"><span>No. ${String(i + 1).padStart(3, '0')}</span><span>${esc(c.date)}</span></div>
-      <h3>${esc(c.title)}</h3>
-      <p class="cert-issuer">${esc(c.issuer)}</p>
-      ${c.id ? `<p class="cert-id">ID ${esc(c.id)}</p>` : ''}
-      <div class="cert-skills">${(c.skills || []).map((x) => `<span>${esc(x)}</span>`).join('')}</div>
-      ${c.url ? `<a class="cert-link" href="${esc(c.url)}" target="_blank" rel="noopener">Show credential ↗</a>` : ''}
-    </li>`).join('');
+    const fd = $('#folder');
+    if (!fd || !C.length) return;
+    $('#certs-count').textContent = `${String(C.length).padStart(2, '0')} · pick a sticky note`;
+    const NOTE = ['#f6dd5f', '#ff9fc2', '#8fc3ff', '#a8e39f', '#ffb366', '#c8b4ff', '#8fe0cd'];
+    const years = C.map((c) => +String(c.date).slice(-4)).filter(Boolean);
+    const span = years.length ? `${Math.min(...years)}–${Math.max(...years)}` : '';
+    const no = (i) => String(i + 1).padStart(2, '0');
+    const tilt = (i) => (seeded(`note${i}`)() - 0.5) * 4;
+    fd.innerHTML = `
+      <div class="fd-body">
+        <span class="fd-tab" aria-hidden="true"></span>
+        <div class="fd-page" id="fd-page" aria-live="polite"></div>
+        <div class="fd-notes">${C.map((c, i) => `<button class="fd-note" type="button" data-i="${i}" aria-label="Open certificate: ${esc(c.title)}"
+          style="--note:${NOTE[i % NOTE.length]};--tilt:${tilt(i).toFixed(2)}deg;top:${(6 + i * (86 / C.length)).toFixed(2)}%;animation-delay:${200 + i * 60}ms"><span>${esc(c.short || c.title)}</span></button>`).join('')}</div>
+        <span class="grain"></span>
+      </div>
+      <div class="fd-cover">
+        <button class="fd-front" type="button" aria-label="Open the certificates folder">
+          <span class="fd-seal" aria-hidden="true"><i></i><i></i><b></b></span>
+          <span class="fd-label">
+            <span class="fd-kicker">No. 01–${no(C.length - 1)} · ${esc(span)}</span>
+            <span class="fd-title">Certificates &amp; courses</span>
+            <span class="fd-by">${esc(D.name)}</span>
+          </span>
+          <span class="grain"></span>
+        </button>
+        <div class="fd-inside">
+          <p class="fd-kicker">Contents</p>
+          <ol>${C.map((c, i) => `<li><button type="button" data-i="${i}"><span>${no(i)}</span>${esc(c.short || c.title)}</button></li>`).join('')}</ol>
+          <button class="fd-close" type="button">Close folder</button>
+          <span class="grain"></span>
+        </div>
+      </div>`;
+    const page = $('#fd-page', fd);
+    const show = (i) => {
+      const c = C[i];
+      page.innerHTML = `<article class="fd-doc" style="--note:${NOTE[i % NOTE.length]}">
+        <p class="fd-doc-top"><span>No. ${no(i)}</span><span>${esc(c.date)}</span></p>
+        <p class="fd-doc-kind">Certificate</p>
+        <h3>${esc(c.title)}</h3>
+        <p class="fd-doc-by">issued by <b>${esc(c.issuer)}</b></p>
+        ${c.id ? `<p class="fd-doc-id">ID ${esc(c.id)}</p>` : ''}
+        <div class="cert-skills">${(c.skills || []).map((x) => `<span>${esc(x)}</span>`).join('')}</div>
+        ${c.url ? `<a class="cert-link" href="${esc(c.url)}" target="_blank" rel="noopener">Show credential ↗</a>` : ''}
+        <button class="fd-back" type="button">← close</button>
+        <span class="fd-stamp" aria-hidden="true"></span>
+      </article>`;
+      $$('.fd-note', fd).forEach((n) => n.classList.toggle('on', +n.dataset.i === i));
+      fd.dataset.open = 'true';
+    };
+    fd.addEventListener('click', (e) => {
+      const pick = e.target.closest('[data-i]');
+      if (pick) return show(+pick.dataset.i);
+      if (e.target.closest('.fd-close, .fd-back')) { fd.dataset.open = 'false'; $$('.fd-note', fd).forEach((n) => n.classList.remove('on')); return; }
+      if (e.target.closest('.fd-front')) show(0);
+    });
+    addEventListener('keydown', (e) => { if (e.key === 'Escape' && fd.dataset.open === 'true') fd.dataset.open = 'false'; });
   }
 
   /* ---------- my profile page ---------- */
