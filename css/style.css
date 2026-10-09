@@ -825,25 +825,27 @@ main { padding: 0 var(--gap) var(--gap); }
 }
 .fd[data-open="true"] { transform: translateX(84px); }
 @media (min-width: 1181px) and (max-width: 1440px) {   /* laptop widths: a slightly smaller folder so the open spread fits */
-  .fd { --fw: 232px; --fh: 318px; transform: translateX(-40px); }
+  .fd { --fw: 232px; --fh: 340px; transform: translateX(-40px); }
   .fd[data-open="true"] { transform: translateX(66px); }
   .fd-title { font-size: 27px; }
   .fd-doc h3 { font-size: 21px; }
+  .fd-doc.long h3 { font-size: 18px; }
 }
 .fd-body {
-  position: absolute; inset: 0; border-radius: 4px 10px 10px 4px; background: var(--kraft-2);
+  position: absolute; inset: 0; isolation: isolate;   /* its own layers: notes behind the page, the open one on it */
+  border-radius: 4px 10px 10px 4px; background: var(--kraft-2);
   box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .06), 0 22px 40px -18px rgba(0, 0, 0, .45);
 }
 .fd-tab { position: absolute; left: 18px; top: -16px; width: 92px; height: 18px; border-radius: 8px 8px 0 0; background: var(--kraft-2); }
 .fd-page {
-  position: absolute; inset: 10px 10px 10px 8px; overflow: hidden; border-radius: 3px;
+  position: absolute; z-index: 2; inset: 10px 10px 10px 8px; overflow: hidden; border-radius: 3px;
   background: #fbf9f3; box-shadow: 0 1px 3px rgba(0, 0, 0, .12);
   background-image: repeating-linear-gradient(transparent 0 23px, rgba(47, 111, 214, .1) 23px 24px); background-position: 0 70px;
 }
 /* sticky notes tucked between the pages, poking out of the right edge */
-.fd-notes { position: absolute; inset: 0; }
+.fd-notes { position: absolute; inset: 0; pointer-events: none; }   /* (lets clicks through to the page) */
 .fd-note {
-  position: absolute; left: calc(100% - 30px); width: 128px; min-height: 36px; padding: 6px 10px 6px 38px;
+  position: absolute; z-index: 1; left: calc(100% - 30px); pointer-events: auto;   /* tucked behind the page */ width: 128px; min-height: 36px; padding: 6px 10px 6px 38px;
   display: flex; align-items: center; text-align: left;
   background: var(--note); color: #29241e; font-size: 10.5px; font-weight: 500; line-height: 1.15;
   border-radius: 1px 3px 3px 1px; box-shadow: 0 2px 4px rgba(0, 0, 0, .12);
@@ -855,7 +857,7 @@ main { padding: 0 var(--gap) var(--gap); }
   content: ""; position: absolute; right: 0; top: 0; bottom: 0; width: 7px; background: rgba(255, 255, 255, .28);
 }
 .fd-note:hover, .fd-note:focus-visible { transform: translateX(8px) rotate(var(--tilt)); box-shadow: 0 6px 12px rgba(0, 0, 0, .16); }
-.fd-note.on { transform: translateX(14px) rotate(0deg); box-shadow: 0 6px 14px rgba(0, 0, 0, .2); }
+.fd-note.on { z-index: 3; transform: translateX(14px) rotate(0deg); box-shadow: 0 6px 14px rgba(0, 0, 0, .2); }   /* the open one lies on the page */
 @keyframes note-in { from { opacity: 0; transform: translateX(-30px) rotate(var(--tilt)); } }
 .fd-cover {
   position: absolute; inset: 0; transform-origin: left center; transform-style: preserve-3d;
@@ -909,6 +911,7 @@ main { padding: 0 var(--gap) var(--gap); }
 .fd-doc-top { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: #8a8478; }
 .fd-doc-kind { margin-top: 6px; font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: #8a8478; }
 .fd-doc h3 { font-family: "Instrument Serif", Georgia, serif; font-size: 23px; font-weight: 400; line-height: 1.08; }
+.fd-doc.long h3 { font-size: 19.5px; }   /* very long titles a size down so the page still fits */
 .fd-doc-by { font-size: 12px; color: #666; }
 .fd-doc-by b { display: block; font-weight: 500; color: #333; }
 .fd-doc-id { font-family: var(--mono); font-size: 10px; color: #8a8478; word-break: break-all; }
@@ -1061,6 +1064,7 @@ main { padding: 0 var(--gap) var(--gap); }
   .fd-note { width: 112px; font-size: 10px; }
   .fd-title { font-size: 25px; }
   .fd-doc h3 { font-size: 19px; }
+  .fd-doc.long h3 { font-size: 16.5px; }
   .fd-back { display: inline; }   /* the cover (with its Close button) swings away on a phone */
   .book { width: 130px; }
   .book:hover, .book:focus-visible { width: 226px; }
