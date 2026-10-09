@@ -61,10 +61,22 @@ npx -y -p node@22 -p wrangler@4 -- wrangler deploy
 Persona, rules and the model live in `worker/src/index.js`. Usage is visible in the Cloudflare dashboard → AI.
 
 ### Ronie's voice
-With sound on (the default), Ronie speaks every line. Two male voices, both free:
-- **Kokoro** (`am_puck`) runs in the visitor's browser on computers with WebGPU: natural and expressive, no
-  server and no quota. The model (~300 MB) is fetched once in the background when he wakes, then cached.
-- **Deepgram Aura-1** (`arcas`) via the worker's `/speak` endpoint, for phones and the moments before Kokoro
-  has loaded. It uses the Workers AI free allowance (about 160 neurons per spoken reply).
-Change the Kokoro voice with `assistant.voice: { voice: 'am_michael' }` in data.js; the Aura speaker is in
-`worker/src/index.js`.
+With sound on (the default), Ronie speaks every line, using no server and no AI quota:
+- **Kokoro** (`am_puck`) runs in the visitor's browser on computers with WebGPU: natural and expressive. The model
+  (~300 MB) is fetched once in the background when he wakes, then cached.
+- Phones, and the moments before Kokoro has loaded, use the **device's own speech voice** (the most natural male
+  English voice it has).
+A server voice (Deepgram Aura) was tried and removed: ~150 neurons per line used up the free allowance the chat needs.
+
+### Model fallback (Gemma 4 on the Gemini API)
+If Workers AI fails (e.g. its 10,000-neuron daily allowance is used up), the worker retries on Google's Gemma 4
+(`gemma-4-26b-a4b-it`, Gemini API free tier) — once a key is set as a worker secret:
+
+```
+cd worker
+npx -y -p node@22 -p wrangler@4 -- wrangler secret put GEMINI_API_KEY
+```
+
+### Address
+Ronie lives at **raunakpatil.com/ronie** (`ronie.html` hands visitors to the site, which keeps `/ronie` in the
+address bar); every other page is `/#page`.

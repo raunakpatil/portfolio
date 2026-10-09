@@ -877,6 +877,7 @@ void main() { vUv = uv; vVis = vis; gl_Position = projectionMatrix * modelViewMa
 const FACE_FRAG = `
 uniform vec4 uL, uR, uLx, uRx; uniform vec2 uLook, uCentre, uIconPos, uQ; uniform vec3 uIconTint;
 uniform float uIconEyes;                                // 1: the icon is drawn twice, in place of the eyes
+uniform sampler2D uPhoto; uniform float uPhotoAmt, uPhotoAspect;  // a picture of whoever he's guessing
 uniform float uAspect, uTime, uOn, uGlitch, uBright, uSkew, uIconSize, uIconAmt;
 uniform sampler2D uIcon;
 varying vec2 vUv; varying float vVis;
@@ -954,8 +955,21 @@ void main() {
   vec2 p = (uv - 0.5) * vec2(uAspect, 1.0);
   vec2 ca = vec2(0.007 + uGlitch * 0.025, 0.0);        // RGB fringing, like an old tube
   vec3 col = vec3(glow(faceAt(p + ca)), glow(faceAt(p)), glow(faceAt(p - ca)));
-  col *= vec3(1.0, 0.97, 0.93) * (1.0 - uIconEyes * uIconAmt);   // the eyes step aside for icon eyes
-  if (uIconAmt > 0.001) col += vec3(iconAt(p + ca), iconAt(p), iconAt(p - ca)) * uIconTint * uIconAmt * 0.95;
+  col *= vec3(1.0, 0.97, 0.93) * (1.0 - uIconEyes * uIconAmt) * (1.0 - uPhotoAmt);   // the eyes step aside
+  if (uIconAmt > 0.001) col += vec3(iconAt(p + ca), iconAt(p), iconAt(p - ca)) * uIconTint * uIconAmt * 0.95 * (1.0 - uPhotoAmt);
+  if (uPhotoAmt > 0.001) {
+    // the photo fills a rounded screen in the middle of the visor (cover-fit), with a thin glowing frame
+    vec2 pc = uCentre + vec2(0.0, -0.035), hs = vec2(0.25, 0.29);
+    float box = sdBox(p - pc, hs, 0.06);
+    vec2 q = (p - pc) / hs * 0.5 + 0.5;
+    float boxAspect = hs.x / hs.y;
+    if (uPhotoAspect > boxAspect) q.x = 0.5 + (q.x - 0.5) * boxAspect / uPhotoAspect;
+    else q.y = 0.5 + (q.y - 0.5) * uPhotoAspect / boxAspect;
+    float cq = ca.x * 0.6;
+    vec3 ph = vec3(texture2D(uPhoto, q + vec2(cq, 0.0)).r, texture2D(uPhoto, q).g, texture2D(uPhoto, q - vec2(cq, 0.0)).b);
+    float inside = smoothstep(0.0, -0.02, box);
+    col += ph * 0.95 * inside * uPhotoAmt + glow(abs(box) - 0.003) * 0.35 * uPhotoAmt;
+  }
   // AMOLED: the screen itself stays pure black; only the eyes and icons give off light, with the CRT look
   col *= 0.74 + 0.26 * sin(vUv.y * 6.2832 * 72.0);    // scanlines
   col *= 0.95 + 0.05 * sin(uTime * 57.0);              // mains flicker
@@ -984,6 +998,7 @@ async function buildFace() {
         uAspect: { value: sheet.aspect }, uTime: { value: 0 }, uOn: { value: 0 }, uGlitch: { value: 0 }, uBright: { value: 1 }, uSkew: { value: 0 },
         uIcon: { value: icon.tex }, uIconPos: { value: new THREE.Vector2() }, uIconSize: { value: 0.2 }, uIconAmt: { value: 0 },
         uIconTint: { value: new THREE.Vector3(1, 1, 1) }, uIconEyes: { value: 0 },
+        uPhoto: { value: null }, uPhotoAmt: { value: 0 }, uPhotoAspect: { value: 1 },
       },
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
       polygonOffset: true, polygonOffsetFactor: -4,
@@ -1052,6 +1067,9 @@ function updateFace(now, dt) {
   u.uIconPos.value.set(slot.pos[0], slot.pos[1] + (MOTION && icon.slot === 'emote' ? Math.sin(t * 2.6) * 0.012 : 0));
   u.uIconTint.value.fromArray(icon.tint);
   u.uIconEyes.value = icon.slot === 'topic' ? 1 : 0;
+  photo.amt += ((photo.on && photo.tex ? 1 : 0) - photo.amt) * Math.min(1, dt * 6);
+  u.uPhotoAmt.value = photo.tex ? photo.amt : 0;
+  if (photo.tex) { u.uPhoto.value = photo.tex; u.uPhotoAspect.value = photo.aspect; }
   face.glitch *= Math.exp(-dt * 5);
   if (MOTION && Math.random() < dt * 0.08) face.glitch = Math.max(face.glitch, 0.5);  // the odd random glitch
   u.uGlitch.value = MOTION ? face.glitch : 0;
@@ -1352,9 +1370,9 @@ function buzz() {
 /* ======================= voice ======================= */
 // With sound on, Ronie says every line he types. Computers that can run it get Kokoro, a small, natural and
 // expressive voice model that runs in the browser (no server, no quota). Phones — and everyone in the first moments
-// before Kokoro has loaded — get the quick MeloTTS voice from the chat worker (very cheap on the free allowance).
+// before Kokoro has loaded — get the device's own speech voice (a male English one where available). No server voice:
+// it would spend the free AI allowance the chat needs.
 const VOICE = { model: 'onnx-community/Kokoro-82M-v1.0-ONNX', voice: 'am_puck', speed: 1.04, ...(A.voice || {}) };
-const speakUrl = A.chatUrl ? A.chatUrl.replace(/\/chat$/, '/speak') : '';
 let kokoroReady = false, kokoroLoading = null, voiceToken = 0, voiceSrc = null, voiceAnalyser = null, voiceLevel = 0;
 let speechDone = Promise.resolve();               // settles when the line he's saying now is finished
 const voiceData = new Uint8Array(256);
@@ -1393,6 +1411,7 @@ function loadKokoro() {
 function stopVoice() {
   voiceToken++;
   if (voiceSrc) { try { voiceSrc.stop(); } catch { /* already stopped */ } voiceSrc = null; }
+  if ('speechSynthesis' in window) speechSynthesis.cancel();
 }
 
 // play one chunk of audio through an analyser (so his eyes can move with his voice); resolves when it ends
@@ -1427,7 +1446,6 @@ async function speak(text) {
   stopVoice();
   if (!soundOn || !text) return;
   const my = voiceToken;
-  const timeout = (ms) => { const c = new AbortController(); setTimeout(() => c.abort(), ms); return c.signal; };
   const said = text.replace(/R\.O\.N\.I\.E\./g, 'Ronie').replace(/\s+/g, ' ').trim();
   try {
     if (kokoroReady) {
@@ -1445,16 +1463,44 @@ async function speak(text) {
       }
       return;
     }
-    if (!speakUrl) return;
-    const r = await fetch(speakUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: said }), signal: timeout(8000) });
-    if (!r.ok || my !== voiceToken) return;
-    const buf = await audioCtx().decodeAudioData(await r.arrayBuffer());
-    await playVoice(buf, my);
+    // phones, and the moments before Kokoro has loaded: the device's own voice (free, no server, no quota)
+    await speakDevice(said, my);
   } catch { /* no voice this time — the text is still there */ }
 }
 
+// the most natural male English voice this device offers (Edge's "Natural" voices, iOS/macOS, Google's)
+let deviceVoice;
+if ('speechSynthesis' in window) speechSynthesis.addEventListener?.('voiceschanged', () => { deviceVoice = undefined; });
+function pickDeviceVoice() {
+  if (deviceVoice !== undefined) return deviceVoice;
+  const all = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
+  if (!all.length) return null;           // not loaded yet — try again next line
+  const en = all.filter((v) => /^en/i.test(v.lang));
+  const male = /\b(guy|ryan|eric|davis|andrew|brian|christopher|roger|steffan|thomas|william|daniel|aaron|arthur|alex|fred|oliver|george|james|david|mark|male)\b/i;
+  const score = (v) => (male.test(v.name) ? 4 : 0) + (/natural|neural|online|enhanced|premium/i.test(v.name) ? 3 : 0)
+    + (/en-(gb|us)/i.test(v.lang) ? 1 : 0) + (/female|zira|susan|samantha|karen|moira|tessa|hazel|libby|sonia|aria|jenny/i.test(v.name) ? -6 : 0);
+  deviceVoice = en.sort((a, b) => score(b) - score(a))[0] || null;
+  return deviceVoice;
+}
+function speakDevice(text, my) {
+  return new Promise((resolve) => {
+    if (!('speechSynthesis' in window) || my !== voiceToken) return resolve();
+    const u = new SpeechSynthesisUtterance(text);
+    const v = pickDeviceVoice();
+    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB';
+    u.rate = 1.03; u.pitch = 0.95;
+    // no audio graph to measure here: his eyes bob along with each word instead
+    u.onboundary = () => { face.talkUntil = performance.now() + 260; };
+    const done = () => { clearTimeout(failsafe); resolve(); };
+    u.onend = done; u.onerror = done;
+    const failsafe = setTimeout(done, 1500 + text.length * 90);
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  });
+}
+
 function blip() {
-  if (!soundOn || speakUrl || kokoroReady) return;   // when Ronie has a voice, the typing blips step aside
+  if (!soundOn || kokoroReady || 'speechSynthesis' in window) return;   // when Ronie has a voice, the typing blips step aside
   try {
     audio ||= new (window.AudioContext || window.webkitAudioContext)();
     const o = audio.createOscillator(), g = audio.createGain();
@@ -1593,7 +1639,7 @@ async function askRonie() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ messages: chatLog.slice(-8), name: answers.name || '' }), signal: ctl.signal,
     });
-    if (!r.ok) return null;
+    if (!r.ok) return (await r.json().catch(() => ({}))).error === 'quota' ? { quota: true } : null;
     const j = await r.json();
     // { reply, face?, icon? } — the face and icon are the model's pick for this answer
     return typeof j.reply === 'string' && j.reply.trim() ? { ...j, reply: j.reply.trim() } : null;
@@ -1649,6 +1695,13 @@ function showChat(id, step, offerEmail = false) {
     sayEl.textContent = '…';
     const answer = await askRonie();
     if (!history.length || history[history.length - 1] !== id) return;   // they've moved on meanwhile
+    if (answer && answer.quota) {
+      chatLog.pop();
+      setFace('sleepy'); setIcon('zzz', 6000);
+      await typeLine(fill(step.quota || step.fallback));
+      setFace('neutral');
+      return showChat(id, step, true);
+    }
     if (answer) {
       const { reply } = answer;
       chatLog.push({ role: 'assistant', content: reply });
@@ -1678,11 +1731,47 @@ function showChat(id, step, offerEmail = false) {
 }
 
 /* ======================= guessing game ======================= */
+// A picture of whoever he guesses, from Wikipedia's free API. Only freely licensed images (pilicense=free), so no
+// film stills or posters; when there isn't one he simply keeps his idea icon.
+const photo = { tex: null, aspect: 1, on: false, token: 0, amt: 0 };
+async function findPicture(name) {
+  const api = 'https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&redirects=1'
+    + `&generator=search&gsrsearch=${encodeURIComponent(name)}&gsrlimit=1`
+    + '&prop=pageimages&piprop=thumbnail&pithumbsize=400&pilicense=free';
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 6000);
+  try {
+    const j = await (await fetch(api, { signal: ctl.signal })).json();
+    const page = j.query && Object.values(j.query.pages || {})[0];
+    return page && page.thumbnail ? page.thumbnail.source : null;
+  } catch { return null; } finally { clearTimeout(timer); }
+}
+function showPicture(name) {
+  const my = ++photo.token;
+  findPicture(name).then((url) => {
+    if (!url || my !== photo.token) return;
+    new THREE.TextureLoader().setCrossOrigin('anonymous').load(url, (tex) => {
+      if (my !== photo.token) { tex.dispose(); return; }
+      tex.colorSpace = THREE.SRGBColorSpace;
+      if (photo.tex) photo.tex.dispose();
+      photo.tex = tex;
+      photo.aspect = tex.image.width / tex.image.height || 1;
+      photo.on = true;
+      setIcon(null);
+    });
+  });
+}
+function hidePicture() { photo.token++; photo.on = false; }
+const guessedName = (text) => {
+  const m = text.match(/\b(?:is it|was it|did you mean|are you thinking of|is this person|was this person|is this character|is the character|is he|is she)\s+(?:the\s+)?["“]?([^?"”]{2,60}?)["”]?\s*\?/i);
+  return m ? m[1].trim() : null;
+};
+
 // Like Akinator: the visitor thinks of someone or something; Ronie asks yes/no questions (worker mode 'game') and
 // guesses. Every game opens with the same first question so the model starts on the right foot.
 const G = A.game || {};
 const GAME_ANSWERS = ['Yes', 'No', 'Probably', 'Probably not', "Don't know"];
-const GAME_MAX = 24;
+const GAME_MAX = 30;
 const game = { log: [], asked: 0, token: 0 };
 const gfill = (s, extra = {}) => fill(s).replace(/\{answer\}/g, extra.answer || '');
 
@@ -1695,7 +1784,7 @@ async function askGame() {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, signal: ctl.signal,
       body: JSON.stringify({ mode: 'game', messages: game.log.slice(-60), asked: game.asked, name: answers.name || '' }),
     });
-    if (!r.ok) return null;
+    if (!r.ok) return (await r.json().catch(() => ({}))).error === 'quota' ? { quota: true } : null;
     const j = await r.json();
     return typeof j.reply === 'string' && j.reply.trim() ? j : null;
   } catch { return null; } finally { clearTimeout(timer); }
@@ -1710,6 +1799,7 @@ function gameButtons(list) {
 
 async function startGame() {
   const my = ++game.token;
+  hidePicture();
   Object.assign(game, { log: [], asked: 0 });
   clearTimeout(autoTimer);
   prevEl.classList.remove('show');
@@ -1735,10 +1825,10 @@ async function gameAsk(my, first = false) {
   sayEl.classList.remove('done'); sayEl.textContent = '…';
   const res = await askGame();
   if (my !== game.token) return;
-  if (!res) {
+  if (!res || res.quota) {
     game.log.pop();
     setFace('sleepy'); setIcon('zzz', 5000);
-    await typeLine(gfill(G.fallback || 'Let me try again in a bit.'));
+    await typeLine(gfill((res && res.quota && G.quota) || G.fallback || 'Let me try again in a bit.'));
     if (my !== game.token) return;
     return gameButtons([['Try again', 'rai-choice', () => gameAnswer(my, game.lastAnswer)], ['Stop playing', 'rai-skip', endGame]]);
   }
@@ -1751,6 +1841,7 @@ async function showQuestion(my, res) {
   bar.style.width = `${Math.min(1, game.asked / GAME_MAX) * 100}%`;
   setFace(FACES[res.face] ? res.face : res.guess ? 'excited' : 'curious');
   setIcon(res.guess ? 'idea' : null, 4000);
+  if (res.guess && guessedName(res.reply)) showPicture(guessedName(res.reply));
   if (res.move && gestures[res.move]) playGesture(res.move);
   else if (res.guess) playGesture('point');
   await typeLine(res.reply);
@@ -1765,6 +1856,7 @@ async function showQuestion(my, res) {
 
 function gameAnswer(my, a) {
   if (my !== game.token) return;
+  hidePicture();
   game.lastAnswer = a;
   game.log.push({ role: 'user', content: a });
   prevEl.textContent = `You: ${a.replace('No, that is not it. Keep asking.', 'No, keep going')}`;
@@ -1806,6 +1898,7 @@ async function gameLost(my) {
     prevEl.textContent = `You: ${who}`; prevEl.classList.add('show');
     actions.innerHTML = '';
     setFace('surprised'); playGesture('facepalm');
+    showPicture(who);   // the one that got away, on his visor
     await typeLine(gfill(pick(G.reveal || ['{answer}! Rematch?']), { answer: who }));
     if (my !== game.token) return;
     gameButtons([['Play again', 'rai-choice rai-next', startGame], ['Back to chat', 'rai-skip', endGame]]);
@@ -1815,6 +1908,7 @@ async function gameLost(my) {
 
 function endGame() {
   game.token++;
+  hidePicture();
   actions.classList.remove('row');
   go('ask');
 }
