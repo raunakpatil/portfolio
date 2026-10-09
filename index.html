@@ -16,7 +16,7 @@
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <link rel="stylesheet" href="css/style.css?v=20261009191500">
+  <link rel="stylesheet" href="css/style.css?v=20261009204500">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -207,7 +207,10 @@
         <div class="rai-loading" id="rai-loading" aria-live="polite"><pre class="rai-ascii" id="rai-ascii" aria-hidden="true"></pre><p>Booting R.O.N.I.E.… <b id="rai-load-pct">0%</b></p><pre class="rai-bootlog" id="rai-bootlog" aria-hidden="true"></pre></div>
         <button class="rai-wake" id="rai-wake" type="button" hidden><span>WAKE RONIE</span></button>
         <div class="rai-panel" id="rai-panel" hidden>
-          <button class="rai-back" id="rai-back" type="button" hidden>← Back</button>
+          <div class="rai-head">
+            <span class="rai-tag" id="rai-tag"><i aria-hidden="true"></i>R.O.N.I.E <span id="rai-status">online</span></span>
+            <button class="rai-back" id="rai-back" type="button" hidden>← Back</button>
+          </div>
           <p class="rai-say" id="rai-say" aria-live="polite"></p>
           <form class="rai-actions" id="rai-actions" novalidate></form>
         </div>
@@ -216,7 +219,6 @@
         <button class="rai-sound" id="rai-sound" type="button" aria-pressed="false" aria-label="Typing sounds">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4Z"/><path class="rai-wave" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/><path class="rai-x" d="m16 9 6 6m0-6-6 6"/></svg>
         </button>
-        <p class="rai-credit" id="rai-credit"></p>
       </div>
     </section>
   </main>
@@ -235,8 +237,8 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261009191500"></script>
+  <script src="js/data.js?v=20261009204500"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
-  <script src="js/main.js?v=20261009191500" defer></script>
+  <script src="js/main.js?v=20261009204500" defer></script>
 </body>
 </html>

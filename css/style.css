@@ -508,16 +508,41 @@ main { padding: 0 var(--gap) var(--gap); }
 
 .rai-panel {
   position: absolute; z-index: 3; left: clamp(20px, 5vw, 72px); top: 50%; transform: translateY(-50%);
-  width: min(460px, 40%);
+  width: min(484px, 42%); max-height: calc(100% - 48px); overflow-y: auto; scrollbar-width: none;
+  padding: 12px; margin-left: -12px; /* room for the bubble's shadow inside the scrolling panel */
 }
-.rai-back { margin-bottom: 18px; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; color: #8a8a8a; }
+.rai-panel::-webkit-scrollbar { display: none; }
+.rai-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
+.rai-tag {
+  display: flex; align-items: center; gap: 7px;
+  font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: #d0d0d0;
+}
+.rai-tag i {
+  width: 7px; height: 7px; border-radius: 50%; background: #38ffb3; box-shadow: 0 0 8px rgba(56, 255, 179, .7);
+  transition: background .3s, box-shadow .3s;
+}
+.rai-tag #rai-status { color: #8a8a8a; }
+.rai-tag #rai-status::before { content: "·"; margin-right: 7px; color: #555; }
+.rai-tag[data-mode~="busy"] i { background: #ff7a1a; box-shadow: 0 0 8px rgba(255, 122, 26, .7); animation: rai-blink .9s ease-in-out infinite; }
+.rai-tag[data-mode~="game"] i { background: #ff70f3; box-shadow: 0 0 8px rgba(255, 112, 243, .7); }
+.rai-tag[data-mode~="game"][data-mode~="busy"] i { background: #ff70f3; }
+.rai-tag[data-mode="off"] i { background: #6f6f6f; box-shadow: none; }
+.rai-back { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; color: #8a8a8a; }
 .rai-back:hover { color: #fff; }
-.rai-prev { min-height: 1.4em; margin-bottom: 10px; font-size: 13px; line-height: 1.4; color: #6f6f6f; opacity: 0; transition: opacity .4s; }
-.rai-prev.show { opacity: 1; }
+/* what the visitor said: the white bubble from the dashboard's tunnel */
+.rai-prev {
+  display: none; width: fit-content; max-width: 88%; margin-bottom: 14px; padding: 8px 15px;
+  border-radius: 16px 16px 16px 4px; background: #fff; color: #111; font-size: 13px; line-height: 1.4;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+}
+.rai-prev.show { display: block; animation: rai-pop .4s var(--ease); }
+@keyframes rai-pop { from { opacity: 0; transform: translateY(6px) scale(.96); } }
 .rai-say {
   min-height: 3.9em; cursor: default;
   font-size: clamp(21px, 2.1vw, 30px); font-weight: 300; line-height: 1.28; letter-spacing: -.015em;
 }
+.rai-say.long { font-size: clamp(18px, 1.6vw, 23px); line-height: 1.32; }
+.rai-say.xlong { font-size: clamp(16px, 1.3vw, 19px); line-height: 1.38; }
 .rai-scr { color: #38ffb3; }
 .rai-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 24px; }
 .rai-choice {
@@ -531,21 +556,55 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai-skip { margin-top: 2px; font-family: var(--mono); font-size: 11px; color: #8a8a8a; text-decoration: underline; text-underline-offset: 3px; animation: rise .5s var(--ease) both; }
 .rai-skip:hover { color: #fff; }
 .rai-field {
-  display: flex; align-items: flex-end; gap: 10px; width: 100%;
-  padding-bottom: 8px; border-bottom: 1px solid rgba(255, 255, 255, .25); animation: rise .5s var(--ease) both;
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 5px 5px 5px 18px;
+  border-radius: 999px; background: rgba(255, 255, 255, .06); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14);
+  backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  animation: rise .5s var(--ease) both; transition: box-shadow .25s, background .25s;
 }
-.rai-field:focus-within { border-bottom-color: #ff7a1a; }
+.rai-field:has(textarea) { align-items: flex-end; border-radius: 18px; padding-top: 10px; }
+.rai-field:focus-within { background: rgba(255, 255, 255, .09); box-shadow: inset 0 0 0 1px #ff7a1a; }
 .rai-field input, .rai-field textarea {
   flex: 1; min-width: 0; padding: 4px 0; border: 0; outline: none; resize: none;
-  background: transparent; color: #fff; font: inherit; font-size: 18px; line-height: 1.4;
+  background: transparent; color: #fff; font: inherit; font-size: 15px; line-height: 1.4;
 }
-.rai-field ::placeholder { color: #6f6f6f; }
+.rai-field ::placeholder { color: #7a7a7a; }
 .rai-send {
-  flex: none; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%;
-  background: #ff7a1a; color: #111; font-size: 18px; transition: transform .3s var(--ease), background .25s;
+  flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%;
+  background: #ff7a1a; color: #111; font-size: 17px; transition: transform .3s var(--ease), background .25s;
 }
-.rai-send:hover { background: #ffa05a; transform: translateX(3px); }
-.rai-error { min-height: 1.2em; font-family: var(--mono); font-size: 11px; color: #ff7ab6; }
+.rai-send:hover { background: #ffa05a; transform: translateX(2px); }
+.rai-send:disabled { opacity: .5; }
+.rai-error { font-family: var(--mono); font-size: 11px; color: #ff7ab6; }
+.rai-error:empty { display: none; }
+/* tap-to-ask suggestions under the box */
+.rai-suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+.rai-chip {
+  padding: 6px 13px; border-radius: 999px; font-size: 12.5px; color: #d8d8d8; text-align: left;
+  background: rgba(21, 21, 21, .6); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16);
+  animation: rise .5s var(--ease) both; transition: background .25s, color .25s, box-shadow .25s;
+}
+.rai-chip:hover, .rai-chip:focus-visible { background: #fff; color: #111; box-shadow: none; }
+/* the guessing game, offered like the map's info card */
+.rai-play {
+  display: grid; grid-template-columns: 1fr auto; column-gap: 14px; row-gap: 2px; align-items: center;
+  width: 100%; margin-top: 14px; padding: 11px 12px 12px 15px; border-radius: 10px; text-align: left;
+  background: rgba(22, 22, 22, .9); border: 1px solid #2c2c2c; border-left: 3px solid #ff70f3;
+  animation: rise .5s var(--ease) both; transition: border-color .3s, background .3s;
+}
+.rai-play-k { grid-column: 1; font-family: var(--mono); font-size: 10px; color: #ff70f3; }
+.rai-play b { grid-column: 1; font-size: 15px; font-weight: 500; color: #fff; }
+.rai-play-s { grid-column: 1; font-size: 12px; color: #a9a9a9; }
+.rai-play i {
+  grid-column: 2; grid-row: 1 / span 3; display: grid; place-items: center; width: 34px; height: 34px;
+  border-radius: 50%; font-style: normal; font-size: 16px; color: #fff; box-shadow: inset 0 0 0 1px #3a3a3a;
+  transition: background .3s, color .3s, transform .35s var(--ease), box-shadow .3s;
+}
+.rai-play:hover, .rai-play:focus-visible { background: rgba(28, 28, 28, .95); border-color: #ff70f3; }
+.rai-play:hover i, .rai-play:focus-visible i { background: #ff70f3; color: #111; box-shadow: none; transform: translateX(3px); }
+/* "// talking to Priya · not you?" */
+.rai-who { margin-top: 10px; font-family: var(--mono); font-size: 10.5px; color: #6f6f6f; animation: rise .5s var(--ease) both; }
+.rai-who button { font-family: var(--mono); color: #8a8a8a; text-decoration: underline; text-underline-offset: 3px; }
+.rai-who button:hover { color: #fff; }
 
 .rai-progress { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; height: 3px; background: rgba(255, 255, 255, .06); }
 .rai-progress i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #ff7a1a, #38ffb3); transition: width .9s var(--ease); }
@@ -565,12 +624,6 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai-sound.on { color: #fff; }
 .rai-sound.on .rai-wave { display: inline; }
 .rai-sound.on .rai-x { display: none; }
-.rai-credit {
-  position: absolute; left: 16px; bottom: 12px; z-index: 3; max-width: calc(100% - 90px);
-  font-family: var(--mono); font-size: 9.5px; color: #6a6a6a;
-}
-.rai-credit a { color: #8a8a8a; text-decoration: underline; text-underline-offset: 2px; }
-.rai-credit a:hover { color: #fff; }
 /* power-on glitch */
 .rai.rai-glitch-on .rai-canvas { animation: glitch-tear .1s steps(1, end) 8; filter: drop-shadow(3px 0 rgba(255, 0, 200, .7)) drop-shadow(-3px 0 rgba(0, 255, 249, .7)); }
 [data-link].card-hello .card-go { background: #38ffb3; }
@@ -583,8 +636,18 @@ main { padding: 0 var(--gap) var(--gap); }
     padding: 60px 18px 8px; background: linear-gradient(rgba(14, 14, 14, 0), rgba(14, 14, 14, .92) 38%);
   }
   .rai-say { min-height: 3.2em; font-size: 20px; }
+  .rai-say.long { font-size: 17px; }
+  .rai-say.xlong { font-size: 15px; }
+  .rai-panel { max-height: 72%; margin-left: 0; }
   .rai-actions { margin-top: 14px; }
-  .rai-credit { top: 18px; bottom: auto; max-width: calc(100% - 140px); font-size: 8.5px; line-height: 1.5; }
+  .rai-head { margin-bottom: 12px; }
+  /* suggestions scroll sideways on a phone rather than stacking up */
+  .rai-suggest { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -18px; padding-right: 18px; }
+  .rai-suggest::-webkit-scrollbar { display: none; }
+  .rai-chip { flex: none; white-space: nowrap; }
+  .rai-play { margin-top: 8px; padding: 9px 10px 9px 13px; }
+  .rai-play-s { display: none; }
+  .rai-who { margin-top: 6px; }
   .rai-sound { top: 14px; right: 66px; bottom: auto; }
 }
 
@@ -902,13 +965,8 @@ main { padding: 0 var(--gap) var(--gap); }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
-/* Ronie's dialogue font: Nevera (Almeera Studio). Characters it lacks fall back to the site font. */
-@font-face { font-family: 'Nevera'; src: url('../fonts/nevera.woff2') format('woff2'); font-display: swap; }
-#rai-panel, #rai-panel input, #rai-panel textarea, #rai-panel button { font-family: 'Nevera', var(--font); letter-spacing: .02em; }
 
 /* the guessing game: answer buttons sit in a row, "Stop playing" on its own line */
 .rai-actions.row { flex-direction: row; flex-wrap: wrap; }
 .rai-actions.row .rai-choice { padding: 9px 16px; }
-.rai-actions.row .rai-skip { flex-basis: 100%; }
-.rai-game { color: #ffb27a; }
-.rai-game:hover { color: #fff; }
+.rai-actions.row .rai-skip { flex-basis: 100%; text-align: left; }

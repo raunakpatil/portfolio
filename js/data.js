@@ -429,6 +429,18 @@ window.PORTFOLIO = {
         ],
         fallback: "Sorry {name}, my chat brain is taking a nap right now (free-tier robots need sleep too). Try again in a bit — or email Raunak at {email}.",
         quota: "Okay, confession, {name}: I've talked so much today that I've used up my free brain juice. I recharge overnight — or email Raunak at {email}.",
+        // tap-to-ask questions under the box, for anyone who'd rather not type (shown a few at a time, best first)
+        suggest: [
+          'What does Raunak do?',
+          'What has he built?',
+          'Is he open to new roles?',
+          "What's his tech stack?",
+          'Where has he worked?',
+          'Why should I hire him?',
+          'What did he study?',
+          'How do I contact him?',
+          'Tell me a fun fact about him',
+        ],
       },
 
       'story-menu': {
@@ -477,7 +489,8 @@ window.PORTFOLIO = {
     },
     // the guessing game (like Akinator): the visitor thinks of someone or something, Ronie asks and guesses
     game: {
-      link: "Play: I'll guess who you're thinking of",
+      // the invite under the chat
+      offer: { kicker: 'mini game', title: 'Want me to read your mind?', sub: "Think of anyone, real or fictional. I'll guess who." },
       first: 'Is it a real person, not a fictional character?',
       intro: [
         "Okay {name}: think of a famous person, a character, an animal or a thing. Don't tell me. I'll read your mind. With questions. Ready?",
