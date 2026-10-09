@@ -1520,9 +1520,21 @@ let typingToken = 0;
 let skipTyping = null;
 let autoTimer = 0;
 const lastLine = {};
+// what the visitor just said, in a white bubble above Ronie's answer (the same bubble as the dashboard's tunnel)
 const prevEl = document.createElement('p');
 prevEl.className = 'rai-prev';
 panel.insertBefore(prevEl, sayEl);
+function showYou(text) {
+  prevEl.textContent = text || '';
+  prevEl.classList.toggle('show', !!text);
+}
+// the label at the top of the panel: "R.O.N.I.E online / thinking… / mind reader · Q 07/30"
+const statusEl = $('#rai-status');
+const tagEl = $('#rai-tag');
+function setStatus(text, mode = '') {
+  if (statusEl) statusEl.textContent = text;
+  if (tagEl) tagEl.dataset.mode = mode;
+}
 
 const fill = (text) => text
   .replace(/\{name\}/g, answers.name || 'friend')
@@ -1540,6 +1552,9 @@ function lineFor(id, step) {
 function typeLine(text) {
   const my = ++typingToken;
   sayEl.classList.remove('done');
+  // long answers get a smaller size so they fit the panel
+  sayEl.classList.toggle('long', text.length > 150);
+  sayEl.classList.toggle('xlong', text.length > 260);
   speechDone = speak(text);
   if (!MOTION) { sayEl.textContent = text; return Promise.resolve(); }
   return new Promise((resolve) => {
@@ -1567,9 +1582,8 @@ function go(id, push = true) {
   if (step.skipIfName && answers.name) return go(step.skipIfName, push);
   clearTimeout(autoTimer);
   if (push) history.push(id);
-  const prevText = sayEl.textContent;
-  prevEl.textContent = prevText;
-  prevEl.classList.toggle('show', !!prevText);
+  showYou(null);
+  setStatus('online');
   bar.style.width = `${(step.progress || 0) * 100}%`;
   // no going back into (or out of) the 'sending' steps — it would open the email again
   backBtn.hidden = !canGoBack() || !!step.send || id.endsWith('-completion');
@@ -1661,8 +1675,23 @@ async function askRonie() {
   } catch { return null; } finally { clearTimeout(timer); }
 }
 
+// tap-to-ask suggestions: the ones not asked yet, best first
+const suggested = new Set();
+const nextSuggestions = (step, n = 3) => (step.suggest || []).filter((q) => !suggested.has(q)).slice(0, n);
+
+function sendButton() {
+  const send = document.createElement('button');
+  send.type = 'submit';
+  send.className = 'rai-send';
+  send.setAttribute('aria-label', 'Send');
+  send.textContent = '→';
+  return send;
+}
+
 function showChat(id, step, offerEmail = false) {
   actions.innerHTML = '';
+  actions.classList.remove('row');
+  setStatus('online');
   const field = document.createElement('div');
   field.className = 'rai-field';
   const el = document.createElement('input');
@@ -1672,36 +1701,70 @@ function showChat(id, step, offerEmail = false) {
   el.setAttribute('aria-label', 'Your question for Ronie');
   el.autocomplete = 'off';
   el.addEventListener('input', () => { listenUntil = performance.now() + 1400; });
-  const send = document.createElement('button');
-  send.type = 'submit';
-  send.className = 'rai-send';
-  send.setAttribute('aria-label', 'Send');
-  send.textContent = '→';
+  const send = sendButton();
   field.append(el, send);
   actions.appendChild(field);
   const err = document.createElement('p');
   err.className = 'rai-error';
   actions.appendChild(err);
   if (offerEmail) button('Email Raunak instead', 'rai-choice', () => { location.href = `mailto:${A.email}`; }, 60);
-  actions.classList.remove('row');
-  if (G.link && A.chatUrl) button(G.link, 'rai-skip rai-game', startGame, 90);
+  // for anyone who'd rather not type
+  const ideas = nextSuggestions(step);
+  if (ideas.length) {
+    const row = document.createElement('div');
+    row.className = 'rai-suggest';
+    row.setAttribute('aria-label', 'Suggested questions');
+    ideas.forEach((q, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'rai-chip';
+      b.textContent = q;
+      b.style.animationDelay = `${80 + i * 50}ms`;
+      b.addEventListener('click', () => { el.value = q; actions.requestSubmit(); });
+      row.appendChild(b);
+    });
+    actions.appendChild(row);
+  }
+  // the guessing game, offered as a tile under the chat
+  if (G.offer && A.chatUrl) {
+    const t = document.createElement('button');
+    t.type = 'button';
+    t.className = 'rai-play';
+    t.style.animationDelay = '220ms';
+    t.innerHTML = `<span class="rai-play-k">// ${esc(G.offer.kicker)}</span><b>${esc(G.offer.title)}</b><span class="rai-play-s">${esc(G.offer.sub)}</span><i aria-hidden="true">→</i>`;
+    t.addEventListener('click', startGame);
+    actions.appendChild(t);
+  }
   // someone else at this computer? let them give their own name
   if (answers.name) {
-    button(`Not ${answers.name}?`, 'rai-skip', () => {
+    const who = document.createElement('p');
+    who.className = 'rai-who';
+    who.style.animationDelay = '280ms';
+    who.append(`// talking to ${answers.name} · `);
+    const not = document.createElement('button');
+    not.type = 'button';
+    not.textContent = 'not you?';
+    not.addEventListener('click', () => {
       delete answers.name;
       store.set('rai-name', '');
       chatLog.length = 0;
       go('your-name');
-    }, 120);
+    });
+    who.appendChild(not);
+    actions.appendChild(who);
   }
   actions.onsubmit = async (e) => {
     e.preventDefault();
     const q = el.value.trim();
     if (!q) { err.textContent = 'Type a question first.'; el.focus(); confused(); return; }
     el.disabled = send.disabled = true;
+    suggested.add(q);
+    el.value = '';   // the question moves up into the bubble
+    // while he thinks, only the question stays: the suggestions and the game step aside
+    actions.querySelectorAll('.rai-suggest, .rai-play, .rai-who, .rai-choice').forEach((n) => n.remove());
+    setStatus('thinking…', 'busy');
     // the visitor's question sits above Ronie's answer
-    prevEl.textContent = `You: ${q}`;
-    prevEl.classList.add('show');
+    showYou(q);
     chatLog.push({ role: 'user', content: q });
     setFace('thinking');
     setIcon('dots', 30000);
@@ -1713,6 +1776,7 @@ function showChat(id, step, offerEmail = false) {
     if (answer && answer.quota) {
       chatLog.pop();
       setFace('sleepy'); setIcon('zzz', 6000);
+      setStatus('recharging', 'off');
       await typeLine(fill(step.quota || step.fallback));
       setFace('neutral');
       return showChat(id, step, true);
@@ -1737,6 +1801,7 @@ function showChat(id, step, offerEmail = false) {
       chatLog.pop();
       setFace('sleepy');
       setIcon('zzz', 6000);
+      setStatus('napping', 'off');
       await typeLine(fill(step.fallback || "I can't think right now. Try again in a bit?"));
       setFace('neutral');
       showChat(id, step, true);
@@ -1819,7 +1884,8 @@ async function startGame() {
   hidePicture();
   Object.assign(game, { log: [], asked: 0 });
   clearTimeout(autoTimer);
-  prevEl.classList.remove('show');
+  showYou(null);
+  setStatus('mind reader', 'game');
   bar.style.width = '0%';
   setFace('excited'); setIcon('question', 3000); playGesture('present');
   actions.innerHTML = '';
@@ -1839,6 +1905,7 @@ async function gameAsk(my, first = false) {
   }
   actions.innerHTML = '';
   setFace('thinking'); setIcon('dots', 30000); playGesture('think');
+  setStatus('mind reader · thinking…', 'game busy');
   sayEl.classList.remove('done'); sayEl.textContent = '…';
   const res = await askGame();
   if (my !== game.token) return;
@@ -1856,6 +1923,7 @@ async function gameAsk(my, first = false) {
 
 async function showQuestion(my, res) {
   bar.style.width = `${Math.min(1, game.asked / GAME_MAX) * 100}%`;
+  setStatus(res.guess ? 'mind reader · my guess' : `mind reader · Q ${String(game.asked).padStart(2, '0')}/${GAME_MAX}`, 'game');
   setFace(FACES[res.face] ? res.face : res.guess ? 'excited' : 'curious');
   setIcon(res.guess ? 'idea' : null, 4000);
   if (res.guess && guessedName(res.reply)) showPicture(guessedName(res.reply));
@@ -1876,8 +1944,7 @@ function gameAnswer(my, a) {
   hidePicture();
   game.lastAnswer = a;
   game.log.push({ role: 'user', content: a });
-  prevEl.textContent = `You: ${a.replace('No, that is not it. Keep asking.', 'No, keep going')}`;
-  prevEl.classList.add('show');
+  showYou(a.replace('No, that is not it. Keep asking.', 'No, keep going'));
   gameAsk(my);
 }
 
@@ -1885,6 +1952,7 @@ async function gameWon(my) {
   if (my !== game.token) return;
   actions.innerHTML = '';
   bar.style.width = '100%';
+  setStatus('mind reader · got it', 'game');
   setFace('excited'); setIcon('star', 5000); playGesture('excited');
   await typeLine(gfill(pick(G.win || ['Got it!'])));
   if (my !== game.token) return;
@@ -1894,6 +1962,7 @@ async function gameWon(my) {
 async function gameLost(my) {
   actions.innerHTML = '';
   setFace('sad'); setIcon('sweat', 4000); playGesture('facepalm');
+  setStatus('mind reader · you win', 'game');
   await typeLine(gfill(pick(G.lose || ['You win! Who was it?'])));
   if (my !== game.token) return;
   // let them tell him who it was
@@ -1903,16 +1972,14 @@ async function gameLost(my) {
   field.className = 'rai-field';
   const el = document.createElement('input');
   el.type = 'text'; el.maxLength = 60; el.placeholder = 'Who was it?'; el.setAttribute('aria-label', 'Who you were thinking of');
-  const send = document.createElement('button');
-  send.type = 'submit'; send.className = 'rai-send'; send.setAttribute('aria-label', 'Send'); send.textContent = '→';
-  field.append(el, send);
+  field.append(el, sendButton());
   actions.appendChild(field);
   button('Back to chat', 'rai-skip', endGame, 100);
   actions.onsubmit = async (e) => {
     e.preventDefault();
     const who = el.value.trim().slice(0, 60);
     if (!who) { el.focus(); return; }
-    prevEl.textContent = `You: ${who}`; prevEl.classList.add('show');
+    showYou(who);
     actions.innerHTML = '';
     setFace('surprised'); playGesture('facepalm');
     showPicture(who);   // the one that got away, on his visor
@@ -2024,8 +2091,6 @@ function compose(kind) {
 
 /* ======================= wiring ======================= */
 function init() {
-  const m = A.model;
-  $('#rai-credit').innerHTML = `3D model: <a href="${esc(m.creditUrl)}" target="_blank" rel="noopener">${esc(m.credit)}</a> by <a href="${esc(m.authorUrl)}" target="_blank" rel="noopener">${esc(m.author)}</a>, <a href="${esc(m.licenseUrl)}" target="_blank" rel="noopener">${esc(m.license)}</a>`;
   const saved = store.get('rai-name');
   if (saved) answers.name = saved;
   pickBrain(); // settles which model answers while the room is still loading
