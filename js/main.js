@@ -421,7 +421,8 @@
       const x0 = ox - 8 - br, y0 = oy - 6 - br, x1 = ox + bw + 8 + br, y1 = oy + bh + 2 + br;
       ctx.globalAlpha = 0.65;
       ctx.beginPath();
-      for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
+      // (no bottom-left corner: that's where the terminal line runs)
+      for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x1, y1, -1, -1]]) {
         ctx.moveTo(cx + sx * L, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy * L);
       }
       ctx.stroke();

@@ -30,7 +30,6 @@ window.PORTFOLIO = {
       '>>> ronie.play("mind reader")  "think of anyone. I\'ll guess who."_',
       '>>> ronie.skills  ["small talk", "big leaps", "reading minds"]_',
       '>>> ronie.ask("should I hire him?")  "an enthusiastic yes."_',
-      '>>> ronie.voice  "natural, male, slightly awkward"_',
       '>>> ronie.wake()  # click this card. he jumps._',
     ],
   },
