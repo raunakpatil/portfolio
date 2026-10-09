@@ -628,7 +628,6 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai-sound.on .rai-x { display: none; }
 /* power-on glitch */
 .rai.rai-glitch-on .rai-canvas { animation: glitch-tear .1s steps(1, end) 8; filter: drop-shadow(3px 0 rgba(255, 0, 200, .7)) drop-shadow(-3px 0 rgba(0, 255, 249, .7)); }
-[data-link].card-hello .card-go { background: #38ffb3; }
 
 @media (max-width: 760px) {
   .rai { min-height: 0; }

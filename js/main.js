@@ -270,83 +270,36 @@
     addEventListener('hashchange', () => setOpen(false));
   }
 
-  /* ---------- card 1: hello + ASCII ---------- */
+  /* ---------- card 1: hello + Ronie as a hologram ---------- */
+  // Ronie's ASCII turntable (the one on his loading screen, js/ronie-ascii.json) projected like a mecha HUD
+  // hologram: cyan light with a glow, scanlines, a sweeping scan bar, the odd glitch tear, target brackets, a
+  // reticle on his head, a projector base under his feet and a column of readouts. Hover to turn him with the mouse.
   function initHello() {
     const H = D.hello;
     const card = $('#card-hello');
     const canvas = $('#ascii');
     const term = $('#terminal');
-    $('#hello-title').innerHTML = H.greeting.map((w) => `<span>${esc(w)}</span>`).join('');
+    const title = $('#hello-title');
+    title.innerHTML = H.greeting.map((w) => `<span>${esc(w)}</span>`).join('');
 
     const ptr = trackPointer(card);
     const RAMP = ' .:-=+*#%@';
-    const CW = 7, CH = 11;
-    let cols = 0, rows = 0, lum, zb, noise;
-    let A = 1, B = 0, t = 0;
+    const CW = 5.6, CH = 8.6;                    // a finer grid than the page's other ASCII: more of him shows
+    const HOLO = 'rgb(94, 242, 255)', HOT = '#ff7a1a';
+    let art = null;
+    fetch(`js/ronie-ascii.json${ASSET_V ? `?v=${ASSET_V}` : ''}`).then((r) => r.json()).then((j) => {
+      art = { w: j.w, h: j.h, frames: j.frames.map((f) => f.split('\n')) };
+    }).catch(() => {});
+    let spin = 0.62, vel = 0.00011, nextGlitch = 0, tear = null, scanPat = null, scanCtx = null;
+    const noise = Float32Array.from({ length: 4096 }, Math.random);
 
-    let img = null, imgLum = null, imgKey = '';
-    if (H.asciiImage) {
-      const im = new Image();
-      if (/^https?:/.test(H.asciiImage)) im.crossOrigin = 'anonymous';
-      im.onload = () => { img = im; };
-      im.src = H.asciiImage;
-    }
-    function sampleImage(W, Hh) {
-      const key = `${cols}x${rows}`;
-      if (imgKey === key) return true;
-      try {
-        const c = document.createElement('canvas');
-        c.width = cols; c.height = rows;
-        const x = c.getContext('2d', { willReadFrequently: true });
-        const ta = W / Hh, ia = img.width / img.height;
-        let sx = 0, sy = 0, sw = img.width, sh = img.height;
-        if (ia > ta) { sw = sh * ta; sx = (img.width - sw) / 2; } else { sh = sw / ta; sy = (img.height - sh) * 0.3; }
-        x.drawImage(img, sx, sy, sw, sh, 0, 0, cols, rows);
-        const d = x.getImageData(0, 0, cols, rows).data;
-        imgLum = new Float32Array(cols * rows);
-        for (let i = 0; i < imgLum.length; i++) imgLum[i] = (0.299 * d[i * 4] + 0.587 * d[i * 4 + 1] + 0.114 * d[i * 4 + 2]) / 255;
-        imgKey = key;
-        return true;
-      } catch {
-        img = null; // tainted canvas (file://) — fall back to the torus
-        return false;
-      }
-    }
-
-    function torus(W, Hh) {
-      lum.fill(0); zb.fill(0);
-      const cA = Math.cos(A), sA = Math.sin(A), cB = Math.cos(B), sB = Math.sin(B);
-      const K2 = 5, K1 = Math.min(W, Hh) * K2 * 0.36 / 3;
-      const ox = W * 0.55, oy = Hh * 0.57;
-      for (let th = 0; th < TAU; th += 0.07) {
-        const ct = Math.cos(th), st = Math.sin(th);
-        const cx2 = 2 + ct, cy2 = st;
-        for (let ph = 0; ph < TAU; ph += 0.024) {
-          const cp = Math.cos(ph), sp = Math.sin(ph);
-          const x = cx2 * (cB * cp + sA * sB * sp) - cy2 * cA * sB;
-          const y = cx2 * (sB * cp - sA * cB * sp) + cy2 * cA * cB;
-          const ooz = 1 / (K2 + cA * cx2 * sp + cy2 * sA);
-          const c = ((ox + K1 * ooz * x) / CW) | 0;
-          const r = ((oy - K1 * ooz * y) / CH) | 0;
-          if (c < 0 || r < 0 || c >= cols || r >= rows) continue;
-          const i = r * cols + c;
-          if (ooz > zb[i]) {
-            zb[i] = ooz;
-            const L = cp * ct * sB - cA * ct * sp - sA * st + cB * (cA * st - ct * sA * sp);
-            lum[i] = L > 0 ? L / 1.42 : 0.03;
-          }
-        }
-      }
-    }
-
-    // terminal: scramble-in, hold, repeat
-    let tStart = null, typed = false;
-    const text = H.terminal;
+    // terminal: lines about Ronie, each scrambled in, held, then the next
+    const lines = [].concat(H.terminal);
+    let tStart = null, typed = false, li = 0;
     const STEP = 26;
     function terminal(now) {
       if (tStart === null) tStart = now;
-      const el = now - tStart;
-      const n = Math.floor(el / STEP);
+      const text = lines[li], el = now - tStart, n = Math.floor(el / STEP);
       if (n < text.length) {
         const tail = Array.from({ length: Math.min(5, text.length - n) }, randGlyph).join('');
         term.innerHTML = `${esc(text.slice(0, n))}<span class="scramble">${esc(tail)}</span>`;
@@ -355,55 +308,154 @@
         term.innerHTML = `${esc(text.replace(/_$/, ''))}<span class="cursor">_</span>`;
         typed = true;
       }
-      if (el > text.length * STEP + 10000) tStart = now;
+      if (el > text.length * STEP + 5200) { tStart = now; li = (li + 1) % lines.length; }
     }
-
-    card.addEventListener('pointerenter', () => { if (typed) tStart = null; });
 
     onFrame(card, (now, dt) => {
       const { ctx, w, h } = fit(canvas);
-      const nc = Math.ceil(w / CW), nr = Math.ceil(h / CH);
-      if (nc !== cols || nr !== rows) {
-        cols = nc; rows = nr;
-        lum = new Float32Array(cols * rows); zb = new Float32Array(cols * rows);
-        noise = Float32Array.from({ length: cols * rows }, Math.random);
-      }
-      t += dt * MOTION;
-      A += dt * 0.0007 * MOTION; B += dt * 0.00035 * MOTION;
-
-      if (img && sampleImage(w, h)) {
-        for (let i = 0; i < lum.length; i++) {
-          const c = i % cols, r = (i / cols) | 0;
-          lum[i] = clamp(imgLum[i] + Math.sin(t * 0.002 + r * 0.35 + c * 0.05) * 0.06, 0, 1);
-        }
-      } else {
-        torus(w, h);
-      }
-
       ctx.clearRect(0, 0, w, h);
-      ctx.font = `${CH - 1}px "JetBrains Mono", monospace`;
+      terminal(now);
+      if (!art) return;
+      // turn: a slow turntable; hovering steers it (pointer left/right of centre)
+      const want = ptr.inside ? ptr.nx * 0.0005 : 0.00011;
+      vel += (want - vel) * Math.min(1, dt / 220);
+      spin += vel * dt * MOTION;
+      const turn = ((spin % 1) + 1) % 1;
+      const frame = art.frames[Math.floor(turn * art.frames.length) % art.frames.length];
+      // where he stands: right of centre, feet near the bottom, as big as the card allows
+      const k = Math.min(1, (h * 0.8) / (art.h * CH), (w * 0.85) / (art.w * CW));
+      const cw = CW * k, ch = CH * k, bw = art.w * cw, bh = art.h * ch;
+      const ox = w * 0.65 - bw / 2, oy = h * 0.93 - bh;
+      const t = now / 1000, live = MOTION ? 1 : 0;
+
+      // glitches: now and then a few bands of rows tear sideways for a moment
+      if (live && now > nextGlitch) {
+        const r0 = (Math.random() * art.h) | 0;
+        tear = { until: now + 90 + Math.random() * 90, bands: [[r0, r0 + 1 + ((Math.random() * 4) | 0), (Math.random() - 0.5) * 16],
+          [(r0 + 9 + Math.random() * 20) % art.h | 0, 0, (Math.random() - 0.5) * 10]] };
+        tear.bands[1][1] = tear.bands[1][0] + 1;
+        nextGlitch = now + 1600 + Math.random() * 3600;
+      }
+      const torn = tear && now < tear.until;
+      const flick = live ? (Math.random() < 0.025 ? 0.55 : 0.93 + 0.07 * Math.sin(t * 31)) : 1;
+      const scanRow = live ? ((t / 2.8) % 1) * (art.h + 10) - 5 : -99;
+
+      // the projector: a cone of light rising from rings under his feet
+      const fx = ox + bw * 0.5, fy = oy + bh - ch * 0.4, rx = bw * 0.36;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      const cone = ctx.createLinearGradient(0, fy, 0, oy);
+      cone.addColorStop(0, 'rgba(94, 242, 255, 0.13)'); cone.addColorStop(1, 'rgba(94, 242, 255, 0)');
+      ctx.fillStyle = cone;
+      ctx.beginPath(); ctx.moveTo(fx - rx, fy); ctx.lineTo(fx + rx, fy); ctx.lineTo(fx + rx * 1.5, oy); ctx.lineTo(fx - rx * 1.5, oy); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = HOLO; ctx.lineWidth = 1;
+      for (let i = 0; i < 3; i++) {
+        const ph = live ? (t / 1.7 + i / 3) % 1 : i / 3;
+        ctx.globalAlpha = (1 - ph) * 0.55;
+        ctx.beginPath(); ctx.ellipse(fx, fy, rx * (0.5 + ph * 0.8), rx * (0.5 + ph * 0.8) * 0.16, 0, 0, TAU); ctx.stroke();
+      }
+      ctx.restore();
+
+      // Ronie, in characters
+      ctx.font = `${Math.max(6, ch * 1.02)}px "JetBrains Mono", monospace`;
       ctx.textBaseline = 'top';
-      ctx.fillStyle = '#f2f2f2';
-      const R2 = 95 * 95;
-      for (let r = 0; r < rows; r++) {
-        for (let c = 0; c < cols; c++) {
-          const i = r * cols + c;
-          const v = lum[i];
-          const dx = c * CW - ptr.x, dy = r * CH - ptr.y;
-          const d2 = dx * dx + dy * dy;
+      ctx.fillStyle = HOLO;
+      const R2 = 80 * 80;
+      for (let r = 0; r < art.h; r++) {
+        const row = frame[r] || '';
+        let dx = 0;
+        if (torn) for (const [a, b, s] of tear.bands) if (r >= a && r < b) dx = s;
+        const scan = Math.abs(r - scanRow) < 1.2;
+        const y = oy + r * ch;
+        for (let c = 0; c < art.w; c++) {
+          const code = row.charCodeAt(c);
+          const x = ox + c * cw + dx;
+          const ddx = x - ptr.x, ddy = y - ptr.y, d2 = ddx * ddx + ddy * ddy;
           const glow = d2 < R2 ? 1 - d2 / R2 : 0;
-          if (v < 0.05 && glow === 0) {
-            if (noise[i] > 0.975) { ctx.globalAlpha = 0.09; ctx.fillText('.', c * CW, r * CH); }
+          if (!(code >= 97)) {
+            // empty cells: a faint dust of the projection
+            if (noise[(r * art.w + c) & 4095] > 0.985) { ctx.globalAlpha = 0.1 * flick; ctx.fillText('.', x, y); }
             continue;
           }
-          const idx = clamp(Math.round((v + glow * 0.45) * (RAMP.length - 1)), 1, RAMP.length - 1);
-          const ch = glow > 0.25 && Math.random() < glow * 0.25 ? randGlyph() : RAMP[idx];
-          ctx.globalAlpha = clamp(0.12 + v * 0.8 + glow * 0.45, 0, 1);
-          ctx.fillText(ch, c * CW, r * CH);
+          let v = (code - 97) / 25;
+          v *= 0.86 + 0.14 * Math.sin(t * 4.2 + r * 0.55 + c * 0.17) * live;
+          if (scan) v = Math.max(v, 0.92);
+          const idx = clamp(Math.round((v + glow * 0.4) * (RAMP.length - 1)), 1, RAMP.length - 1);
+          ctx.globalAlpha = clamp((0.18 + v * 0.82 + glow * 0.4) * flick, 0, 1);
+          ctx.fillText(glow > 0.3 && Math.random() < glow * 0.3 ? randGlyph() : RAMP[idx], x, y);
         }
       }
       ctx.globalAlpha = 1;
-      terminal(now);
+
+      // glow: the hologram blurred back over itself (browsers without canvas filters just skip it)
+      ctx.save();
+      ctx.filter = 'blur(3px)';
+      if (ctx.filter === 'blur(3px)') {
+        ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.6;
+        ctx.drawImage(canvas, 0, 0, w, h);
+      }
+      ctx.restore();
+      // scanlines: every third line dimmed, and a bright bar sweeping down him
+      if (scanCtx !== ctx) {
+        const p = document.createElement('canvas'); p.width = 1; p.height = 3;
+        const pc = p.getContext('2d'); pc.fillStyle = '#000'; pc.fillRect(0, 0, 1, 1);
+        scanPat = ctx.createPattern(p, 'repeat'); scanCtx = ctx;
+      }
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 0.45; ctx.fillStyle = scanPat;
+      ctx.fillRect(ox - 20, oy - 20, bw + 40, bh + 40);
+      ctx.restore();
+      if (scanRow > -2 && scanRow < art.h + 2) {
+        ctx.fillStyle = HOLO; ctx.globalAlpha = 0.22;
+        ctx.fillRect(ox - 10, oy + scanRow * ch, bw + 20, 1);
+        ctx.globalAlpha = 1;
+      }
+
+      // HUD: target brackets round him, a turning reticle on his head, readouts down the right
+      ctx.strokeStyle = HOLO; ctx.lineWidth = 1;
+      const br = live ? Math.sin(t * 2.2) * 2 : 0, L = 12;
+      const x0 = ox - 8 - br, y0 = oy - 6 - br, x1 = ox + bw + 8 + br, y1 = oy + bh + 2 + br;
+      ctx.globalAlpha = 0.65;
+      ctx.beginPath();
+      for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
+        ctx.moveTo(cx + sx * L, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy * L);
+      }
+      ctx.stroke();
+      const hx = ox + bw * 0.5, hy = oy + bh * 0.11, hr = bw * 0.13, rot = live ? t * 0.9 : 0;
+      ctx.globalAlpha = 0.5;
+      for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.arc(hx, hy, hr, rot + i * TAU / 4, rot + i * TAU / 4 + 0.9); ctx.stroke(); }
+      ctx.globalAlpha = 0.3;
+      for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(hx, hy, hr * 1.38, -rot * 1.3 + i * TAU / 3, -rot * 1.3 + i * TAU / 3 + 0.5); ctx.stroke(); }
+      ctx.globalAlpha = 0.55;
+      // a leader line out to a small "LOCK" tag (kept inside the card)
+      const lx = Math.min(hx + hr * 1.9, w - 34);
+      ctx.beginPath(); ctx.moveTo(hx + hr * 1.38, hy); ctx.lineTo(hx + hr * 1.6, hy - hr * 0.55); ctx.lineTo(lx + 24, hy - hr * 0.55); ctx.stroke();
+      ctx.font = '8px "JetBrains Mono", monospace'; ctx.textBaseline = 'bottom'; ctx.textAlign = 'left'; ctx.fillStyle = HOLO;
+      ctx.fillText('LOCK', lx, hy - hr * 0.55 - 2);
+
+      const sync = (98.2 + Math.sin(t * 0.7) * 1.1 + (live ? Math.sin(t * 5.3) * 0.15 : 0)).toFixed(1);
+      const core = Math.round(4 + 2 * (0.5 + 0.5 * Math.sin(t * 1.3)) * live);
+      const rows = [
+        [['R.O.N.I.E', HOT], [' // UNIT 01', HOLO]],
+        [[`SYNC  ${sync}%`, HOLO]],
+        [[`ROT   ${String(Math.round(turn * 360)).padStart(3, '0')}°`, HOLO]],
+        [[`CORE  ${'▮'.repeat(core)}${'▯'.repeat(6 - core)}`, HOLO]],
+        [['MODE  STANDBY', HOLO]],
+      ];
+      // a data column down the left, under the greeting
+      const ry = Math.max(title.offsetTop + title.offsetHeight + 14, h * 0.36), rx0 = 18;
+      ctx.font = '9px "JetBrains Mono", monospace'; ctx.textBaseline = 'top'; ctx.textAlign = 'left';
+      ctx.globalAlpha = 0.5; ctx.fillStyle = HOLO; ctx.fillRect(rx0, ry - 7, 26, 1);
+      rows.forEach((parts, i) => {
+        let x = rx0;
+        ctx.globalAlpha = 0.85 * flick;
+        for (const [txt, col] of parts) { ctx.fillStyle = col; ctx.fillText(txt, x, ry + i * 13); x += ctx.measureText(txt).width; }
+      });
+      // the old "Talk to Ronie" button, as a HUD prompt: blinks, steadies on hover
+      ctx.globalAlpha = ptr.inside ? 1 : (live ? (Math.sin(t * 4) > -0.2 ? 0.9 : 0.25) : 0.9);
+      ctx.fillStyle = ptr.inside ? HOT : HOLO;
+      ctx.fillText(ptr.inside ? '▸ ENGAGE: CLICK TO TALK' : '▸ CLICK TO WAKE', rx0, ry + rows.length * 13 + 6);
+      ctx.globalAlpha = 1;
     });
   }
 
