@@ -1296,7 +1296,9 @@
     const page = $('#fd-page', fd);
     const show = (i) => {
       const c = C[i];
-      page.innerHTML = `<article class="fd-doc" style="--note:${NOTE[i % NOTE.length]}">
+      // opening the folder: the certificate fades in once the cover has swung clear; switching while open: at once
+      const delay = fd.dataset.open === 'true' ? 0 : 0.45;
+      page.innerHTML = `<article class="fd-doc" style="--note:${NOTE[i % NOTE.length]};--doc-delay:${delay}s">
         <p class="fd-doc-top"><span>No. ${no(i)}</span><span>${esc(c.date)}</span></p>
         <p class="fd-doc-kind">Certificate</p>
         <h3>${esc(c.title)}</h3>
