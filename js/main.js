@@ -1262,7 +1262,6 @@
     const C = D.certifications || [];
     const fd = $('#folder');
     if (!fd || !C.length) return;
-    $('#certs-count').textContent = `${String(C.length).padStart(2, '0')} · pick a sticky note`;
     const NOTE = ['#f6dd5f', '#ff9fc2', '#8fc3ff', '#a8e39f', '#ffb366', '#c8b4ff', '#8fe0cd'];
     const years = C.map((c) => +String(c.date).slice(-4)).filter(Boolean);
     const span = years.length ? `${Math.min(...years)}–${Math.max(...years)}` : '';
@@ -1312,13 +1311,20 @@
       $$('.fd-note', fd).forEach((n) => n.classList.toggle('on', +n.dataset.i === i));
       fd.dataset.open = 'true';
     };
+    const close = () => {
+      if (fd.dataset.open !== 'true') return;
+      fd.dataset.open = 'false';
+      $$('.fd-note', fd).forEach((n) => n.classList.remove('on'));
+    };
     fd.addEventListener('click', (e) => {
       const pick = e.target.closest('[data-i]');
       if (pick) return show(+pick.dataset.i);
-      if (e.target.closest('.fd-close, .fd-back')) { fd.dataset.open = 'false'; $$('.fd-note', fd).forEach((n) => n.classList.remove('on')); return; }
+      if (e.target.closest('.fd-close, .fd-back')) return close();
       if (e.target.closest('.fd-front')) show(0);
     });
-    addEventListener('keydown', (e) => { if (e.key === 'Escape' && fd.dataset.open === 'true') fd.dataset.open = 'false'; });
+    // a click anywhere outside the folder, or Esc, closes it
+    document.addEventListener('click', (e) => { if (!fd.contains(e.target)) close(); });
+    addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
   }
 
   /* ---------- my profile page ---------- */
