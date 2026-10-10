@@ -1326,8 +1326,8 @@ main { padding: 0 var(--gap) var(--gap); }
    choice, the rule is: the selected option is embossed (raised), the others are embedded (pressed in). */
 .card, .pcard-btn, .lib-card, .trait, .hl, .persona-face, .modal { box-shadow: var(--neu-out); }
 .persona-back { box-shadow: var(--neu-out); }
-.trait-icon, .hl-shape { box-shadow: var(--neu-in-sm); }                       /* small wells set into the cards */
-.trait:hover .trait-icon { box-shadow: var(--dneu-in); }
+.trait-icon, .hl-shape { box-shadow: var(--neu-out-sm); }                      /* the icon tiles stand up from their cards */
+.trait:hover .trait-icon { box-shadow: var(--dneu-out); }
 .trait-tags span { box-shadow: var(--neu-in-sm); }
 .trait:hover .trait-tags span { box-shadow: var(--dneu-in); }
 .id-card { box-shadow: var(--neu-in); }
