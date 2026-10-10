@@ -315,9 +315,11 @@
       YouTube: '<path d="M2.5 17a24 24 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.6 49.6 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24 24 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.6 49.6 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/>',
     };
     const social = $('#social'), btn = $('.social-btn'), socialLinks = $('#social-links');
-    socialLinks.innerHTML = [{ label: 'Profile', href: '#profile' }, ...D.links].map((l, i) => {
+    const all = [{ label: 'Profile', href: '#profile' }, ...D.links];
+    socialLinks.innerHTML = all.map((l, i) => {
       const ext = /^https?:/.test(l.href);
-      return `<a href="${esc(l.href)}" style="--i:${i}" data-label="${esc(l.label)}" aria-label="${esc(l.label)}"${ext ? ' target="_blank" rel="noopener"' : ''}>
+      // (--i: its turn to fade in — nearest the button first, rippling out with the pill as it grows to the left)
+      return `<a href="${esc(l.href)}" style="--i:${all.length - 1 - i}" data-label="${esc(l.label)}" aria-label="${esc(l.label)}"${ext ? ' target="_blank" rel="noopener"' : ''}>
         <svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[l.label] || '<circle cx="12" cy="12" r="8"/>'}</svg></a>`;
     }).join('');
     const setOpen = (open) => {
