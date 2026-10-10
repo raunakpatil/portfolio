@@ -1108,19 +1108,34 @@ function drawBackdropFx(t, dt) {
   ctx.clearRect(0, 0, B.w, B.h);
   const x0 = B.x + moon.par.x, y0 = B.y + moon.par.y, iw = B.iw, ih = B.ih;
   const img = moon.img, NW = img.naturalWidth, NH = img.naturalHeight;
-  if (!NW || !MOTION) return;
+  if (!NW) return;
   // the water: each band of it redrawn a little to the side, more the nearer it is (the subdued picture, then the lit
-  // one over it as strongly as it's showing, so the reflections glow with the mountains)
-  const top = Math.max(0, y0 + BG_WATER_Y * ih + 2), bot = Math.min(B.h, y0 + ih), band = 2;
+  // one over it as strongly as it's showing, so the reflections glow with the mountains). Where the frame goes on below
+  // the picture (a tall window), the sea carries on down to the bottom edge: the picture's own water, mirrored back and
+  // forth, darkening with depth, so he always stands on water rather than floating over black.
+  const top = Math.max(0, y0 + BG_WATER_Y * ih + 2), end = y0 + ih, bot = B.h, band = 2;
+  const strip = (1 - BG_WATER_Y) * ih;                      // the picture's water, in screen px
+  const W0 = BG_WATER_Y + 0.02, W1 = 0.965, span = (W1 - W0) * ih * 1.7;   // the clean part of it, stretched (nearer water)
   ctx.globalCompositeOperation = 'source-over';
-  const lit = imgReady(moon.lit) ? moon.lit : null, litK = Math.max(0, moon.litK);
+  const lit = imgReady(moon.lit) ? moon.lit : null, litK = MOTION ? Math.max(0, moon.litK) : 1;
   for (let y = top; y < bot; y += band) {
-    const v = (y - y0) / ih, d = (v - BG_WATER_Y) / (1 - BG_WATER_Y), sy = v * NH;
-    const dx = (Math.sin(sy * 0.23 + t * 1.6) * 0.6 + Math.sin(sy * 0.061 - t * 0.9) * 0.4) * (0.6 + 4.5 * d);
+    let v = (y - y0) / ih;
+    if (y >= end) {                                         // below the picture: back and forth through its water
+      const k = ((y - end) % (2 * span)) / span;           // 0..2
+      v = k < 1 ? W1 - k * (W1 - W0) : W0 + (k - 1) * (W1 - W0);
+    }
+    const d = clamp((y - y0 - BG_WATER_Y * ih) / strip, 0, 3), sy = Math.min(v * NH, NH - 2);
+    const dx = MOTION ? (Math.sin(y * 0.23 / ih * NH + t * 1.6) * 0.6 + Math.sin(y * 0.061 / ih * NH - t * 0.9) * 0.4) * (0.6 + 4.5 * Math.min(d, 1.4)) : 0;
     ctx.globalAlpha = 1;
     ctx.drawImage(img, 0, sy, NW, (band / ih) * NH, x0 + dx, y, iw, band);
     if (lit && litK > 0.01) { ctx.globalAlpha = litK; ctx.drawImage(lit, 0, sy, lit.naturalWidth, (band / ih) * lit.naturalHeight, x0 + dx, y, iw, band); }
   }
+  if (end < bot) {                                          // the extra sea fades darker towards the viewer
+    const g = ctx.createLinearGradient(0, end - strip * 0.3, 0, bot);
+    g.addColorStop(0, 'rgba(0, 0, 0, 0)'); g.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
+    ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.fillRect(0, end - strip * 0.3, B.w, bot - end + strip * 0.3);
+  }
+  if (!MOTION) { ctx.globalAlpha = 1; return; }
   ctx.globalCompositeOperation = 'lighter';
   // mist drifting along the foot of the mountains
   if (!moon.mist) {
@@ -1210,9 +1225,9 @@ function drawBackdropFx(t, dt) {
   if (moon.shoots.length && moon.shoots.every((S) => S.life >= 1)) { moon.shoots = []; moon.nextShoot = t + 6 + Math.random() * 9; }
   ctx.globalAlpha = 1;
   if (!B.wide) {
-    // (on a portrait screen the picture fades out top and bottom: so does all this)
+    // (on a portrait screen the picture fades in from black at the top: so does all this)
     const g = ctx.createLinearGradient(0, y0, 0, y0 + ih);
-    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.1, '#000'); g.addColorStop(0.86, '#000'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.1, '#000'); g.addColorStop(1, '#000');
     ctx.globalCompositeOperation = 'destination-in'; ctx.fillStyle = g; ctx.fillRect(0, 0, B.w, B.h);
   }
   ctx.globalCompositeOperation = 'source-over';
