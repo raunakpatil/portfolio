@@ -675,7 +675,17 @@ main { padding: 0 var(--gap) var(--gap); }
 }
 .rai-panel::-webkit-scrollbar { display: none; }
 .rai-panel.chatting { top: 24px; bottom: 24px; transform: none; max-height: none; display: flex; flex-direction: column; }
-.rai-panel.chatting .rai-actions { margin-top: auto; padding-top: 18px; }
+.rai-panel.chatting .rai-actions { padding-top: 18px; }
+.rai-thread { display: flex; flex-direction: column; }
+.rai-log { display: flex; flex-direction: column; }
+.rai-log .rai-say { margin-bottom: 12px; }
+.rai-log .old { animation: none; }
+.rai-panel.chatting .rai-thread {
+  flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: none; padding: 4px 2px 2px;
+  -webkit-mask-image: linear-gradient(transparent, #000 36px); mask-image: linear-gradient(transparent, #000 36px);   /* older bubbles fade out at the top */
+}
+.rai-panel.chatting .rai-thread::-webkit-scrollbar { display: none; }
+.rai-panel.chatting .rai-log { margin-top: auto; }      /* (pushes everything down onto the box) */
 .rai-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
 .rai-tag {
   display: flex; align-items: center; gap: 7px;
@@ -696,7 +706,8 @@ main { padding: 0 var(--gap) var(--gap); }
 /* a chat: what the visitor said in a white bubble on the right, Ronie's answer in an orange one on the left */
 .rai-prev {
   display: none; width: fit-content; max-width: 82%; margin: 0 0 12px auto; padding: 9px 15px;
-  border-radius: 18px 18px 4px 18px; background: #fff; color: #111; font-size: 13.5px; line-height: 1.4;
+  border-radius: 18px 18px 4px 18px; background: #fff; color: #111;
+  font-family: "Gobitta", var(--mono); font-size: clamp(15px, 1.15vw, 17px); line-height: 1.38;
   box-shadow: 0 6px 18px rgba(0, 0, 0, .45); transform-origin: right bottom;
 }
 .rai-prev.show { display: block; animation: rai-pop .4s var(--ease); }
@@ -836,8 +847,9 @@ main { padding: 0 var(--gap) var(--gap); }
   .rai-say { font-size: 16px; padding: 11px 15px 12px; }
   .rai-say.long { font-size: 14.5px; }
   .rai-say.xlong { font-size: 13px; }
-  .rai-panel.chatting { top: auto; bottom: 34px; max-height: 72%; display: block; }   /* (a phone's panel already sits at the bottom) */
+  .rai-panel.chatting { top: auto; bottom: 34px; max-height: 78%; }   /* (a phone's panel already sits at the bottom) */
   .rai-panel.chatting .rai-actions { margin-top: 14px; padding-top: 0; }
+  .rai-prev { font-size: 15px; }
   .rai-panel { max-height: 72%; margin-left: 0; }
   .rai-actions { margin-top: 14px; }
   .rai-head { margin-bottom: 12px; }
