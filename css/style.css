@@ -25,6 +25,10 @@
   --neu-out-sm: -3px -3px 8px var(--neu-hi), 3px 3px 8px var(--neu-lo);
   --neu-in: inset 3px 3px 6px var(--neu-lo), inset -3px -3px 6px var(--neu-hi);
   --neu-in-sm: inset 2px 2px 4px var(--neu-lo), inset -2px -2px 4px var(--neu-hi);
+  /* the same on the dark cards: a faint light edge top left, a deep shadow bottom right */
+  --dneu-out: -3px -3px 7px rgba(255, 255, 255, .05), 4px 4px 10px rgba(0, 0, 0, .55);
+  --dneu-in: inset 2px 2px 5px rgba(0, 0, 0, .6), inset -2px -2px 5px rgba(255, 255, 255, .055);
+  --key: inset 0 1px 1px rgba(255, 255, 255, .18), 0 3px 8px rgba(0, 0, 0, .22);   /* a black key, raised */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1316,3 +1320,49 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai-actions.row { flex-direction: row; flex-wrap: wrap; }
 .rai-actions.row .rai-choice { padding: 9px 16px; }
 .rai-actions.row .rai-skip { flex-basis: 100%; text-align: left; }
+
+/* ===================== Soft depth (all pages) =====================
+   Everything keeps its colours; only depth is added. Cards and plain buttons stand up off the page. Where there's a
+   choice, the rule is: the selected option is embossed (raised), the others are embedded (pressed in). */
+.card, .pcard-btn, .lib-card, .trait, .hl, .persona-face, .modal { box-shadow: var(--neu-out); }
+.persona-back { box-shadow: var(--neu-out); }
+.trait-icon, .hl-shape { box-shadow: var(--neu-in-sm); }                       /* small wells set into the cards */
+.trait:hover .trait-icon { box-shadow: var(--dneu-in); }
+.trait-tags span { box-shadow: var(--neu-in-sm); }
+.trait:hover .trait-tags span { box-shadow: var(--dneu-in); }
+.id-card { box-shadow: var(--neu-in); }
+
+/* header tabs: the open page raised (the black key), the others pressed in */
+.tabs { gap: 4px; }
+.tabs a { box-shadow: var(--neu-in-sm); transition: color .35s, box-shadow .35s; }
+.tabs a.active { box-shadow: none; }
+.tabs-indicator { box-shadow: var(--key); }
+/* links button: pressed in while closed, raised (black) when open; its icons pressed in, rising on hover */
+.social-btn { box-shadow: var(--neu-in-sm); }
+.social.open .social-btn { box-shadow: var(--key); }
+.social-links a { box-shadow: var(--neu-in-sm); }
+.social-links a:hover { box-shadow: var(--neu-out-sm); color: #111; }
+
+/* projects: filters and the grid / list switch */
+.chip { box-shadow: var(--neu-in-sm); background: var(--surface); transition: box-shadow .3s, background .25s; }
+.chip:hover { background: var(--surface); box-shadow: var(--neu-in); }
+.chip[aria-pressed="true"] { background: var(--surface); box-shadow: var(--neu-out-sm); }
+.chip b { box-shadow: var(--neu-in-sm); }
+.chip[aria-pressed="true"] b { box-shadow: var(--key); }
+.viewby button { box-shadow: var(--neu-in-sm); transition: box-shadow .3s, color .3s; }
+.viewby button[aria-pressed="true"] { box-shadow: var(--neu-out-sm); }
+.plist button:hover { box-shadow: var(--neu-out-sm); border-radius: 12px; }
+
+/* on the dark cards: the skill counts pressed in, the lit skill raised; the hover pill raised */
+.badge { box-shadow: var(--dneu-in); }
+.skill-list li.hot .badge { box-shadow: var(--dneu-out); }
+.card-go { box-shadow: var(--dneu-out); }
+.flip-btn { box-shadow: var(--dneu-out); }
+.persona-back .flip-btn { box-shadow: var(--key); }
+
+/* buttons on the pop-ups and Ronie's room */
+.modal-close, .modal-link { box-shadow: var(--neu-out-sm); }
+.rai-close { box-shadow: var(--dneu-out); }
+.rai-sound { box-shadow: var(--dneu-in); }
+.rai-sound.on { box-shadow: var(--dneu-out); }
+
