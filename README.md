@@ -41,14 +41,16 @@ and NIELIT's emblems, used to identify who issued a certificate). Opening a book
 credential `id` and a link to `url`.
 
 ## Ronie's surroundings
-By default Ronie stands in front of a picture, `img/ronie-bg.webp` (neon mountains under a colossal moon, 3:1),
-behind his transparent 3D canvas. `placeBackdrop` in `js/assistant.js` fits it to the window: on landscape
+By default Ronie stands in front of a picture (neon mountains under a colossal moon, 3:1) behind his transparent
+3D canvas. It's a pair: `img/ronie-bg.webp` has the mountains' neon subdued, and `img/ronie-bg-lit.webp` has it
+glowing. The lit one lies over the other and fades in and out. The subdued one was warped (optical flow) to line up
+with the lit one exactly, so swapping in new versions means re-aligning them. `placeBackdrop` in `js/assistant.js` fits it to the window: on landscape
 screens it fills the frame with the moon just right of him and the waterline 87% down; on portrait screens the
 moon sits behind his head like a halo. A canvas over it brings it to life (`drawBackdropFx`):
 - the water ripples;
-- the neon glows up and down in a slow, smooth breath, using `img/ronie-bg-glow.webp`, the picture's purple parts;
+- the neon glows up and down in a slow, smooth breath, as the lit picture fades in and out, its reflections included;
 - mist drifts along the mountains;
-- embers float up off the glowing veins;
+- embers float up off the glowing veins (wherever the lit picture is brighter than the subdued one);
 - the moon's rim glows;
 - the stars (soft glowing points, the brightest with diffraction spikes, plus a faint field between them) twinkle
   unevenly;

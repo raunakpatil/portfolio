@@ -967,30 +967,31 @@ function updateSpace(now, dt) {
 }
 
 /* ======================= the picture backdrop ======================= */
-// The default: a wide picture (img/ronie-bg.webp, 3:1, the moon's centre at 62.5% across, the waterline at 82% down)
-// behind the transparent 3D canvas. It's placed for the window every time it changes: on a landscape screen it covers
+// The default: a wide picture behind the transparent 3D canvas (3:1, the moon's centre at 66.5% across, the waterline
+// at 84% down), as a pair: img/ronie-bg.webp with the mountains' neon subdued, and img/ronie-bg-lit.webp with it
+// glowing, laid over it and fading in and out (the subdued one was warped to line up with the lit one exactly). It's placed for the window every time it changes: on a landscape screen it covers
 // the frame, slid so the moon sits just right of him, with the waterline 87% down (as in the design); on a portrait
 // one the moon is centred behind his head and shoulders, the picture fading into black above and below.
 const moon = {
-  built: false, img: $('#rai-bg'), fx: $('#rai-bgfx'), ctx: null, glow: null, mist: null, tex: null, lights: [], k: -1,
+  built: false, wrap: $('#rai-bg-wrap'), img: $('#rai-bg'), lit: $('#rai-bg-lit'), fx: $('#rai-bgfx'), ctx: null, mist: null,
+  tex: null, lights: [], k: -1, litK: -1,
   box: null, at: '', par: { x: 0, y: 0 }, tick: 0, shoots: [], nextShoot: 4, embers: [], sprites: null,
 };
-const BG_ASPECT = 2172 / 724, BG_MOON_X = 0.625, BG_WATER_Y = 0.822;
-const BG_MOON = [0.6245, 0.6402, 0.4991];             // the moon's outline: centre (fractions across / down), radius / height
+const BG_ASPECT = 2172 / 724, BG_MOON_X = 0.6651, BG_WATER_Y = 0.84;
+const BG_MOON = [0.6651, 0.6781, 0.5263];             // the moon's outline: centre (fractions across / down), radius / height
 const BG_PAR = 10;                                    // px the picture drifts against the mouse (a hint of depth)
 // the picture's own brightest stars (fractions across, down; brightness), found in it; they twinkle
-const BG_STARS = [[0.3297, 0.0912, 1.00], [0.8877, 0.1312, 1.00], [0.5101, 0.1823, 1.00], [0.2541, 0.3122, 1.00], [0.0451, 0.3384, 1.00],
-  [0.3393, 0.2638, 1.00], [0.8886, 0.3025, 1.00], [0.8541, 0.4268, 0.99], [0.0124, 0.0635, 0.99], [0.4052, 0.4503, 0.96],
-  [0.1483, 0.4144, 0.94], [0.5599, 0.0870, 0.94], [0.9162, 0.3895, 0.90], [0.9498, 0.2099, 0.89], [0.1662, 0.0290, 0.88],
-  [0.1008, 0.3135, 0.84], [0.7426, 0.0373, 0.82], [0.5695, 0.1229, 0.80], [0.1644, 0.4586, 0.79], [0.4167, 0.3260, 0.78],
-  [0.0801, 0.1312, 0.75], [0.2684, 0.1547, 0.75], [0.1501, 0.1602, 0.70], [0.4222, 0.4227, 0.70], [0.1137, 0.2652, 0.69],
-  [0.9208, 0.2735, 0.68], [0.8720, 0.2293, 0.68], [0.0994, 0.2831, 0.64], [0.1013, 0.2072, 0.64], [0.9167, 0.3522, 0.62],
-  [0.0958, 0.1906, 0.61], [0.4006, 0.2983, 0.61], [0.0272, 0.0539, 0.61], [0.9448, 0.4406, 0.59], [0.0262, 0.1892, 0.57],
-  [0.1179, 0.3412, 0.56], [0.1561, 0.3522, 0.55], [0.0304, 0.2528, 0.54], [0.4434, 0.3633, 0.50], [0.3025, 0.0387, 0.47]];
+const BG_STARS = [[0.0120, 0.0704, 1.00], [0.3407, 0.0981, 1.00], [0.9351, 0.1381, 1.00], [0.2721, 0.3273, 1.00], [0.0502, 0.3536, 1.00],
+  [0.9692, 0.4006, 1.00], [0.1750, 0.4751, 1.00], [0.5341, 0.1934, 1.00], [0.1045, 0.3287, 0.99], [0.0833, 0.1395, 0.99],
+  [0.1644, 0.3660, 0.99], [0.3628, 0.2762, 0.99], [0.9378, 0.3122, 0.99], [0.9015, 0.4392, 0.99], [0.4332, 0.4682, 0.99],
+  [0.9199, 0.2362, 0.99], [0.2357, 0.3052, 0.99], [0.1188, 0.2776, 0.99], [0.1782, 0.4903, 0.98], [0.1552, 0.4309, 0.97],
+  [0.9673, 0.3633, 0.97], [0.9991, 0.2169, 0.96], [0.2463, 0.3315, 0.95], [0.8361, 0.1851, 0.94], [0.8490, 0.1064, 0.93],
+  [0.8656, 0.1961, 0.93], [0.0272, 0.2003, 0.92], [0.1054, 0.2182, 0.91], [0.5852, 0.0953, 0.90], [0.1731, 0.0345, 0.88],
+  [0.4507, 0.4406, 0.88], [0.2486, 0.3481, 0.87], [0.1077, 0.3481, 0.87], [0.2408, 0.3273, 0.86], [0.3154, 0.0442, 0.85],
+  [0.1598, 0.2417, 0.85]];
 function buildMoon() {
-  if (!moon.img || !moon.fx) return;
+  if (!moon.wrap || !moon.img || !moon.lit || !moon.fx) return;
   moon.ctx = moon.fx.getContext('2d');
-  moon.glow = new Image(); moon.glow.src = `img/ronie-bg-glow.webp${new URL(import.meta.url).search}`;
   new THREE.TextureLoader().load(moon.img.currentSrc || moon.img.src, (t) => {
     t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; moon.tex = t;
   });
@@ -1035,16 +1036,26 @@ function placeBackdrop() {
   moon.box = { x, y, iw, ih, w, h, wide };
 }
 
-// sprites for the backdrop's lights, the faint star field, and where on the picture the neon glows (for the embers)
+// sprites for the backdrop's lights, the faint star field, and where on the picture the neon glows (for the embers:
+// wherever the lit picture is much brighter than the subdued one, above the water)
+const imgReady = (im) => im && im.complete && im.naturalWidth;
 function bgSprites() {
   if (moon.sprites) {
-    if (!moon.sprites.hot.length && moon.glow && moon.glow.complete && moon.glow.naturalWidth && !moon.sprites.tried) {
+    if (!moon.sprites.hot.length && imgReady(moon.img) && imgReady(moon.lit) && !moon.sprites.tried) {
       moon.sprites.tried = true;
       try {
-        const c = document.createElement('canvas'), w = 362, h = 121; c.width = w; c.height = h;
-        const x = c.getContext('2d'); x.drawImage(moon.glow, 0, 0, w, h);
-        const d = x.getImageData(0, 0, w, h).data;
-        for (let j = 0; j < h * (BG_WATER_Y - 0.01); j++) for (let i = 0; i < w; i++) if (d[(j * w + i) * 4 + 3] > 150) moon.sprites.hot.push([i / w, j / h]);
+        const w = 362, h = 121, read = (im) => {
+          const c = document.createElement('canvas'); c.width = w; c.height = h;
+          const x = c.getContext('2d'); x.drawImage(im, 0, 0, w, h);
+          return x.getImageData(0, 0, w, h).data;
+        };
+        const lo = read(moon.img), hi = read(moon.lit);
+        for (let j = 0; j < h * (BG_WATER_Y - 0.01); j++) {
+          for (let i = 0; i < w; i++) {
+            const k = (j * w + i) * 4, gain = (hi[k] + hi[k + 1] + hi[k + 2]) - (lo[k] + lo[k + 1] + lo[k + 2]);
+            if (gain > 150) moon.sprites.hot.push([i / w, j / h]);
+          }
+        }
       } catch { /* no embers */ }
     }
     return moon.sprites;
@@ -1083,7 +1094,8 @@ function bgSprites() {
   return moon.sprites;
 }
 
-// The picture comes alive: the water ripples, the neon in the mountains glows brighter and softer in a slow breath,
+// The picture comes alive: the water ripples, the neon in the mountains glows brighter and softer in a slow breath (the
+// lit picture fading in and out over the subdued one, in updateMoon),
 // mist drifts along the shore, embers float up off it, the moon's lit rim glows, its
 // stars twinkle and a shooting star crosses the sky once in a while. Drawn on a canvas over the picture, in the
 // picture's own coordinates, so it all stays put wherever the picture is placed.
@@ -1097,20 +1109,19 @@ function drawBackdropFx(t, dt) {
   const x0 = B.x + moon.par.x, y0 = B.y + moon.par.y, iw = B.iw, ih = B.ih;
   const img = moon.img, NW = img.naturalWidth, NH = img.naturalHeight;
   if (!NW || !MOTION) return;
-  // the water: each band of it redrawn a little to the side, more the nearer it is
+  // the water: each band of it redrawn a little to the side, more the nearer it is (the subdued picture, then the lit
+  // one over it as strongly as it's showing, so the reflections glow with the mountains)
   const top = Math.max(0, y0 + BG_WATER_Y * ih + 2), bot = Math.min(B.h, y0 + ih), band = 2;
   ctx.globalCompositeOperation = 'source-over';
+  const lit = imgReady(moon.lit) ? moon.lit : null, litK = Math.max(0, moon.litK);
   for (let y = top; y < bot; y += band) {
     const v = (y - y0) / ih, d = (v - BG_WATER_Y) / (1 - BG_WATER_Y), sy = v * NH;
     const dx = (Math.sin(sy * 0.23 + t * 1.6) * 0.6 + Math.sin(sy * 0.061 - t * 0.9) * 0.4) * (0.6 + 4.5 * d);
+    ctx.globalAlpha = 1;
     ctx.drawImage(img, 0, sy, NW, (band / ih) * NH, x0 + dx, y, iw, band);
+    if (lit && litK > 0.01) { ctx.globalAlpha = litK; ctx.drawImage(lit, 0, sy, lit.naturalWidth, (band / ih) * lit.naturalHeight, x0 + dx, y, iw, band); }
   }
   ctx.globalCompositeOperation = 'lighter';
-  // the neon glowing up and down in one slow, smooth breath (about 5 s)
-  if (moon.glow && moon.glow.complete && moon.glow.naturalWidth) {
-    ctx.globalAlpha = 0.12 + 0.26 * (0.5 - 0.5 * Math.cos((t * Math.PI * 2) / 5));
-    ctx.drawImage(moon.glow, x0, y0, iw, ih);
-  }
   // mist drifting along the foot of the mountains
   if (!moon.mist) {
     const m = document.createElement('canvas'); m.width = m.height = 128;
@@ -1213,7 +1224,10 @@ function updateMoon(dt) {
   power += (roomGoal - power) * Math.min(1, dt * (MOTION ? 1.6 : 60));
   // asleep the picture is barely there; it comes up with the room light
   const k = Math.round((0.22 + 0.78 * power) * 100) / 100;
-  if (k !== moon.k) { moon.k = k; moon.img.style.filter = moon.fx.style.filter = k < 1 ? `brightness(${k})` : ''; }
+  if (k !== moon.k) { moon.k = k; moon.wrap.style.filter = moon.fx.style.filter = k < 1 ? `brightness(${k})` : ''; }
+  // the neon: the lit picture fades in and out over the subdued one, in one slow, smooth breath (about 6 s)
+  const lk = MOTION ? Math.round((0.12 + 0.88 * (0.5 - 0.5 * Math.cos((performance.now() / 1000) * Math.PI * 2 / 6))) * 200) / 200 : 1;
+  if (lk !== moon.litK) { moon.litK = lk; moon.lit.style.opacity = lk; }
   // the picture drifts a touch against the mouse
   const m = !TOUCH.matches && MOTION ? BG_PAR : 0;
   moon.par.x += (-ptr.x * m - moon.par.x) * Math.min(1, dt * 2.5);
@@ -1223,8 +1237,8 @@ function updateMoon(dt) {
     const at = `${Math.round(B.iw)},${(B.x + moon.par.x).toFixed(1)},${(B.y + moon.par.y).toFixed(1)},${B.wide}`;
     if (at !== moon.at) {
       moon.at = at;
-      Object.assign(moon.img.style, { width: `${B.iw}px`, height: `${B.ih}px`, transform: `translate(${B.x + moon.par.x}px, ${B.y + moon.par.y}px)` });
-      moon.img.classList.toggle('tall', !B.wide);
+      Object.assign(moon.wrap.style, { width: `${B.iw}px`, height: `${B.ih}px`, transform: `translate(${B.x + moon.par.x}px, ${B.y + moon.par.y}px)` });
+      moon.wrap.classList.toggle('tall', !B.wide);
     }
     // ~30 fps is plenty for this
     moon.tick += dt;
