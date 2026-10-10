@@ -1135,6 +1135,9 @@ function drawBackdropFx(t, dt) {
     g.addColorStop(0, 'rgba(0, 0, 0, 0)'); g.addColorStop(1, 'rgba(0, 0, 0, 0.7)');
     ctx.globalAlpha = 1; ctx.fillStyle = g; ctx.fillRect(0, end - strip * 0.3, B.w, bot - end + strip * 0.3);
   }
+  // while he's asleep the picture is all but dark (see updateMoon), and so is everything here — except the moon's rim
+  const dim = moon.k < 0 ? 1 : moon.k;
+  if (dim < 0.999 && top < bot) { ctx.globalAlpha = 1 - dim; ctx.fillStyle = '#000'; ctx.fillRect(0, top - 2, B.w, bot - top + 2); }
   if (!MOTION) { ctx.globalAlpha = 1; return; }
   ctx.globalCompositeOperation = 'lighter';
   // mist drifting along the foot of the mountains
@@ -1146,12 +1149,12 @@ function drawBackdropFx(t, dt) {
   }
   for (let i = 0; i < 4; i++) {
     const u = ((i * 0.29 + t * (0.006 + i * 0.002)) % 1.3) - 0.15, v = 0.73 + 0.04 * Math.sin(t * 0.2 + i);
-    ctx.globalAlpha = 0.12 + 0.05 * Math.sin(t * 0.5 + i * 2);
+    ctx.globalAlpha = (0.12 + 0.05 * Math.sin(t * 0.5 + i * 2)) * dim;
     ctx.drawImage(moon.mist, x0 + u * iw - 0.18 * ih, y0 + v * ih - 0.06 * ih, 0.36 * ih, 0.12 * ih);
   }
-  // the moon's lit rim, slowly breathing (only the part above the mountains)
+  // the moon's lit rim, slowly breathing (only the part above the mountains) — the one light left on while he sleeps
   const [mx, my, mr] = BG_MOON;
-  ctx.globalAlpha = 0.5 + 0.35 * Math.sin(t * 0.55);
+  ctx.globalAlpha = Math.min(1, (0.5 + 0.35 * Math.sin(t * 0.55)) * (1 + 0.35 * (1 - dim)));
   ctx.strokeStyle = 'rgba(225, 230, 255, 0.5)'; ctx.lineWidth = Math.max(1.2, ih * 0.0025);
   ctx.shadowColor = 'rgba(210, 220, 255, 0.9)'; ctx.shadowBlur = ih * 0.025;
   ctx.beginPath(); ctx.arc(x0 + mx * iw, y0 + my * ih, mr * ih, -2.05, 0.22); ctx.stroke();
@@ -1165,18 +1168,18 @@ function drawBackdropFx(t, dt) {
   };
   for (const st of SP.field) {
     const k = tw(st.i, st.sp);
-    ctx.globalAlpha = st.b * (0.25 + 0.75 * k);
+    ctx.globalAlpha = st.b * (0.25 + 0.75 * k) * dim;
     const r = st.r * su * (0.8 + 0.35 * k);
     ctx.drawImage(SP.dot[st.c], x0 + st.u * iw - r, y0 + st.v * ih - r, r * 2, r * 2);
   }
   BG_STARS.forEach(([u, v, b], i) => {
     const k = tw(i + 100, 0.6 + (i % 5) * 0.23), px = x0 + u * iw, py = y0 + v * ih;
-    ctx.globalAlpha = b * (0.15 + 0.85 * k * k);
+    ctx.globalAlpha = b * (0.15 + 0.85 * k * k) * dim;
     const r = (3.2 + 2.5 * b) * su * (0.75 + 0.5 * k);
     ctx.drawImage(SP.dot[i % 3], px - r, py - r, r * 2, r * 2);
     if (b > 0.8) {
       const L = 16 * su * b * (0.55 + 0.6 * k);
-      ctx.globalAlpha = b * k * k * 0.75;
+      ctx.globalAlpha = b * k * k * 0.75 * dim;
       ctx.drawImage(SP.spike, px - L, py - L, L * 2, L * 2);
     }
   });
@@ -1192,14 +1195,14 @@ function drawBackdropFx(t, dt) {
       if (e.age < 0) continue;
       e.u += (e.vu + Math.sin(t * 0.9 + e.ph) * 0.0015) * dt; e.v -= e.vv * dt;
       const f = e.age / e.life, a = Math.sin(Math.PI * Math.min(1, f)) * (0.6 + 0.4 * Math.sin(t * 5 + e.ph));
-      ctx.globalAlpha = Math.min(1, Math.max(0, a) * 1.1);
+      ctx.globalAlpha = Math.min(1, Math.max(0, a) * 1.1) * dim;
       const r = e.r * su * 2.6;
       ctx.drawImage(SP.ember, x0 + e.u * iw - r, y0 + e.v * ih - r, r * 2, r * 2);
     }
     moon.embers = moon.embers.filter((e) => e.age < e.life);
   }
   // a shooting star once in a while (now and then two together): a bright head with a tapering tail, burning out
-  if (!moon.shoots.length && t > moon.nextShoot) {
+  if (!moon.shoots.length && t > moon.nextShoot && dim > 0.6) {
     const n = Math.random() < 0.2 ? 2 : 1, dir = Math.random() < 0.5 ? 1 : -1, ang = (14 + Math.random() * 22) * Math.PI / 180;
     for (let k = 0; k < n; k++) {
       moon.shoots.push({ u: 0.08 + Math.random() * 0.84, v: 0.03 + Math.random() * 0.22 + k * 0.05, dir, ang: ang + k * 0.04,
@@ -1237,9 +1240,10 @@ function updateMoon(dt) {
   const since = awake ? (performance.now() - wakeAt) / 1000 : -1;
   const roomGoal = awake && since > 0.55 ? 1 : 0;
   power += (roomGoal - power) * Math.min(1, dt * (MOTION ? 1.6 : 60));
-  // asleep the picture is barely there; it comes up with the room light
-  const k = Math.round((0.22 + 0.78 * power) * 100) / 100;
-  if (k !== moon.k) { moon.k = k; moon.wrap.style.filter = moon.fx.style.filter = k < 1 ? `brightness(${k})` : ''; }
+  // asleep the picture is all but dark (only the moon's rim light, drawn in drawBackdropFx, stays on); it comes up with
+  // the room light as he wakes
+  const k = Math.round((0.04 + 0.96 * power) * 100) / 100;
+  if (k !== moon.k) { moon.k = k; moon.wrap.style.filter = k < 1 ? `brightness(${k})` : ''; }
   // the neon: the lit picture fades in and out over the subdued one, in one slow, smooth breath (about 6 s)
   const lk = MOTION ? Math.round((0.12 + 0.88 * (0.5 - 0.5 * Math.cos((performance.now() / 1000) * Math.PI * 2 / 6))) * 200) / 200 : 1;
   if (lk !== moon.litK) { moon.litK = lk; moon.lit.style.opacity = lk; }
