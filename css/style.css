@@ -490,7 +490,9 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai::before { /* keeps the dialogue readable over the neon tubes */
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background: linear-gradient(90deg, rgba(12, 12, 12, .88) 0%, rgba(12, 12, 12, .72) 30%, rgba(12, 12, 12, 0) 52%);
-} /* keep `hidden` working on elements that set their own display */
+}
+/* (the picture rooms: no darkening anywhere, the chat sits on the scene as it is) */
+.rai:not([data-room="tubes"])::before, .rai:not([data-room="tubes"])::after { display: none; }
 .rai::after { /* soft vignette */
   content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 55%, rgba(0, 0, 0, .55) 100%);
