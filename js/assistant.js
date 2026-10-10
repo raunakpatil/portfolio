@@ -2056,7 +2056,7 @@ const CARD_W = 0.27, CARD_H = 0.33;
 const PROJ_W = 0.42, PROJ_H = 0.3;          // a project's card: landscape, so its 16:9 picture shows whole
 const card = {
   group: null, tex: null, canvas: null, state: 'off', toss: null, token: 0, scale: 0, flyT: 0, name: '', img: null,
-  mode: 'photo', project: null, faces: null, pCanvas: null, pTex: null, pFront: null, heldTimer: 0,
+  mode: 'photo', project: null, faces: null, pCanvas: null, pTex: null, pFront: null, heldTimer: 0, dev: 1, picPending: false,
   vel: new THREE.Vector3(), spin: new THREE.Vector3(), prev: new THREE.Vector3(), handVel: new THREE.Vector3(),
 };
 let rHand = null, busyUntil = 0;
@@ -2147,7 +2147,22 @@ function cardUnder(e) {
   return _ray.intersectObject(card.pFront, false).length > 0;
 }
 
-// a polaroid: the picture (cover-fit, faces sit near the top of a portrait) and the name written underneath
+// a guess's photo, found and downloaded (null if there's no free picture of it); started the moment the guess
+// arrives, so it's usually ready by the time he picks the card up
+function preparePicture(name) {
+  if (!name) return Promise.resolve(null);
+  return findPicture(name).then((url) => url && new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  })).catch(() => null);
+}
+
+// a polaroid: the picture (cover-fit, faces sit near the top of a portrait) and the name written underneath. While
+// the photo is still on its way the square is a dark "developing" grey, and once it's in it fades up like a real
+// polaroid (card.dev 0→1); a "?" only when there's no picture to be had
 function drawCard() {
   const c = card.canvas, x = c.getContext('2d'), W = c.width, H = c.height, m = 30, side = W - 2 * m, img = card.img;
   x.fillStyle = '#f3efe6'; x.fillRect(0, 0, W, H);
@@ -2156,7 +2171,12 @@ function drawCard() {
   if (img) {
     x.fillStyle = '#ece8e0'; x.fillRect(m, m, side, side);
     const sz = Math.min(img.width, img.height);
+    x.globalAlpha = card.dev;
     x.drawImage(img, (img.width - sz) / 2, (img.height - sz) * 0.12, sz, sz, m, m, side, side);   // heads sit near the top
+    x.globalAlpha = 1;
+    if (card.dev < 1) { x.fillStyle = `rgba(42, 40, 38, ${(1 - card.dev) * 0.9})`; x.fillRect(m, m, side, side); }
+  } else if (card.picPending) {
+    x.fillStyle = '#2a2826'; x.fillRect(m, m, side, side);
   } else {
     x.fillStyle = '#3c3c3c'; x.font = '300 230px "Inter Tight", sans-serif';
     x.fillText('?', W / 2, m + side / 2 + 10);
@@ -2170,22 +2190,22 @@ function drawCard() {
   card.tex.needsUpdate = true;
 }
 
-// his guess: down he goes for a photo of it (false if he can't move right now)
-function pickUpPhoto(name) {
+// his guess: down he goes for a photo of it (false if he can't move right now). pic: the photo, from preparePicture
+function pickUpPhoto(name, pic = preparePicture(name)) {
   if (!card.group || !rHand || !gestures.pickup || !playGesture('pickup')) return false;
   const my = ++card.token;
-  Object.assign(card, { state: 'wait', toss: null, scale: 0, name: name || '', img: null, project: null });
+  Object.assign(card, { state: 'wait', toss: null, scale: 0, name: name || '', img: null, project: null, dev: 1, picPending: !!name });
   setCardMode('photo');
   clearTimeout(card.heldTimer);
   card.group.visible = false;
   drawCard();
   if (document.fonts) document.fonts.load('italic 56px "Instrument Serif"').then(() => { if (my === card.token) drawCard(); }).catch(() => {});
-  if (name) findPicture(name).then((url) => {
-    if (!url || my !== card.token) return;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload = () => { if (my === card.token) { card.img = img; drawCard(); } };
-    img.src = url;
+  pic.then((img) => {
+    if (my !== card.token) return;
+    card.picPending = false;
+    // already in by the time he grabs it: shown straight away; else it develops in his hand
+    if (img) { card.img = img; card.dev = card.state === 'wait' ? 1 : 0; }
+    drawCard();
   });
   busyUntil = performance.now() + gestures.pickup.getClip().duration * 1000;
   return true;
@@ -2237,6 +2257,7 @@ function updateCard(now, dt) {
   }
   if (!holding && !tossing) return letGo([0, 0.5, 0.4]);    // whatever he was doing got cut short: it drops
   if (tossing && gesture.time >= TOSS[card.toss].release) return letGo(TOSS[card.toss].push, TOSS[card.toss].spin);
+  if (card.mode === 'photo' && card.img && card.dev < 1) { card.dev = Math.min(1, card.dev + dt / 1.3); drawCard(); }
   // in his hand: flat and low at the grab, upright by his face (turned to the viewer, a little tilted) once he stands
   const k = holding ? smooth(Math.min(1, Math.max(0, (pick.time - PICK_GRAB) / 0.8))) : 1;
   card.scale = Math.min(1, card.scale + dt * 7);
@@ -2325,6 +2346,7 @@ async function gameAsk(my, first = false) {
   }
   game.log.push({ role: 'assistant', content: res.reply });
   if (!res.guess) game.asked++;
+  else { res.name = res.name || guessedName(res.reply); res.pic = preparePicture(res.name); }
   showQuestion(my, res);
 }
 
@@ -2348,7 +2370,10 @@ async function showQuestion(my, res) {
   if (res.guess) {
     // he's got it! down he goes for a photo of his guess, and comes up holding it, thrilled
     setFace('excited'); setIcon(null);
-    held = pickUpPhoto(res.name || guessedName(res.reply));
+    // a moment for the photo to arrive first (he's still "thinking"), so it's in his hand when he comes up
+    await Promise.race([res.pic, new Promise((r) => setTimeout(r, 2500))]);
+    if (my !== game.token) return;
+    held = pickUpPhoto(res.name, res.pic);
     if (!held) playGesture('point');
   } else {
     setFace(FACES[res.face] ? res.face : 'curious'); setIcon(null);
