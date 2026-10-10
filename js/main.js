@@ -969,7 +969,7 @@
     const info = $('.map-info', card);
     const E = D.experience;
     const B = D.mapBounds || { w: -130, e: 160, n: 74, s: -46 };
-    const SP = 7; // dot pitch in px — smaller = more detailed coastline
+    const SP = 5; // dot pitch in px — smaller = more detailed coastline
     const COLORS = ['#c6f432', '#b18cff', '#ff7ab6', '#5eead4', '#ffb547', '#7cc4ff'];
     const colorOf = (i) => COLORS[i % COLORS.length];
 
@@ -1037,11 +1037,11 @@
       bc.scale(dpr, dpr);
       bc.fillStyle = '#d9d9d9';
       for (const d of dots) {
-        bc.globalAlpha = d.land ? 0.34 : 0.06;
+        bc.globalAlpha = d.land ? 0.44 : 0.06;
         bc.beginPath(); bc.arc(d.x, d.y, DOT_R, 0, TAU); bc.fill();
       }
     }
-    const DOT_R = 1.45;
+    const DOT_R = 1.1;
 
     pinsEl.innerHTML = E.map((e, i) => `<button class="pin" type="button" data-i="${i}" style="--c:${colorOf(i)}" aria-label="${esc(e.org)}, ${esc(e.place)}"><i></i><span class="pin-label"><span class="pin-row">${PIN_ICON}<span class="pin-coords">${coords(e.lat, e.lon)}</span></span><span class="pin-more"><b>${esc(e.place)}</b><em>${esc(e.years)}</em><span>${esc(e.org)}</span></span></span></button>`).join('');
     const pins = $$('.pin', pinsEl);
