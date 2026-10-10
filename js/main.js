@@ -584,12 +584,23 @@
 
     const GAP = 4, STEP = 3;
     let segs = [];
-    const ptr = trackPointer(canvas);
-    canvas.addEventListener('pointermove', () => {
-      const s = segs.find((g) => ptr.x >= g.x && ptr.x <= g.x + g.w);
-      setHot(s ? new Set([s.i]) : new Set());
+    const pick = (e) => {
+      const x = e.clientX - canvas.getBoundingClientRect().left;
+      const s = segs.find((g) => x >= g.x - GAP / 2 && x <= g.x + g.w + GAP / 2);
+      if (s) setHot(new Set([s.i]));
+      else if (e.pointerType === 'mouse') none();
+    };
+    // mouse: hover a bar. touch: tap a bar, slide sideways to run along them; the pick stays until you tap elsewhere
+    // (touch-action: pan-y keeps vertical swipes scrolling the page)
+    canvas.addEventListener('pointerdown', (e) => {
+      pick(e);
+      if (e.pointerType !== 'mouse') try { canvas.setPointerCapture(e.pointerId); } catch {}
     });
-    canvas.addEventListener('pointerleave', none);
+    canvas.addEventListener('pointermove', pick);
+    canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') none(); });
+    document.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'mouse' && e.target !== canvas && !e.target.closest('#card-skills li') && hot.size) none();
+    });
 
     let start = null, t = 0;
     onFrame(card, (now, dt) => {
