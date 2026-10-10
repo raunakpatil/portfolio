@@ -270,7 +270,7 @@
       ind.style.opacity = a ? '1' : '0';
       if (!a) return;
       ind.style.width = `${a.offsetWidth}px`;
-      ind.style.transform = `translateX(${a.offsetLeft - 3}px)`;
+      ind.style.transform = `translateX(${a.offsetLeft}px)`;
     };
     // Ronie has his own address, raunakpatil.com/ronie (ronie.html sends visitors in); every other page is /#page
     const onRonie = () => /^\/ronie\/?$/.test(location.pathname);
