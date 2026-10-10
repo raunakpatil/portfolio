@@ -15,7 +15,7 @@ window.PORTFOLIO = {
     { label: 'Email', href: 'mailto:raunakpatil15@gmail.com' },
     { label: 'LinkedIn', href: 'https://www.linkedin.com/in/raunakpatil/' },
     { label: 'GitHub', href: 'https://github.com/raunakpatil' },
-    { label: 'YouTube', href: 'https://www.youtube.com/@TheFracturedTimelines' },
+    { label: 'YouTube', href: 'https://www.youtube.com/@eldritchlore' },
   ],
 
   /* Card 1 — greeting + ASCII art.
@@ -498,7 +498,7 @@ window.PORTFOLIO = {
       'works-4': { progress: 0.85, story: 'story-done', say: ["His rule of thumb: the best AI system is one that knows what it doesn't know. I'm working on it."] },
       'facts-1': { progress: 0.3, story: 'facts-2', say: ["He speaks English, Hindi and Marathi. And Python. Fluently."] },
       'facts-2': { progress: 0.5, story: 'facts-3', say: ["He's a DIAT-certified Artificial Intelligence Professional — that's the Defence Institute of Advanced Technology."] },
-      'facts-3': { progress: 0.7, story: 'facts-4', say: ["He runs a YouTube channel, The Fractured Timelines, where an AI pipeline does the heavy lifting."] },
+      'facts-3': { progress: 0.7, story: 'facts-4', say: ["He runs a YouTube channel, Eldritch Lore, where an AI pipeline does the heavy lifting."] },
       'facts-4': { progress: 0.85, story: 'story-done', say: ["He built this whole website. Including me. I'm still deciding how I feel about that."] },
       'story-done': {
         progress: 1,
