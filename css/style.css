@@ -64,38 +64,35 @@ img { display: block; max-width: 100%; }
   transition: transform .5s var(--ease), width .5s var(--ease);
 }
 
-/* links: a small white pill (a 2×2 grid of dots) in the corner. Clicked, it turns black like the active tab and the
-   white pill behind it grows out to the left with the icon links, which fade in one after another */
-.social { justify-self: end; position: relative; z-index: 2; display: flex; align-items: center; height: 40px; }
+/* links: a small white pill with a chevron pointing left, the way it opens. Clicked, it turns black like the active
+   tab and the chevron swings round to point right while the white pill behind it grows out to the left with the icon
+   links, which fade in one after another — all on the same easing, so it moves as one */
+.social { --snap: cubic-bezier(.22, 1, .36, 1); justify-self: end; position: relative; z-index: 2; display: flex; align-items: center; height: 40px; }
 .social-btn {
-  position: relative; z-index: 1; display: grid; grid-template-columns: repeat(2, 4px); gap: 3.5px; place-content: center;
-  width: 46px; height: 28px; margin-right: 6px; border-radius: 999px;
+  position: relative; z-index: 1; display: grid; place-items: center;
+  width: 46px; height: 28px; margin-right: 6px; border-radius: 999px; color: #111;
   background: var(--surface); box-shadow: 0 0 0 1px rgba(0, 0, 0, .06);
-  transition: background .35s var(--ease), box-shadow .35s var(--ease);
+  transition: background .45s var(--snap), color .45s var(--snap), box-shadow .45s var(--snap);
 }
-.social-btn i { width: 4px; height: 4px; border-radius: 50%; background: #111; transition: transform .45s var(--ease), background .35s var(--ease); }
-.social-btn:hover i:nth-child(1) { transform: translate(-1px, -1px); }
-.social-btn:hover i:nth-child(2) { transform: translate(1px, -1px); }
-.social-btn:hover i:nth-child(3) { transform: translate(-1px, 1px); }
-.social-btn:hover i:nth-child(4) { transform: translate(1px, 1px); }
-.social.open .social-btn { background: #111; box-shadow: none; }
-.social.open .social-btn i { background: #fff; }
-.social.open .social-btn i:nth-child(1) { transform: translate(3.75px, 0); }      /* the dots turn into a diamond */
-.social.open .social-btn i:nth-child(2) { transform: translate(0, 3.75px); }
-.social.open .social-btn i:nth-child(3) { transform: translate(0, -3.75px); }
-.social.open .social-btn i:nth-child(4) { transform: translate(-3.75px, 0); }
+.social-btn svg {
+  width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
+  transform: translateX(var(--nudge, 0px)) rotate(var(--turn, 0deg)); transition: transform .55s var(--snap); will-change: transform;
+}
+.social-btn:hover { --nudge: -2px; }                      /* a hint of which way it goes */
+.social.open .social-btn { background: #111; color: #fff; box-shadow: 0 0 0 1px #111; --turn: 180deg; }
+.social.open .social-btn:hover { --nudge: 2px; }
 .social-links {
   position: absolute; right: 0; top: 0; height: 40px; display: flex; align-items: center; gap: 2px;
   padding: 0 58px 0 6px; border-radius: 999px; white-space: nowrap;
   background: var(--surface); box-shadow: 0 0 0 1px rgba(0, 0, 0, .06), 0 12px 30px rgba(0, 0, 0, .08);
   clip-path: inset(6px 6px 6px calc(100% - 52px) round 999px);          /* closed: just the button's own pill */
-  transition: clip-path .55s var(--ease);
+  transition: clip-path .55s var(--snap); will-change: clip-path;
 }
 .social.open .social-links { clip-path: inset(0 0 0 0 round 999px); }
 .social-links a {
   position: relative; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #555;
   opacity: 0; transform: translateX(10px);
-  transition: opacity .3s var(--ease), transform .45s var(--ease), background .25s, color .25s;
+  transition: opacity .3s var(--snap), transform .45s var(--snap), background .25s, color .25s;
 }
 .social.open .social-links a { opacity: 1; transform: none; transition-delay: calc(var(--i) * 45ms + 80ms), calc(var(--i) * 45ms + 80ms), 0s, 0s; }
 .social-links a:hover { background: rgba(0, 0, 0, .06); color: #111; }
