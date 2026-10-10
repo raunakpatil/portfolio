@@ -549,6 +549,21 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai-say.long { font-size: clamp(16px, 1.4vw, 20px); line-height: 1.42; }
 .rai-say.xlong { font-size: clamp(14px, 1.15vw, 17px); line-height: 1.46; }
 .rai-scr { color: #38ffb3; }
+/* "Ouch!" when he's poked again and again: pops up by his head, floats off */
+.rai-ouch {
+  position: absolute; z-index: 4; pointer-events: none; opacity: 0; white-space: nowrap;
+  padding: 6px 13px; border-radius: 14px 14px 14px 4px; background: #fff; color: #111;
+  font-family: "Gobitta", var(--mono); font-size: 18px; line-height: 1;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45); transform: translate(-10%, -100%) rotate(var(--tilt, 0deg));
+}
+.rai-ouch.pop { animation: rai-ouch 1.3s var(--ease) forwards; }
+@keyframes rai-ouch {
+  0% { opacity: 0; transform: translate(-10%, -60%) rotate(var(--tilt, 0deg)) scale(.4); }
+  14% { opacity: 1; transform: translate(-10%, -100%) rotate(var(--tilt, 0deg)) scale(1.08); }
+  24% { transform: translate(-10%, -100%) rotate(var(--tilt, 0deg)) scale(1); }
+  72% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-10%, -190%) rotate(var(--tilt, 0deg)) scale(.96); }
+}
 .rai-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-top: 24px; }
 /* Ronie's buttons: soft frosted pills — light glass, dark text, a gentle shadow, no outline */
 .rai-choice, .rai-chip, .rai-link {
