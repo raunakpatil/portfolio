@@ -1324,7 +1324,7 @@ main { padding: 0 var(--gap) var(--gap); }
 /* ===================== Soft depth (all pages) =====================
    Everything keeps its colours; only depth is added. Cards and plain buttons stand up off the page. Where there's a
    choice, the rule is: the selected option is embossed (raised), the others are embedded (pressed in). */
-.card, .pcard-btn, .lib-card, .trait, .hl, .persona-face, .modal { box-shadow: var(--neu-out); }
+.card, .lib-card, .trait, .hl, .persona-face, .modal { box-shadow: var(--neu-out); }   /* (project cards stay flat) */
 .persona-back { box-shadow: var(--neu-out); }
 .trait-icon, .hl-shape { box-shadow: var(--neu-out-sm); }                      /* the icon tiles stand up from their cards */
 .trait:hover .trait-icon { box-shadow: var(--dneu-out); }
