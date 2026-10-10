@@ -3140,6 +3140,9 @@ function pickUpProject(p) {
   card.heldTimer = setTimeout(() => { if (my === card.token && card.mode === 'project') throwPhoto('toss'); }, 30000);
   return true;
 }
+// where the card's bottom-left corner sits from his thumb's last joint (across, up, towards the viewer; metres): tucked
+// down into the fist and a touch behind the curled fingers, so they wrap over its edge
+const GRIP = [-0.07, -0.06, -0.03];
 const holdingProject = () => card.mode === 'project' && (card.state === 'held' || card.state === 'wait');
 
 // tap the card he's holding to open the project
@@ -3266,14 +3269,15 @@ function updateCard(now, dt) {
   card.scale = Math.min(1, card.scale + dt * 7);
   const sway = MOTION ? Math.sin(now / 650) * 0.025 : 0;
   if (card.mode === 'project') {
-    // a project card is held out to the viewer at arm's length, pinched by its bottom-left corner: the thumb over
-    // the front, the fingers behind (the card's plane runs through his thumb's last joint, between the two)
+    // a project card is held out to the viewer at arm's length the way you'd show someone a card: gripped by its
+    // bottom-left corner, which sits inside his curled fist (thumb over the front), the card standing up and away from
+    // the hand rather than hiding it
     if (rThumb) rThumb.getWorldPosition(g.position); else g.position.copy(_cv);
     if (k < 1) g.position.lerp(_cv2.copy(_cv).addScaledVector(UP, 0.04).addScaledVector(facing, 0.1), 1 - k);
     g.lookAt(camera.position);
     _cq.copy(g.quaternion).multiply(_cq2.setFromAxisAngle(_cz, -0.04 + sway));   // the far side dips a touch
     g.quaternion.copy(FLAT).slerp(_cq, k);
-    _cv2.set(PROJ_W / 2 - 0.03, PROJ_H / 2 - 0.02, 0).applyQuaternion(g.quaternion);   // from the pinch to the middle
+    _cv2.set(PROJ_W / 2 + GRIP[0], PROJ_H / 2 + GRIP[1], GRIP[2]).applyQuaternion(g.quaternion);   // from the grip to the middle
     g.position.addScaledVector(_cv2, k);
   } else {
     g.position.copy(_cv).addScaledVector(UP, lerp(0.04, 0.2, k)).addScaledVector(facing, lerp(0.1, 0.05, k));
