@@ -41,7 +41,7 @@ let awake = false;
 let warmup = -1; // >0: frames left to render hidden before revealing the scene
 
 // his spec sheet stays up for at least SHEET_MIN — worth a look even when he loads in a flash (from the cache)
-const SHEET_MIN = 3000, sheetSince = performance.now();
+const SHEET_MIN = 4500, sheetSince = performance.now();
 function reveal() {
   const wait = SHEET_MIN - (performance.now() - sheetSince);
   if (wait > 0) { loadPct.textContent = '100%'; return void setTimeout(reveal, wait); }
