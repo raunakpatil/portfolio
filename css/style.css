@@ -131,14 +131,13 @@ main { padding: 0 var(--gap) var(--gap); }
 .hello-title {
   position: relative; z-index: 2; padding: 18px 22px;
   font-size: clamp(42px, 3.7vw, 60px); font-weight: 300; line-height: .98; letter-spacing: -.025em;
-  text-shadow: 0 0 24px rgba(21, 21, 21, .9);
   pointer-events: none;
 }
 .hello-title span { position: relative; display: block; color: #878a8c; }
 /* a shine sweeping across the words now and then (like micheledu.com): a copy of each line on top, filled only by a
    moving white band */
 .hello-title span::after {
-  content: attr(data-t); position: absolute; inset: 0; text-shadow: none; color: transparent;
+  content: attr(data-t); position: absolute; inset: 0; color: transparent;
   background: linear-gradient(102deg, transparent 0%, transparent 35.6%, #fff 50%, transparent 64.4%, transparent 100%) no-repeat;
   background-size: 200% 200%; -webkit-background-clip: text; background-clip: text;
   animation: shine 2.8s linear infinite;
