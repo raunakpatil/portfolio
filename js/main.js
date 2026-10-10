@@ -1497,6 +1497,38 @@
     </li>`).join('');
   }
 
+  /* ---------- global: email links open a ready-to-send message ---------- */
+  // Plain mailto: links need a mail app set up — on many computers that's just a "pick an app" box. On a computer, an
+  // email link opens Gmail in a new tab instead, with a message to Raunak already written (from the visitor's own
+  // account, signed with their name if they gave it to Ronie); phones keep mailto:, which their mail apps handle well.
+  // Anything that wants to email him (Ronie too) goes through window.openMail(mailtoUrl).
+  const MOBILE = matchMedia('(hover: none), (pointer: coarse)');
+  function openMail(href) {
+    let to = '', subject = '', body = '';
+    try {
+      const u = new URL(href);
+      to = decodeURIComponent(u.pathname); subject = u.searchParams.get('subject') || ''; body = u.searchParams.get('body') || '';
+    } catch { to = String(href).replace(/^mailto:/, '').split('?')[0]; }
+    if (!subject && !body) {
+      let name = '';
+      try { name = localStorage.getItem('rai-name') || ''; } catch { /* private mode */ }
+      subject = `Hello from your website${name ? ` — ${name}` : ''}`;
+      body = ['Hi Raunak,', '', `I just came across your portfolio at ${location.host || 'raunakpatil.com'} and wanted to get in touch.`, '', '', '',
+        'Best,', name].join('\n').trim() + '\n';
+    }
+    const q = (k, v) => (v ? `&${k}=${encodeURIComponent(v)}` : '');
+    if (MOBILE.matches) { location.href = `mailto:${to}?${q('subject', subject).slice(1)}${q('body', body)}`; return; }
+    const w = window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}${q('su', subject)}${q('body', body)}`, '_blank', 'noopener');
+    if (!w) location.href = `mailto:${to}?${q('subject', subject).slice(1)}${q('body', body)}`;   // (a blocked pop-up: the old way)
+  }
+  window.openMail = openMail;
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest && e.target.closest('a[href^="mailto:"]');
+    if (!a || e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    openMail(a.href);
+  });
+
   /* ---------- global: glowing RGB cursor trail ---------- */
   function initCursorTrail() {
     if (!MOTION || !matchMedia('(hover: hover) and (pointer: fine)').matches) return;

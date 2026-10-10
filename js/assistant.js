@@ -2634,7 +2634,7 @@ function showChat(id, step, offerEmail = false, links = []) {
   field.append(send);
   actions.appendChild(field);
   actions.appendChild(err);
-  if (offerEmail) button('Email Raunak instead', 'rai-choice', () => { location.href = `mailto:${A.email}`; }, 60);
+  if (offerEmail) button('Email Raunak instead', 'rai-choice', () => mail(`mailto:${A.email}`), 60);
   // for anyone who'd rather not type
   const ideas = nextSuggestions(step);
   if (ideas.length) {
@@ -3584,7 +3584,7 @@ function showActions(id, step) {
   }
 }
 
-// No server needed: open the visitor's email app with everything filled in.
+// No server needed: open a message to him with everything filled in.
 function compose(kind) {
   const lines = [];
   let subject;
@@ -3600,11 +3600,10 @@ function compose(kind) {
   if (answers.name) lines.push(`Name: ${answers.name}`);
   if (answers.email) lines.push(`Email: ${answers.email}`);
   lines.push('', '— sent via Ronie on raunakpatil.com');
-  const href = `mailto:${A.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`;
-  const a = document.createElement('a');
-  a.href = href;
-  a.click();
+  mail(`mailto:${A.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`);
 }
+// a ready-to-send message (Gmail in a new tab on a computer, the mail app on a phone: see openMail in main.js)
+const mail = (href) => (window.openMail ? window.openMail(href) : (location.href = href));
 
 /* ======================= wiring ======================= */
 function init() {
