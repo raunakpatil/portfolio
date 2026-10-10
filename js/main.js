@@ -674,7 +674,7 @@
       Object.assign(walls.ceil.style, { width: `${W}px`, height: `${L}px`, left: '0px', top: `${-L}px`, backgroundSize: `${W / 6}px ${CELL}px` });
       Object.assign(walls.left.style, { width: `${L}px`, height: `${Hh}px`, left: `${-L}px`, top: '0px', backgroundSize: `${CELL}px ${Hh / 4}px` });
       Object.assign(walls.right.style, { width: `${L}px`, height: `${Hh}px`, left: `${W}px`, top: '0px', backgroundSize: `${CELL}px ${Hh / 4}px` });
-      items.forEach(place);
+      items.forEach((it) => { size(it); place(it); });
     };
 
     const sides = ['floor', 'right', 'ceil', 'left'];
@@ -686,8 +686,6 @@
     for (let i = 0; i < N; i++) {
       const p = P[i % P.length];
       const side = sides[i % 4];
-      const tall = kindOf(p) === 'app' || kindOf(p) === 'visual';
-      const across = tall ? 110 : 190, along = tall ? 180 : 125;
       const el = document.createElement('button');
       el.type = 'button';
       el.className = 'tcard';
@@ -696,11 +694,19 @@
       el.addEventListener('click', () => openDetail(p));
       el.addEventListener('pointerenter', () => { slowdown = 0.12; });
       el.addEventListener('pointerleave', () => { slowdown = 1; });
-      const vertical = side === 'floor' || side === 'ceil';
-      el.style.width = `${vertical ? across : along}px`;
-      el.style.height = `${vertical ? along : across}px`;
       walls[side].appendChild(el);
-      items.push({ el, side, across, along, off: rnd(), d: (i / N) * L });
+      items.push({ el, side, across: 0, along: 0, off: rnd(), d: (i / N) * L });
+    }
+    // each card shaped like its picture so none of it is cropped: 16:9 on wider screens, the 4:3 pictures on phones;
+    // the picture's width runs across the floor and ceiling, and into the distance on the side walls
+    const PHONE = matchMedia('(max-width: 760px)');
+    function size(it) {
+      const ratio = PHONE.matches ? 4 / 3 : 16 / 9;
+      const flat = it.side === 'floor' || it.side === 'ceil';
+      it.across = flat ? 184 : 112;
+      it.along = Math.round(flat ? it.across / ratio : it.across * ratio);
+      it.el.style.width = `${flat ? it.across : it.along}px`;
+      it.el.style.height = `${flat ? it.along : it.across}px`;
     }
 
     function place(it) {
