@@ -96,11 +96,10 @@
   const kindOf = (p) => KIND[String(p.category || '').toLowerCase()] || 'fun';
 
   function thumb(p) {
-    // a picture either fills the card (cropped; imageFocus picks the part kept in view) or, with imageBg set, is
-    // shown whole on that colour (a device mockup on a flat background, so it suits wide and narrow cards alike)
+    // a project's picture: a 16:9 one for desktops and tablets, and (imageMobile) a 4:3 one for phones — the
+    // cards are shaped to match, so nothing gets cropped
     if (p.image) {
-      const fit = p.imageBg ? `object-fit:contain;background:${esc(p.imageBg)}` : `object-position:${esc(p.imageFocus || '50% 50%')}`;
-      return `<div class="thumb"${p.imageBg ? ` style="background:${esc(p.imageBg)}"` : ''}><img src="${esc(p.image)}" alt="" loading="lazy" style="${fit}"></div>`;
+      return `<div class="thumb"><picture>${p.imageMobile ? `<source media="(max-width: 760px)" srcset="${esc(p.imageMobile)}">` : ''}<img src="${esc(p.image)}" alt="" loading="lazy"></picture></div>`;
     }
     const rnd = seeded(p.title);
     const [c1, c2] = p.colors || ['#7c5cff', '#22d3ee'];
@@ -1178,17 +1177,15 @@
       render();
     }));
 
-    const SPANS = [4, 2, 2, 4, 3, 3];
+    // two cards to a row (half width each); with an odd number, the last row takes three (a third each)
+    const spanFor = (i, n) => (n % 2 && i >= n - 3 ? 2 : 3);
     function render() {
       const items = P.filter((p) => filter === 'All' || p.category === filter);
       grid.hidden = mode !== 'grid';
       list.hidden = mode !== 'list';
       if (mode === 'grid') {
-        let acc = 0;
         grid.innerHTML = items.map((p, i) => {
-          let span = SPANS[i % SPANS.length];
-          if (i === items.length - 1 && (acc % 6) + span < 6) span = 6 - (acc % 6);
-          acc += span;
+          const span = items.length === 1 ? 4 : spanFor(i, items.length);
           return `<article class="pcard" style="--span:${span};animation-delay:${i * 50}ms"><button class="pcard-btn" type="button" data-i="${P.indexOf(p)}"><div class="pcard-top"><span>${esc(p.category)}</span><span>${esc(p.year)}</span></div><div class="pcard-media">${thumb(p)}</div><div class="pcard-bot"><h3>${esc(p.title)}</h3><span class="discover">Discover →</span></div></button></article>`;
         }).join('');
       } else {
