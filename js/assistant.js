@@ -40,7 +40,11 @@ let started = false;
 let awake = false;
 let warmup = -1; // >0: frames left to render hidden before revealing the scene
 
+// his spec sheet stays up for at least SHEET_MIN — worth a look even when he loads in a flash (from the cache)
+const SHEET_MIN = 3000, sheetSince = performance.now();
 function reveal() {
+  const wait = SHEET_MIN - (performance.now() - sheetSince);
+  if (wait > 0) { loadPct.textContent = '100%'; return void setTimeout(reveal, wait); }
   root.classList.add('ready');
   loading.hidden = true;
   showWake();
@@ -114,6 +118,11 @@ const tubeLights = [];
 const OFF_CORE = new THREE.Color(0x070707), _c = new THREE.Color();
 const rand = (i) => ((Math.sin(i * 12.9898 + 4.1) * 43758.5453) % 1 + 1) % 1;
 
+// a real mouse (or pen) hovering: the only pointer he follows with his head and the cursor light. Phones and other
+// touch screens can't hover, so there he just looks ahead and the light stays off.
+const TOUCH = matchMedia('(hover: none), (pointer: coarse)');
+const hovers = (e) => e.pointerType === 'mouse' && !TOUCH.matches;
+
 function init3D() {
   try {
     renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -172,6 +181,7 @@ function init3D() {
   scene.add(cursorRing);
   // listen on the whole Ronie view, so the light keeps following over the dialogue too
   root.addEventListener('pointermove', (e) => {
+    if (!hovers(e)) return;                      // touch: no hovering, so no light to follow a finger around
     const r = canvas.getBoundingClientRect();
     cursor.x = ((e.clientX - r.left) / r.width) * 2 - 1;
     cursor.y = -((e.clientY - r.top) / r.height) * 2 + 1;
@@ -219,6 +229,7 @@ function init3D() {
   composer.addPass(new OutputPass());
 
   addEventListener('pointermove', (e) => {
+    if (!hovers(e)) return;                      // touch: he looks ahead rather than chasing a finger
     ptr.x = (e.clientX / innerWidth) * 2 - 1;
     ptr.y = (e.clientY / innerHeight) * 2 - 1;
   }, { passive: true });
@@ -601,6 +612,7 @@ function updateCursorLight(dt) {
   // on whenever the mouse is over the scene (awake or asleep); fades in and out softly
   const goal = cursor.inside ? 1 : 0;
   cursor.level += (goal - cursor.level) * Math.min(1, dt * 6);
+  cursorRing.visible = cursor.level > 0.01;      // (off, it's not even faintly there — on phones it never comes on)
   // cycles through the spectrum like the cursor trail; the three arcs sit 40° apart in hue so the ring
   // reads as one rich, shifting colour (120° apart would mix back to white on his armour)
   const t = Date.now() / 1000;

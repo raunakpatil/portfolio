@@ -207,10 +207,6 @@
       const msg = `› ${cur}${'.'.repeat(1 + (((now / 400) | 0) % 3))}`;
       if (logEl && msg !== lastLog) { logEl.textContent = msg; lastLog = msg; }
       if (foot) foot.innerHTML = `// ${(96 + pct * 0.012).toFixed(1)}% sync<br>// ${String(pct).padStart(3, '0')} boot<br>// ${pct >= 99 ? 'standby' : 'booting'}`;
-      // the phone board's live values
-      const sp = (id, v) => { const el = $id(id); if (el && el.textContent !== v) el.textContent = v; };
-      sp('spp-sync', sync ? sync.textContent : ''); sp('spp-boot', String(pct).padStart(3, '0'));
-      sp('spp-core', core ? core.textContent : ''); sp('spp-mode', pct >= 99 ? 'STANDBY' : 'BOOTING'); sp('spp-log', msg);
       const t = MOTION ? now : 0;
       for (const cv of waves) if (cv.offsetWidth) wave(cv, t);
       if (spec && spec.offsetWidth) spectrum(spec, t);
