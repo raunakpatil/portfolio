@@ -1159,7 +1159,6 @@ main { padding: 0 var(--gap) var(--gap); }
   .tabs a { padding: 6px 11px; font-size: 12px; }
   .dash { grid-template-columns: minmax(0, 1fr); }
   .card-hello, .card-time { grid-column: 1 / -1; }
-  .card-hello { height: 430px; }   /* room for Ronie below the title */
   .skills-body { flex-direction: column; gap: 14px; }
   .tools { flex: none; text-align: left; }   /* stacked: its desktop column width (flex-basis) would become a tall empty height */
   .skills-foot { margin-top: 18px; }
