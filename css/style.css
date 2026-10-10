@@ -1143,6 +1143,7 @@ main { padding: 0 var(--gap) var(--gap); }
 @media (max-width: 1180px) {
   .lib { grid-template-columns: minmax(0, 1fr); }
   .lib-card { min-height: 0; }
+  .lib-col + .lib-col .lib-title { text-align: left; }   /* stacked: both titles on the left */
   .dash { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: none; height: auto; min-height: 0; }
   .card-hello, .card-time { grid-column: span 1; height: 380px; }
   .card-skills, .card-tunnel, .card-map { grid-column: 1 / -1; }
@@ -1173,9 +1174,13 @@ main { padding: 0 var(--gap) var(--gap); }
   .plist .c, .plist .yr { display: none; }
   .float-preview { display: none; }
   .shelf { --bw: 228px; --bh: 304px; --bd: 46px; justify-content: flex-start; min-height: 420px; padding: 40px 24px; }
-  .lib .shelf { --bw: 180px; padding: 26px 4px; }
-  .fd { --fw: 214px; --fh: 380px; transform: translateX(-46px) rotateY(12deg); }
-  .fd[data-open="true"] { transform: translateX(-46px); }
+  /* the whole shelf fits the card, no swiping */
+  .lib .shelf { --bw: 31cqw; min-width: 0; justify-content: center; padding: 26px 4px 30px; }
+  .lib .shelf-wrap { overflow: visible; }
+  /* a shorter folder while closed; it grows to full height as it opens, so the certificate page fits */
+  .fd-stage { min-height: 0; padding: 40px 0 32px; }
+  .fd { --fw: 214px; --fh: 316px; transform: translateX(-46px) rotateY(12deg); transition: transform 1.1s var(--open-ease), height .9s var(--open-ease); }
+  .fd[data-open="true"] { --fh: 380px; transform: translateX(-46px); }
   /* no room for the open spread on a phone: the cover swings away and the certificate fills the folder */
   .fd[data-open="true"] .fd-cover { transform: rotateY(-100deg); opacity: 0; transition: transform .8s var(--ease), opacity .5s .2s; }
   .fd-note { width: 112px; font-size: 10px; }
