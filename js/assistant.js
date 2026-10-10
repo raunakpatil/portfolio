@@ -1405,7 +1405,11 @@ function wake() {
   // waking him is a click, so the browser lets him speak; start fetching the natural voice right away
   if (soundOn) { audioCtx().resume?.(); loadKokoro(); }
   // the tubes flicker on, the room light rises, he lifts his head, leaps to his spot and starts talking
-  setTimeout(() => { panel.hidden = false; go(A.start); }, MOTION ? (LEAP_DELAY + LEAP_CROUCH + LEAP_AIR + 0.45) * 1000 : 0);
+  // (if his natural voice is still loading, he gives it up to 3 more seconds so his first line is spoken in it)
+  setTimeout(async () => {
+    if (soundOn) await Promise.race([loadKokoro(), new Promise((r) => setTimeout(r, 3000))]);
+    panel.hidden = false; go(A.start);
+  }, MOTION ? (LEAP_DELAY + LEAP_CROUCH + LEAP_AIR + 0.45) * 1000 : 0);
 }
 
 /* ======================= sound (optional typing blips) ======================= */
@@ -1428,11 +1432,13 @@ function buzz() {
 }
 /* ======================= voice ======================= */
 // With sound on, Ronie says every line he types. Computers that can run it get Kokoro, a small, natural and
-// expressive voice model that runs in the browser (no server, no quota). Phones — and everyone in the first moments
-// before Kokoro has loaded — get the device's own speech voice (a male English one where available). No server voice:
-// it would spend the free AI allowance the chat needs.
+// expressive voice model that runs in the browser (no server, no quota); it starts loading as soon as his room opens,
+// and a line he says before it's ready just goes unspoken — never a different voice for a moment, as the mix sounds
+// like two robots. Phones, and computers where Kokoro can't run or fails to load, get the device's own speech voice
+// (a male English one where available) for the whole visit. No server voice: it would spend the free AI allowance
+// the chat needs.
 const VOICE = { model: 'onnx-community/Kokoro-82M-v1.0-ONNX', voice: 'am_puck', speed: 1.04, ...(A.voice || {}) };
-let kokoroReady = false, kokoroLoading = null, voiceToken = 0, voiceSrc = null, voiceAnalyser = null, voiceLevel = 0;
+let kokoroReady = false, kokoroFailed = false, kokoroLoading = null, voiceToken = 0, voiceSrc = null, voiceAnalyser = null, voiceLevel = 0;
 let speechDone = Promise.resolve();               // settles when the line he's saying now is finished
 const voiceData = new Uint8Array(256);
 const audioCtx = () => (audio ||= new (window.AudioContext || window.webkitAudioContext)());
@@ -1463,7 +1469,8 @@ function loadKokoro() {
     await voiceRpc({ type: 'load', model: VOICE.model });
     kokoroReady = true;
     return true;
-  })().catch((err) => { console.warn('natural voice unavailable, using the quick one', err); return false; });
+  })().catch((err) => { console.warn('natural voice unavailable, using the quick one', err); return false; })
+    .then((ok) => { if (!ok) kokoroFailed = true; return ok; });
   return kokoroLoading;
 }
 
@@ -1522,7 +1529,9 @@ async function speak(text) {
       }
       return;
     }
-    // phones, and the moments before Kokoro has loaded: the device's own voice (free, no server, no quota)
+    // Kokoro is still on its way: this line goes unspoken rather than in a second, different voice
+    if (!kokoroFailed) return;
+    // phones, and computers that can't run Kokoro: the device's own voice (free, no server, no quota)
     await speakDevice(said, my);
   } catch { /* no voice this time — the text is still there */ }
 }
@@ -2367,6 +2376,7 @@ function init() {
   const saved = store.get('rai-name');
   if (saved) answers.name = saved;
   pickBrain(); // settles which model answers while the room is still loading
+  if (soundOn) loadKokoro();   // and his natural voice starts downloading now, not when he's woken
   syncSound();
   soundBtn.addEventListener('click', () => {
     soundOn = !soundOn;
