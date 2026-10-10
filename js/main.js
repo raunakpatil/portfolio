@@ -324,6 +324,7 @@
     }).join('');
     const setOpen = (open) => {
       social.classList.toggle('open', open);
+      social.closest('.topbar')?.classList.toggle('links-open', open);   // (phones: the tabs step aside meanwhile)
       btn.setAttribute('aria-expanded', String(open));
       btn.setAttribute('aria-label', open ? 'Hide links' : 'Show links');
       socialLinks.inert = !open;
