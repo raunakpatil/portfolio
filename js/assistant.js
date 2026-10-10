@@ -1749,9 +1749,14 @@ function linksFor(reply) {
   for (const p of D.projects) {
     if (p.link && p.link !== '#' && reply.toLowerCase().includes(p.title.toLowerCase())) out.push({ label: p.title, href: p.link });
   }
-  return out.slice(0, 4);
+  // he said the links are below but named none: the ways to reach Raunak
+  if (!out.length && /\b(below|underneath|under this)\b/i.test(reply)) {
+    for (const p of PLACES.slice(0, 2)) if (p.href()) out.push({ label: p.label, href: p.href() });
+  }
+  return out.slice(0, 6);
 }
 const scrubLinks = (text) => text
+  .replace(/\s*\[\s*[a-z]+\s*:[^\]]*\]/gi, '')
   .replace(/[\w.+-]+@[\w-]+\.[\w.]+\w/g, 'his email')
   .replace(/\(?https?:\/\/\S+?\)?(?=[\s,]|[.!?]?$|[.!?]\s)/g, 'the link below')
   .replace(/\s{2,}/g, ' ');
