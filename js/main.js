@@ -941,7 +941,18 @@
     const colorOf = (i) => COLORS[i % COLORS.length];
 
     let rings = null, dots = [], key = '', W = 0, Hh = 0, base = null;
-    const proj = (lat, lon) => ({ x: ((lon - B.w) / (B.e - B.w)) * W, y: ((B.n - lat) / (B.n - B.s)) * Hh });
+    // the region drawn: mapBounds, stretched to the card; on phones (a tall, narrow card, where that squeezes the land)
+    // a region with the same scale both ways — the whole journey across, and as much north and south as the card allows
+    let V = B;
+    const PHONE = matchMedia('(max-width: 760px)');
+    const view = () => {
+      if (!PHONE.matches) return B;
+      const lons = E.map((e) => e.lon), lats = E.map((e) => e.lat);
+      const w = Math.min(...lons) - 14, e = Math.max(...lons) + 14;
+      const span = ((e - w) * Hh) / W, n = Math.min(82, (Math.min(...lats) + Math.max(...lats)) / 2 + span / 2);
+      return { w, e, n, s: n - span };
+    };
+    const proj = (lat, lon) => ({ x: ((lon - V.w) / (V.e - V.w)) * W, y: ((V.n - lat) / (V.n - V.s)) * Hh });
     loadLand().then((r) => { if (r) { rings = r; key = ''; } });
 
     // Rasterise the coastline once per size, then test each dot against the pixels.
@@ -957,9 +968,9 @@
         const mc = m.getContext('2d', { willReadFrequently: true });
         mc.beginPath();
         for (const ring of rings) {
-          if (ring.y1 < B.s || ring.y0 > B.n) continue;
+          if (ring.y1 < V.s || ring.y0 > V.n) continue;
           for (const off of [-360, 0, 360]) {
-            if (ring.x1 + off < B.w || ring.x0 + off > B.e) continue;
+            if (ring.x1 + off < V.w || ring.x0 + off > V.e) continue;
             ring.pts.forEach(([lon, lat], i) => {
               const { x, y } = proj(lat, lon + off);
               if (i) mc.lineTo(x, y); else mc.moveTo(x, y);
@@ -1105,7 +1116,7 @@
       const { ctx } = f;
       W = f.w; Hh = f.h;
       const k = `${Math.round(W)}x${Math.round(Hh)}:${rings ? 1 : 0}`;
-      if (k !== key) { key = k; buildDots(); layoutPins(); }
+      if (k !== key) { key = k; V = view(); buildDots(); layoutPins(); }
       if (!stage) restart();
 
       // advance the journey (paused while hovered)
