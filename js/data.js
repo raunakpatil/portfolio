@@ -247,7 +247,7 @@ window.PORTFOLIO = {
     start: 'intro',
     steps: {
       intro: {
-        progress: 0.05, next: 'your-name', face: 'happy', icon: 'sparkle',
+        progress: 0.05, next: 'your-name', skipIfName: 'welcome-back', face: 'happy', icon: 'sparkle',
         say: [
           "Hi {visitor}, I'm R.O.N.I.E. — Raunak's Own Neural Intelligence Engine. Ronie, to friends.",
           "Oh! A visitor. I'm Ronie — Raunak's Own Neural Intelligence Engine. I basically run this place.",
@@ -426,16 +426,17 @@ window.PORTFOLIO = {
           "Let's do introductions properly. You know my name — what's yours?",
         ],
       },
+      // a returning visitor: one line instead of the intro, then straight to the chat (it shares ask's settings)
       'welcome-back': {
-        progress: 0.2, next: 'ask', face: 'love', icon: 'heart',
+        progress: 0.3, chat: true, face: 'love', icon: 'heart',
         say: [
-          "Wait — {name}? You came back! I'm… not crying. That's coolant.",
-          "{name}! Welcome back. I kept your seat warm. Well, my fans did.",
-          "Oh, hi {name}. I remembered your name. I've been practising.",
-          "{name}! You're back. I'd hug you, but I'm mostly sharp edges.",
-          "Look who it is — {name}! My memory banks lit up. Literally, check my chest.",
-          "Hey {name}. I told the other robots you'd come back. There are no other robots. Still, I was right.",
-          "Welcome back, {name}. Pick up where we left off, or start fresh — your call.",
+          "Wait — {name}? You came back! I'm… not crying. That's coolant. Ask me anything about Raunak.",
+          "{name}! Welcome back. I kept your seat warm — well, my fans did. What do you want to know about Raunak?",
+          "Oh, hi {name}. I remembered your name. I've been practising. Ask away about Raunak.",
+          "{name}! You're back. I'd hug you, but I'm mostly sharp edges. So — what about Raunak?",
+          "Look who it is — {name}! My memory banks lit up. Literally, check my chest. Ask me anything about him.",
+          "Hey {name}. I told the other robots you'd come back. There are no other robots. Still, I was right. What shall we talk about?",
+          "Welcome back, {name}. Pick up where we left off, or start fresh — ask me anything about Raunak.",
         ],
       },
       // free chat: questions go to a small AI model (worker/), grounded only in this file's facts
@@ -536,3 +537,6 @@ window.PORTFOLIO = {
     },
   },
 };
+
+// the welcome-back line opens the chat too: it takes ask's suggestions and messages (its own lines, face and icon win)
+{ const S = window.PORTFOLIO.assistant.steps; S['welcome-back'] = { ...S.ask, ...S['welcome-back'] }; }
