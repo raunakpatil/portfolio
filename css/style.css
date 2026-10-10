@@ -581,6 +581,16 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai-send:disabled { opacity: .5; }
 .rai-error { font-family: var(--mono); font-size: 11px; color: #ff7ab6; }
 .rai-error:empty { display: none; }
+/* links from his answer (email, LinkedIn, a project…), right under what he said */
+.rai-links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+.rai-link {
+  display: inline-flex; align-items: center; gap: 7px; padding: 8px 15px; border-radius: 999px;
+  font-size: 13px; font-weight: 500; color: #111; background: #f2f2f2; text-decoration: none;
+  animation: rise .5s var(--ease) both; transition: background .25s, transform .3s var(--ease);
+}
+.rai-link span { font-size: 11px; transition: transform .3s var(--ease); }
+.rai-link:hover, .rai-link:focus-visible { background: #ff7a1a; }
+.rai-link:hover span, .rai-link:focus-visible span { transform: translate(2px, -2px); }
 /* tap-to-ask suggestions under the box */
 .rai-suggest { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
 .rai-chip {
