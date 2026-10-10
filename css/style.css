@@ -485,21 +485,138 @@ main { padding: 0 var(--gap) var(--gap); }
   content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: radial-gradient(ellipse 80% 80% at 50% 50%, transparent 55%, rgba(0, 0, 0, .55) 100%);
 }
+/* While he loads: his spec sheet — panels of specs, views and parts, like an engineering board. (If his body
+   can't load, the sheet is replaced by a line of text, centred.) */
 .rai-loading {
-  position: absolute; left: 50%; top: 50%; z-index: 3; transform: translate(-50%, -50%);
-  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  position: absolute; inset: 12px; z-index: 3; display: flex; align-items: center; justify-content: center;
   font-family: var(--mono); font-size: 12px; color: #8a8a8a; letter-spacing: .06em; text-align: center;
 }
-.rai-ascii {
-  margin: 0; font-family: var(--mono); font-size: 12px; line-height: 1; letter-spacing: .02em;
-  color: #ffb27a; text-shadow: 0 0 10px rgba(255, 122, 26, .35); pointer-events: none; user-select: none;
+.sp {
+  --sp-o: #e67e22; --sp-tx: #d8dce0; --sp-dim: #7d848b; --sp-line: rgba(255, 255, 255, .1);
+  width: 100%; height: 100%; display: grid; gap: 10px; text-align: left; color: var(--sp-tx);
+  grid-template-columns: 28fr 26fr 27fr 19fr;
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+  grid-template-areas:
+    "title top top top"
+    "ortho ortho details palette"
+    "ortho ortho details joints"
+    "armor armor meas notes"
+    "foot foot foot foot";
+  font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
 }
-.rai-bootlog {
-  min-height: 7.5em; margin: 0; font-family: var(--mono); font-size: 11px; line-height: 1.5;
-  color: #6f6f6f; text-align: left; white-space: pre;
+.sp-box {
+  position: relative; min-width: 0; min-height: 0; padding: 12px 14px; border-radius: 8px;
+  background: rgba(12, 14, 16, .92); box-shadow: inset 0 0 0 1px var(--sp-line);
+  animation: rise .7s var(--ease) both;
 }
-@media (max-width: 760px) { .rai-ascii { font-size: 8px; } .rai-bootlog { font-size: 10px; } }
-.rai-loading b { color: #38ffb3; font-weight: 500; }
+.sp-box::before {   /* a tick in the corner, like the board's frames */
+  content: ""; position: absolute; left: -1px; top: -1px; width: 10px; height: 10px;
+  border-left: 1px solid rgba(255, 255, 255, .35); border-top: 1px solid rgba(255, 255, 255, .35); border-radius: 8px 0 0 0;
+}
+.sp h3 { margin-bottom: 8px; font-size: 11px; font-weight: 500; letter-spacing: .1em; color: var(--sp-tx); }
+.sp small { display: block; font-size: 9px; line-height: 1.45; color: var(--sp-dim); }
+.sp-title { grid-area: title; display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+.sp-title h2 { font-size: clamp(20px, 1.95vw, 34px); font-weight: 300; letter-spacing: .18em; line-height: 1.05; text-transform: none; white-space: nowrap; }
+.sp-title h2 span { margin-left: .4em; font-size: .5em; letter-spacing: .08em; color: var(--sp-dim); text-transform: uppercase; }
+.sp-title p { font-size: 11px; color: #b9bec3; }
+.sp-line { position: relative; display: block; width: 60%; height: 1px; margin-top: 4px; background: var(--sp-line); }
+.sp-line b { position: absolute; left: 0; top: -1px; height: 3px; width: 0; border-radius: 2px; background: var(--sp-o); transition: width .4s; }
+.sp-top { grid-area: top; display: grid; grid-template-columns: 1fr 1fr auto; gap: 18px; align-items: start; padding-right: 58px; }   /* (room for the close button) */
+.sp-model { padding-left: 18px; box-shadow: -1px 0 0 var(--sp-line); }
+.sp-kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 18px; align-items: baseline; }
+.sp-kv dt { color: var(--sp-dim); }
+.sp-kv dd { color: var(--sp-tx); white-space: nowrap; }
+.sp-kv .sp-h { grid-column: 1 / -1; margin-bottom: 3px; color: var(--sp-tx); }
+.sp-kv .sp-h + dd { display: none; }
+.sp-kv b { font-weight: 500; color: #38ffb3; }
+.sp-core { letter-spacing: .12em; color: var(--sp-o) !important; }
+.sp-cmd { grid-column: 1 / -1; margin-top: 3px; color: var(--sp-tx) !important; }
+.sp-id { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; text-align: right; }
+.sp-owner { display: flex; align-items: center; gap: 7px; color: var(--sp-tx); }
+.sp-owner i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--sp-o); }
+.sp-motto { font-size: 9.5px; line-height: 1.55; color: var(--sp-dim); }
+.sp-wave { display: block; width: 130px; height: 24px; }
+.sp-ortho { grid-area: ortho; display: flex; flex-direction: column; background-image: linear-gradient(rgba(255, 255, 255, .025) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .025) 1px, transparent 1px); background-size: 28px 28px; background-color: rgba(12, 14, 16, .92); }
+.sp-ortho img, .sp-joints img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
+.sp-details { grid-area: details; display: flex; flex-direction: column; }
+.sp-tiles { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 8px 10px; }
+.sp-tiles figure, .sp-strip figure { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.sp-tiles img { flex: 1; min-height: 0; width: 100%; object-fit: cover; border-radius: 3px; box-shadow: 0 0 0 1px var(--sp-line); }
+.sp-tiles figcaption { font-size: 9.5px; color: var(--sp-tx); }
+.sp-palette { grid-area: palette; }
+.sp-palette ul { display: grid; gap: 8px; }
+.sp-palette li { display: flex; align-items: center; gap: 12px; color: var(--sp-tx); }
+.sp-palette li i { flex: none; width: 26px; height: 26px; border-radius: 50%; background: var(--c); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .15); }
+.sp-joints { grid-area: joints; display: flex; flex-direction: column; }
+.sp-armor { grid-area: armor; }
+.sp-strip { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
+.sp-strip img { width: 100%; height: clamp(54px, 9vh, 104px); object-fit: contain; border-radius: 3px; background: #090a0b; box-shadow: 0 0 0 1px var(--sp-line); }
+.sp-strip figcaption { font-size: 8.5px; text-align: center; color: var(--sp-tx); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255, 255, 255, .25); }
+.sp-meas { grid-area: meas; }
+.sp-meas h3 + .sp-kv { margin-bottom: 10px; }
+.sp-list li { color: var(--sp-tx); line-height: 1.6; }
+.sp-list li::before { content: "– "; color: var(--sp-dim); }
+.sp-notes { grid-area: notes; }
+.sp-sign { position: absolute; left: 14px; bottom: 10px; font-size: 8.5px; color: var(--sp-dim); }
+.sp-sign span { margin: 0 .6em; }
+.sp-globe { position: absolute; right: 12px; bottom: 10px; width: 46px; height: 46px; fill: none; stroke: rgba(255, 255, 255, .35); stroke-width: 1; animation: spin 18s linear infinite; }
+.sp-foot { grid-area: foot; display: flex; align-items: center; gap: 22px; padding: 8px 64px 8px 16px; }   /* (room for the sound button) */
+.sp-foot-name { white-space: nowrap; color: var(--sp-tx); }
+.sp-foot .sp-wave { flex: 1; width: auto; min-width: 0; }
+.sp-foot-log { font-size: 8.5px; line-height: 1.35; color: var(--sp-dim); white-space: nowrap; padding-left: 12px; box-shadow: -1px 0 0 var(--sp-line); }
+.sp-spectrum { flex: 1.6; min-width: 0; height: 28px; }
+.sp-dots { display: flex; gap: 8px; }
+.sp-dots i { width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--sp-dim); }
+.sp-dots i:first-child { background: var(--sp-o); box-shadow: none; }
+.sp > :nth-child(2) { animation-delay: .06s; } .sp > :nth-child(3) { animation-delay: .12s; } .sp > :nth-child(4) { animation-delay: .18s; }
+.sp > :nth-child(5) { animation-delay: .24s; } .sp > :nth-child(6) { animation-delay: .3s; } .sp > :nth-child(7) { animation-delay: .36s; }
+.sp > :nth-child(8) { animation-delay: .42s; } .sp > :nth-child(9) { animation-delay: .48s; } .sp > :nth-child(10) { animation-delay: .54s; }
+@keyframes spin { to { transform: rotate(360deg); } }
+/* phones: the portrait board as one picture (sized to fit), the spec box's values live on top of it. Positions and
+   sizes are in board units (cqw: 1% of its width) so they stay put at any size */
+.sp-phone { display: none; }
+@media (max-width: 760px) {
+  .sp { display: none; }
+  .sp-phone {
+    display: block; position: relative; container-type: inline-size; animation: rise .7s var(--ease) both;
+    width: min(100%, calc((100dvh - var(--bar) - var(--gap) - 24px) * 1086 / 1448));
+  }
+  .sp-phone img { display: block; width: 100%; height: auto; }
+  .spp-live, .spp-log {
+    position: absolute; margin: 0; background: rgb(0, 6, 10); color: #d6dbe0;
+    font-family: var(--mono); font-size: 1.55cqw; letter-spacing: .08em; line-height: 1; text-transform: uppercase; text-align: left;
+  }
+  .spp-live { left: 66.2%; top: 2.75%; width: 13.4%; height: 5.95%; display: grid; grid-template-rows: repeat(4, 1fr); align-items: center; }
+  .spp-live dd { white-space: nowrap; }
+  #spp-boot { color: #38ffb3; }
+  #spp-core { letter-spacing: .1em; }
+  .spp-log { left: 57.4%; top: 9.05%; width: 21%; height: 1.45%; display: flex; align-items: center; white-space: nowrap; overflow: hidden; }
+}
+/* narrower screens: fewer panels */
+@media (max-width: 1180px) {
+  .sp { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "title title" "top top" "ortho details" "armor armor" "foot foot"; }
+  .sp-palette, .sp-joints, .sp-meas, .sp-notes { display: none; }
+  .sp-tiles { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
+  .sp-tiles small { display: none; }
+}
+@media (max-width: 760px) {
+  .rai-loading { inset: 8px; }
+  .sp { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    grid-template-areas: "title" "top" "ortho" "details" "foot"; gap: 8px; font-size: 10px; }
+  .sp-armor, .sp-id, .sp-foot-log, .sp-foot .sp-wave, .sp-dots { display: none; }
+  .sp-title { padding-right: 104px; }                     /* clear of the sound and close buttons */
+  .sp-title h2 { font-size: 22px; }
+  .sp-title h2 span { display: block; margin: 4px 0 0; }
+  .sp-ortho img { flex: none; height: auto; }
+  .sp-foot { padding-right: 16px; }
+  .sp-tiles { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  .sp-tiles figcaption { display: none; }                 /* the pictures need the room */
+  .sp-top { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .sp-model { padding-left: 12px; }
+  .sp-kv { gap: 3px 10px; }
+  .sp-foot { gap: 12px; }
+}
 .rai-wake {
   position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; cursor: pointer;
 }
