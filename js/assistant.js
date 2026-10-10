@@ -2176,16 +2176,21 @@ function updatePokes(now, dt) {
 }
 
 // how he takes it: [faces (more annoyed further along), visor icon, a move now and then]
+// for each part: faces for the first poke, faces once it keeps happening, visor icons, and a move now and then.
+// Any of them can come up (never the same face twice running); past four pokes in a row it's the ANNOYED set.
 const POKE = {
-  head: { faces: ['surprised', 'dizzy', 'angry'], icon: 'sweat', move: 'scratch' },
-  chest: { faces: ['laugh', 'surprised', 'smug'], icon: 'exclamation', move: 'chest' },
-  belly: { faces: ['laugh', 'laugh', 'nervous'], icon: 'music', move: 'laugh' },
-  crotch: { faces: ['shy', 'nervous', 'angry'], icon: 'blush', move: 'facepalm' },
-  shoulder: { faces: ['curious', 'confused', 'smug'], icon: 'question', move: null },
-  arm: { faces: ['surprised', 'curious', 'confused'], icon: null, move: null },
-  hand: { faces: ['happy', 'excited', 'confused'], icon: 'wave', move: 'wave' },
-  leg: { faces: ['surprised', 'nervous', 'confused'], icon: 'exclamation', move: null },
+  head: { first: ['surprised', 'dizzy', 'squint', 'confused', 'nervous'], again: ['dizzy', 'squint', 'sad', 'nervous', 'bored'], icons: ['sweat', 'star', 'exclamation', 'question'], move: 'scratch' },
+  chest: { first: ['laugh', 'surprised', 'proud', 'wink', 'happy'], again: ['smug', 'squint', 'nervous', 'determined', 'proud'], icons: ['exclamation', 'heart', 'sparkle', 'shield'], move: 'chest' },
+  belly: { first: ['laugh', 'happy', 'wink', 'excited', 'love'], again: ['laugh', 'nervous', 'squint', 'dizzy'], icons: ['music', 'sparkle', 'heart', 'sweat'], move: 'laugh' },
+  crotch: { first: ['shy', 'surprised', 'nervous', 'squint'], again: ['squint', 'angry', 'sad', 'determined', 'shy'], icons: ['blush', 'exclamation', 'sweat', 'shield'], move: 'facepalm' },
+  shoulder: { first: ['curious', 'surprised', 'happy', 'wink', 'thinking'], again: ['confused', 'bored', 'smug', 'squint', 'curious'], icons: ['question', 'wave', 'speech', 'exclamation'], move: null },
+  arm: { first: ['surprised', 'curious', 'happy', 'wink'], again: ['confused', 'bored', 'squint', 'nervous'], icons: [null, 'question', 'exclamation', 'sweat'], move: null },
+  hand: { first: ['happy', 'excited', 'love', 'wink', 'surprised'], again: ['confused', 'smug', 'bored', 'happy'], icons: ['wave', 'heart', 'sparkle', 'star'], move: 'wave' },
+  leg: { first: ['surprised', 'nervous', 'dizzy', 'curious'], again: ['confused', 'squint', 'sad', 'bored'], icons: ['exclamation', 'sweat', 'question', 'star'], move: null },
 };
+const ANNOYED = { faces: ['angry', 'squint', 'determined', 'smug', 'bored'], icons: ['exclamation', 'shield', 'sweat', 'zzz'] };
+let lastPokeFace = '';
+const pickNew = (list, not) => { const ok = list.filter((x) => x !== not && (!x || FACES[x] || ICONS[x])); return pick(ok.length ? ok : list); };
 function poke(hit, e) {
   const now = performance.now();
   if (!awake) { if (wakeBtn && !wakeBtn.hidden) wake(); return; }   // asleep: a poke wakes him
@@ -2245,10 +2250,11 @@ function poke(hit, e) {
   blip();
   if (n >= 2) ouch();
   // his face and icon, angrier the more he's poked; a move, when he's free to make one
-  const R = POKE[hit.part];
-  const mood = n >= 5 ? 'angry' : R.faces[Math.min(R.faces.length - 1, n - 1)];
+  const R = POKE[hit.part], fed = n >= 5;
+  const mood = pickNew(fed ? ANNOYED.faces : n === 1 ? R.first : R.again, lastPokeFace);
+  lastPokeFace = mood;
   setFace(mood);
-  setIcon(n >= 5 ? 'exclamation' : R.icon, 2200);
+  setIcon(pick(fed ? ANNOYED.icons : R.icons), 2200);
   clearTimeout(pokeFaceTimer);
   pokeFaceTimer = setTimeout(() => { if (face.name === mood) setFace('neutral'); }, 2400);
   const free = card.state === 'off' && !skipTyping;          // not holding a card, not mid-sentence
