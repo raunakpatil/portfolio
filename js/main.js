@@ -1301,11 +1301,15 @@
 
     // two cards to a row (half width each); with an odd number, the last row takes three (a third each)
     const spanFor = (i, n) => (n % 2 && i >= n - 3 ? 2 : 3);
+    // (phones have no grid / list switch: always the grid)
+    const PHONE_VIEW = matchMedia('(max-width: 760px)');
+    PHONE_VIEW.addEventListener?.('change', () => render());
     function render() {
       const items = P.filter((p) => filter === 'All' || p.category === filter);
-      grid.hidden = mode !== 'grid';
-      list.hidden = mode !== 'list';
-      if (mode === 'grid') {
+      const m = PHONE_VIEW.matches ? 'grid' : mode;
+      grid.hidden = m !== 'grid';
+      list.hidden = m !== 'list';
+      if (m === 'grid') {
         grid.innerHTML = items.map((p, i) => {
           const span = items.length === 1 ? 4 : spanFor(i, items.length);
           return `<article class="pcard" style="--span:${span};animation-delay:${i * 50}ms"><button class="pcard-btn" type="button" data-i="${P.indexOf(p)}"><div class="pcard-top"><span>${esc(p.category)}</span><span>${esc(p.year)}</span></div><div class="pcard-media">${thumb(p)}</div><div class="pcard-bot"><h3>${esc(p.title)}</h3><span class="discover">Discover →</span></div></button></article>`;
