@@ -1306,6 +1306,13 @@ main { padding: 0 var(--gap) var(--gap); }
   .pcard { grid-column: auto; }
   .discover { opacity: 1; transform: none; }
   .viewby { display: none; }   /* phones: no grid / list switch (always the grid) */
+  /* the filters: one row you swipe along, running to the screen's edge (padding keeps their soft shadows whole) */
+  .chips {
+    flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; width: calc(100% + 2 * var(--pad));
+    margin: -8px calc(-1 * var(--pad)); padding: 8px var(--pad);
+  }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; white-space: nowrap; }
   /* the links row needs the width: while it's open the tabs fade away, and come back when it closes */
   .tabs { transition: opacity .3s var(--ease), transform .4s var(--ease); }
   .topbar.links-open .tabs { opacity: 0; transform: scale(.94); pointer-events: none; visibility: hidden; transition: opacity .25s, transform .3s, visibility 0s .3s; }
