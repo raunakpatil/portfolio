@@ -46,7 +46,7 @@ behind his transparent 3D canvas. `placeBackdrop` in `js/assistant.js` fits it t
 screens it fills the frame with the moon just right of him and the waterline 87% down; on portrait screens the
 moon sits behind his head like a halo. A canvas over it brings it to life (`drawBackdropFx`):
 - the water ripples;
-- the neon breathes and flickers, using `img/ronie-bg-glow.webp`, the picture's purple parts;
+- the neon glows up and down in a slow, smooth breath, using `img/ronie-bg-glow.webp`, the picture's purple parts;
 - mist drifts along the mountains;
 - the moon's rim glows, its stars twinkle, and a shooting star crosses now and then;
 - the picture drifts slightly against the mouse.
