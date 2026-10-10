@@ -17,7 +17,7 @@
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preload" href="fonts/gobitta.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/style.css?v=20261012200000">
+  <link rel="stylesheet" href="css/style.css?v=20261012220000">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -242,6 +242,10 @@
             </section>
             <section class="sp-box sp-ortho" aria-label="Orthographic views"><h3>Orthographic views</h3><img src="img/ronie-spec/ortho.webp" alt="Ronie from the front, side and back" decoding="async"></section>
             <section class="sp-box sp-details" aria-label="Details"><h3>Details</h3><div class="sp-tiles"><figure><img src="img/ronie-spec/d-helmet.webp" alt="" loading="eager" decoding="async"><figcaption>Helmet detail<small>Visor (HUD display)<br>Neural interface</small></figcaption></figure><figure><img src="img/ronie-spec/d-chest.webp" alt="" loading="eager" decoding="async"><figcaption>Chest plate<small>Core housing<br>Cooling vents</small></figcaption></figure><figure><img src="img/ronie-spec/d-shoulder.webp" alt="" loading="eager" decoding="async"><figcaption>Shoulder armor<small>Layered plating<br>Flex joints</small></figcaption></figure><figure><img src="img/ronie-spec/d-forearm.webp" alt="" loading="eager" decoding="async"><figcaption>Forearm detail<small>Segmented armor<br>Hydraulic lines</small></figcaption></figure><figure><img src="img/ronie-spec/d-back.webp" alt="" loading="eager" decoding="async"><figcaption>Back core<small>Power unit<br>Heat dissipation</small></figcaption></figure><figure><img src="img/ronie-spec/d-boot.webp" alt="" loading="eager" decoding="async"><figcaption>Boot detail<small>Grip sole<br>Stability frame</small></figcaption></figure></div></section>
+            <section class="sp-box sp-explode" aria-label="Exploded view"><h3>Exploded view <small>(selected)</small></h3>
+              <div class="sp-ex"><img src="img/ronie-spec/explode.webp" alt="" decoding="async">
+                <ul><li>Helmet shell</li><li>Visor unit</li><li>Neck guard</li><li>Shoulder armor</li><li>Chest plate</li><li>Core unit</li><li>Armor plating</li><li>Joint mechanism</li></ul></div>
+            </section>
             <section class="sp-box sp-palette" aria-label="Colour palette"><h3>Colour palette</h3>
               <ul>
                 <li><i style="--c:#e67e22"></i><span>Orange<br><small>#E67E22 · armor</small></span></li>
@@ -256,6 +260,7 @@
               <h3>Key measurements</h3>
               <dl class="sp-kv"><dt>Total height</dt><dd>: 180 cm</dd><dt>Shoulder width</dt><dd>: 85 cm</dd><dt>Body depth</dt><dd>: 60 cm</dd><dt>Weight (approx.)</dt><dd>: 120 kg</dd></dl>
               <h3>Materials</h3>
+              <img class="sp-map" src="img/ronie-spec/map.webp" alt="" decoding="async">
               <ul class="sp-list"><li>Carbon fiber composite</li><li>Aluminium alloy</li><li>Titanium alloy</li><li>High strength polymer</li></ul>
             </section>
             <section class="sp-box sp-notes" aria-label="Notes">
@@ -271,12 +276,6 @@
               <canvas class="sp-spectrum" id="sp-spectrum" aria-hidden="true"></canvas>
               <span class="sp-dots" aria-hidden="true"><i></i><i></i><i></i></span>
             </footer>
-          </div>
-          <!-- phones: the portrait board, with the live values laid over its spec box -->
-          <div class="sp-phone" aria-hidden="true">
-            <img src="img/ronie-spec/phone.webp" alt="" decoding="async">
-            <dl class="spp-live"><dd id="spp-sync">96.0%</dd><dd id="spp-boot">000</dd><dd id="spp-core">▯▯▯▯▯▯▯</dd><dd id="spp-mode">BOOTING</dd></dl>
-            <p class="spp-log" id="spp-log">› initialising</p>
           </div>
         </div>
         <button class="rai-wake" id="rai-wake" type="button" hidden><span>WAKE RONIE</span></button>
@@ -311,8 +310,8 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261012200000"></script>
+  <script src="js/data.js?v=20261012220000"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
-  <script src="js/main.js?v=20261012200000" defer></script>
+  <script src="js/main.js?v=20261012220000" defer></script>
 </body>
 </html>
