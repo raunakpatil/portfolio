@@ -992,8 +992,12 @@
     function buildDots() {
       dots = [];
       if (W < 2 || Hh < 2) return; // hidden — nothing to draw
-      const cols = Math.floor(W / SP), rows = Math.floor(Hh / SP);
-      const ox = (W - (cols - 1) * SP) / 2, oy = (Hh - (rows - 1) * SP) / 2;
+      // the grid steps in whole screen pixels (on a 125%-scaled display 5px is 6.25 of them, which made every other
+      // dot land between pixels and look fainter), so every dot sits on the pixel grid the same way
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const step = Math.max(1, Math.round(SP * dpr)) / dpr;
+      const cols = Math.floor(W / step), rows = Math.floor(Hh / step);
+      const ox = Math.round(((W - (cols - 1) * step) / 2) * dpr) / dpr, oy = Math.round(((Hh - (rows - 1) * step) / 2) * dpr) / dpr;
       let land = null;
       if (rings) {
         const m = document.createElement('canvas');
@@ -1019,26 +1023,30 @@
         if (xi < 0 || yi < 0 || xi >= Math.ceil(W) || yi >= Math.ceil(Hh)) return 0;
         return land[(yi * Math.ceil(W) + xi) * 4 + 3] > 0 ? 1 : 0;
       };
-      const o = SP * 0.32;
+      const o = step * 0.32;
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          const x = ox + c * SP, y = oy + r * SP;
+          const x = ox + c * step, y = oy + r * step;
           if (!land) { dots.push({ x, y, land: false }); continue; }
           // centre hit, or most of the cell is land — keeps thin coasts and small islands
           const corners = hit(x - o, y - o) + hit(x + o, y - o) + hit(x - o, y + o) + hit(x + o, y + o);
           if (hit(x, y) || corners >= 2) dots.push({ x, y, land: true });
         }
       }
-      // static layer, so each frame only redraws the few dots that glow
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      // static layer, so each frame only redraws the few dots that glow. One dot is drawn once and stamped at whole
+      // screen pixels everywhere, so they all come out exactly alike (no dot fainter for sitting between pixels)
       base = document.createElement('canvas');
       base.width = Math.round(W * dpr); base.height = Math.round(Hh * dpr);
       const bc = base.getContext('2d');
-      bc.scale(dpr, dpr);
-      bc.fillStyle = '#d9d9d9';
+      const S = Math.ceil(DOT_R * dpr * 2) + 2, stamp = document.createElement('canvas');
+      stamp.width = stamp.height = S;
+      const sc = stamp.getContext('2d');
+      sc.fillStyle = '#d9d9d9'; sc.beginPath(); sc.arc(S / 2, S / 2, DOT_R * dpr, 0, TAU); sc.fill();
       for (const d of dots) {
+        const px = Math.round(d.x * dpr - S / 2), py = Math.round(d.y * dpr - S / 2);
+        d.x = (px + S / 2) / dpr; d.y = (py + S / 2) / dpr;      // (the hover glow lines up with it)
         bc.globalAlpha = d.land ? 0.44 : 0.06;
-        bc.beginPath(); bc.arc(d.x, d.y, DOT_R, 0, TAU); bc.fill();
+        bc.drawImage(stamp, px, py);
       }
     }
     const DOT_R = 1.1;
@@ -1188,7 +1196,9 @@
       const dotsA = clamp(appear / APPEAR, 0, 1);
 
       ctx.clearRect(0, 0, W, Hh);
-      if (base) { ctx.globalAlpha = dotsA; ctx.drawImage(base, 0, 0, W, Hh); }
+      if (base) {   // copied pixel for pixel (no resampling, which would soften some dots more than others)
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = dotsA; ctx.drawImage(base, 0, 0); ctx.restore();
+      }
       ctx.fillStyle = '#ffffff';
       for (const d of dots) {
         const dx = d.x - ptr.x, dy = d.y - ptr.y, m = dx * dx + dy * dy;
