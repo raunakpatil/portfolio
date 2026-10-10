@@ -2042,7 +2042,7 @@ const TOSS = {                               // when each throw lets go, and its
   toss: { release: 0.42, push: [-2.6, 1.4, 0.3], spin: 8 },
 };
 const CARD_W = 0.27, CARD_H = 0.33;
-const PROJ_W = 0.42, PROJ_H = 0.3;          // a project's card: landscape, so its 16:9 picture shows whole
+const PROJ_W = 0.5, PROJ_H = 0.357;          // a project's card: landscape, so its 16:9 picture shows whole
 const card = {
   group: null, tex: null, canvas: null, state: 'off', toss: null, token: 0, scale: 0, flyT: 0, name: '', img: null,
   mode: 'photo', project: null, faces: null, pCanvas: null, pTex: null, pFront: null, heldTimer: 0, dev: 1, picPending: false,
@@ -2068,12 +2068,15 @@ function buildCard() {
   back.rotation.y = Math.PI;
   // the project card: the same paper, landscape
   card.pCanvas = document.createElement('canvas');
-  card.pCanvas.width = 700; card.pCanvas.height = 500;
+  card.pCanvas.width = 1400; card.pCanvas.height = 1000;   // sharp enough to read when he holds it up
   card.pTex = new THREE.CanvasTexture(card.pCanvas);
   card.pTex.colorSpace = THREE.SRGBColorSpace;
   card.pTex.anisotropy = 4;
-  card.pFront = new THREE.Mesh(new THREE.PlaneGeometry(PROJ_W, PROJ_H), new THREE.MeshStandardMaterial({
-    map: card.pTex, emissiveMap: card.pTex, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.55 }));
+  card.pTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  // unlit, outside the tone-mapping: the picture keeps its own colours and stays crisp (a lit, glowing face washed
+  // it out); a touch under white so it doesn't glare next to him
+  card.pFront = new THREE.Mesh(new THREE.PlaneGeometry(PROJ_W, PROJ_H), new THREE.MeshBasicMaterial({
+    map: card.pTex, color: 0xe6e6e6, toneMapped: false }));
   const pBack = new THREE.Mesh(new THREE.PlaneGeometry(PROJ_W, PROJ_H), back.material);
   pBack.rotation.y = Math.PI;
   card.faces = { photo: [front, back], project: [card.pFront, pBack] };
@@ -2089,22 +2092,25 @@ function setCardMode(mode) {
 }
 
 // a project's card: its picture whole (16:9), its name underneath and a small "tap to open"
+// laid out for his grip: the name in a bold band at the top, the picture whole below it, and the bottom-right corner
+// (where his fist goes) left clear
 function drawProjectCard() {
-  const c = card.pCanvas, x = c.getContext('2d'), W = c.width, H = c.height, m = 26, iw = W - 2 * m, ih = Math.round(iw * 9 / 16);
+  const c = card.pCanvas, x = c.getContext('2d'), W = c.width, H = c.height, m = 44;
   const p = card.project || {}, img = card.img;
-  x.fillStyle = '#f3efe6'; x.fillRect(0, 0, W, H);
-  x.fillStyle = '#1b1b1b'; x.fillRect(m, m, iw, ih);
-  if (img) {
-    const k = Math.min(iw / img.width, ih / img.height), dw = img.width * k, dh = img.height * k;
-    x.drawImage(img, m + (iw - dw) / 2, m + (ih - dh) / 2, dw, dh);
-  }
-  x.textBaseline = 'middle';
-  x.fillStyle = '#29241e'; x.textAlign = 'left';
-  let size = 46;
-  do { x.font = `italic ${size}px "Instrument Serif", Georgia, serif`; size -= 2; } while (x.measureText(p.title || '').width > iw - 150 && size > 24);
-  x.fillText(p.title || '', m + 4, m + ih + (H - m - ih) * 0.42);
-  x.fillStyle = '#8a8478'; x.textAlign = 'right'; x.font = '500 17px "JetBrains Mono", monospace';
-  x.fillText('TAP TO OPEN ↗', W - m - 4, m + ih + (H - m - ih) * 0.42);
+  x.fillStyle = '#f5f2eb'; x.fillRect(0, 0, W, H);
+  x.textBaseline = 'alphabetic'; x.textAlign = 'left';
+  x.fillStyle = '#8a8478'; x.font = '500 28px "JetBrains Mono", monospace';
+  x.fillText(`PROJECT${p.year ? ` · ${p.year}` : ''}`, m, m + 26);
+  x.fillStyle = '#151515';
+  let size = 76;
+  do { x.font = `600 ${size}px "Inter Tight", system-ui, sans-serif`; size -= 2; } while (x.measureText(p.title || '').width > W - 2 * m && size > 40);
+  x.fillText(p.title || '', m - 2, m + 26 + 18 + size * 0.9);
+  // the picture at exactly its own shape (16:9), so nothing is cropped and no bars show, with a hairline round it
+  const top = 190, ih = H - 120 - top, iw = Math.round(ih * 16 / 9), ix = Math.round((W - iw) / 2);
+  if (img) x.drawImage(img, ix, top, iw, ih);
+  x.strokeStyle = 'rgba(0, 0, 0, .12)'; x.lineWidth = 2; x.strokeRect(ix, top, iw, ih);
+  x.fillStyle = '#ff7a1a'; x.font = '600 30px "JetBrains Mono", monospace';
+  x.fillText('TAP TO OPEN ↗', m, H - 50);
   card.pTex.needsUpdate = true;
 }
 
@@ -2398,7 +2404,7 @@ function pickUpProject(p) {
   setCardMode('project');
   card.group.visible = false;
   drawProjectCard();
-  if (document.fonts) document.fonts.load('italic 46px "Instrument Serif"').then(() => { if (my === card.token) drawProjectCard(); }).catch(() => {});
+  if (document.fonts) Promise.all([document.fonts.load('600 76px "Inter Tight"'), document.fonts.load('500 28px "JetBrains Mono"')]).then(() => { if (my === card.token) drawProjectCard(); }).catch(() => {});
   const img = new Image();
   img.onload = () => { if (my === card.token) { card.img = img; drawProjectCard(); } };
   img.src = p.image;
@@ -2532,11 +2538,22 @@ function updateCard(now, dt) {
   // in his hand: flat and low at the grab, upright by his face (turned to the viewer, a little tilted) once he stands
   const k = holding ? smooth(Math.min(1, Math.max(0, (pick.time - PICK_GRAB) / 0.8))) : 1;
   card.scale = Math.min(1, card.scale + dt * 7);
-  g.position.copy(_cv).addScaledVector(UP, lerp(0.04, 0.2, k)).addScaledVector(facing, lerp(0.1, 0.05, k));
-  if (card.mode === 'project') g.position.addScaledVector(_right, -0.09 * k);   // the wide card sits out clear of his face
-  g.lookAt(camera.position);
-  _cq.copy(g.quaternion).multiply(_cq2.setFromAxisAngle(_cz, -0.1 + (MOTION ? Math.sin(now / 650) * 0.025 : 0)));
-  g.quaternion.copy(FLAT).slerp(_cq, k);
+  const sway = MOTION ? Math.sin(now / 650) * 0.025 : 0;
+  if (card.mode === 'project') {
+    // a project card is held up by its inner bottom corner, pinched in his fist with the fingers over the front, and
+    // hangs out to the side of his face, tipped a little
+    g.position.copy(_cv).addScaledVector(UP, lerp(0.04, 0.07, k)).addScaledVector(facing, lerp(0.1, 0.035, k));
+    g.lookAt(camera.position);
+    _cq.copy(g.quaternion).multiply(_cq2.setFromAxisAngle(_cz, 0.07 + sway));
+    g.quaternion.copy(FLAT).slerp(_cq, k);
+    _cv2.set(-(PROJ_W / 2 - 0.04), PROJ_H / 2 - 0.035, -0.02).applyQuaternion(g.quaternion);   // from the corner to the middle
+    g.position.addScaledVector(_cv2, k);
+  } else {
+    g.position.copy(_cv).addScaledVector(UP, lerp(0.04, 0.2, k)).addScaledVector(facing, lerp(0.1, 0.05, k));
+    g.lookAt(camera.position);
+    _cq.copy(g.quaternion).multiply(_cq2.setFromAxisAngle(_cz, -0.1 + sway));
+    g.quaternion.copy(FLAT).slerp(_cq, k);
+  }
   g.scale.setScalar(Math.max(0.001, card.scale));
 }
 const guessedName = (text) => {
