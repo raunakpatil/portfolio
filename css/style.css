@@ -1160,10 +1160,11 @@ main { padding: 0 var(--gap) var(--gap); }
   .dash { grid-template-columns: minmax(0, 1fr); }
   .card-hello, .card-time { grid-column: 1 / -1; }
   .skills-body { flex-direction: column; gap: 14px; }
-  .tools { text-align: left; }
+  .tools { flex: none; text-align: left; }   /* stacked: its desktop column width (flex-basis) would become a tall empty height */
+  .skills-foot { margin-top: 18px; }
   .skill-list { grid-template-columns: minmax(0, 1fr); }
   .tools ul { display: flex; flex-wrap: wrap; gap: 4px 12px; justify-content: start; }
-  .card-map { height: 400px; }
+  .card-map { height: 360px; }
   #skill-bars { height: 64px; }   /* a bigger strip to tap and slide along */
   .pin:not(.active) .pin-label { opacity: 0; pointer-events: none; }
   .map-info { display: none; }   /* phones: just the map */
