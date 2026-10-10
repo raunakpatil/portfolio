@@ -129,6 +129,7 @@ const rand = (i) => ((Math.sin(i * 12.9898 + 4.1) * 43758.5453) % 1 + 1) % 1;
 // a real mouse (or pen) hovering: the only pointer he follows with his head and the cursor light. Phones and other
 // touch screens can't hover, so there he just looks ahead and the light stays off.
 const TOUCH = matchMedia('(hover: none), (pointer: coarse)');
+const PHONE_UI = matchMedia('(max-width: 760px)');   // the phone layout (css: the same breakpoint)
 const hovers = (e) => e.pointerType === 'mouse' && !TOUCH.matches;
 
 function init3D() {
@@ -2669,17 +2670,27 @@ function showChat(id, step, offerEmail = false, links = []) {
     });
     actions.appendChild(row);
   }
-  // the guessing game, offered as a tile under the chat
+  // the guessing game, offered as a tile under the chat — on a phone, a round game-controller button in the room's
+  // top-left corner instead (the bottom is all chat there), opposite the sound button
+  root.querySelectorAll('.rai-play.corner').forEach((n) => n.remove());
   if (G.offer && A.chatUrl) {
+    const corner = PHONE_UI.matches;
     const t = document.createElement('button');
     t.type = 'button';
-    t.className = 'rai-play';
+    t.className = corner ? 'rai-play corner' : 'rai-play';
     t.style.animationDelay = '220ms';
-    // a four-point spark in the profile highlights' family of shapes; it turns on hover like theirs
-    t.innerHTML = '<span class="rai-play-tile" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5c.7 4.6 3.9 7.8 8.5 8.5-4.6.7-7.8 3.9-8.5 8.5-.7-4.6-3.9-7.8-8.5-8.5 4.6-.7 7.8-3.9 8.5-8.5Z"/></svg></span>'
-      + `<span class="rai-play-txt"><b>${esc(G.offer.title)}</b><span class="rai-play-sub">${esc(G.offer.kicker)}</span><span class="rai-play-s">${esc(G.offer.sub)}</span></span>`;
-    t.addEventListener('click', startGame);
-    actions.appendChild(t);
+    if (corner) {
+      t.setAttribute('aria-label', `${G.offer.title} ${G.offer.kicker}`);
+      t.title = G.offer.title;
+      t.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 11h4M8 9v4"/><path d="M15 12h.01M18 10h.01"/>'
+        + '<path d="M17.3 5H6.7a4 4 0 0 0-4 3.6C2.6 9.4 2 14.5 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.4-1.4A2 2 0 0 1 9.8 16h4.4a2 2 0 0 1 1.4.6L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.5-.6-6.6-.7-7.3A4 4 0 0 0 17.3 5Z"/></svg>';
+    } else {
+      // a four-point spark in the profile highlights' family of shapes; it turns on hover like theirs
+      t.innerHTML = '<span class="rai-play-tile" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3.5c.7 4.6 3.9 7.8 8.5 8.5-4.6.7-7.8 3.9-8.5 8.5-.7-4.6-3.9-7.8-8.5-8.5 4.6-.7 7.8-3.9 8.5-8.5Z"/></svg></span>'
+        + `<span class="rai-play-txt"><b>${esc(G.offer.title)}</b><span class="rai-play-sub">${esc(G.offer.kicker)}</span><span class="rai-play-s">${esc(G.offer.sub)}</span></span>`;
+    }
+    t.addEventListener('click', () => { if (corner) t.remove(); startGame(); });
+    (corner ? root : actions).appendChild(t);
   }
   actions.onsubmit = async (e) => {
     e.preventDefault();

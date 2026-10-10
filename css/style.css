@@ -960,8 +960,21 @@ main { padding: 0 var(--gap) var(--gap); }
   /* suggestions scroll sideways on a phone rather than stacking up */
   .rai-suggest { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -18px; padding-right: 18px; }
   .rai-suggest::-webkit-scrollbar { display: none; }
-  .rai-chip { flex: none; white-space: nowrap; }
+  .rai-chip { flex: none; white-space: nowrap; padding: 6px 12px; font-size: 12px; }
+  /* his link buttons: one row you swipe along (not three wrapped rows pushing his answer off the top), and smaller */
+  .rai-links { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -18px; padding-right: 18px; }
+  .rai-links::-webkit-scrollbar { display: none; }
+  .rai-link { flex: none; white-space: nowrap; padding: 6px 12px; font-size: 12px; gap: 5px; }
+  .rai-link span { font-size: 10px; }
   .rai-play { margin-top: 8px; gap: 12px; padding: 6px 14px 6px 6px; }
+  /* the game, as a round controller button in the room's top-left corner (the sound button's twin, opposite) */
+  .rai-play.corner {
+    position: absolute; top: 14px; left: 16px; z-index: 4; display: grid; place-items: center;
+    width: 38px; height: 38px; margin: 0; padding: 0; border-radius: 50%; color: #fff;
+    background: rgba(255, 255, 255, .08); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), var(--dneu-out);
+  }
+  .rai-play.corner svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+  .rai-play.corner:hover, .rai-play.corner:focus-visible { transform: none; background: rgba(255, 122, 26, .22); }
   .rai-play-tile { width: 42px; height: 42px; border-radius: 10px; }
   .rai-play-tile svg { width: 18px; height: 18px; }
   .rai-play-s { display: none; }
