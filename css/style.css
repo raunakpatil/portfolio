@@ -1337,8 +1337,9 @@ main { padding: 0 var(--gap) var(--gap); }
 /* links button: pressed in while closed, raised (black) when open; its icons pressed in, rising on hover */
 .social-btn { box-shadow: var(--neu-in-sm); }
 .social.open .social-btn { box-shadow: var(--key); }
-.social-links a { box-shadow: var(--neu-in-sm); }
-.social-links a:hover { box-shadow: var(--neu-out-sm); color: #111; }
+.social-links a { box-shadow: var(--neu-out-sm); }
+.social-links a:hover { box-shadow: var(--neu-out); color: #111; }              /* lifts a little more */
+.social-links a:active { box-shadow: var(--neu-in-sm); }                         /* and presses in when clicked */
 
 /* projects: filters and the grid / list switch */
 .chip { box-shadow: var(--neu-in-sm); background: var(--surface); transition: box-shadow .3s, background .25s; }
