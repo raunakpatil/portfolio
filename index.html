@@ -17,7 +17,7 @@
   <link rel="icon" href="favicon.ico?v=2" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
   <link rel="preload" href="fonts/gobitta.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/style.css?v=20261013120000">
+  <link rel="stylesheet" href="css/style.css?v=20261013150000">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -289,6 +289,13 @@
           <p class="rai-say" id="rai-say" aria-live="polite"></p>
           <form class="rai-actions" id="rai-actions" novalidate></form>
         </div>
+        <!-- the space room's captions (decoration; css shows them once he's awake) -->
+        <div class="rai-hud" aria-hidden="true">
+          <p class="rai-hud-stack">Large language models<br>Multi-agent systems<br>Real world actions</p>
+          <p class="rai-hud-id">AI agents<span>//</span><b>Ronie</b></p>
+          <p class="rai-hud-loop">Think<br>Plan<br>Execute<br>Repeat<i></i></p>
+          <p class="rai-hud-tag">Not just a chatbot.<br>An agent.</p>
+        </div>
         <div class="rai-progress" aria-hidden="true"><i id="rai-progress"></i></div>
         <a class="rai-close" href="#dashboard" aria-label="Close and go back to the dashboard">&times;</a>
         <button class="rai-sound" id="rai-sound" type="button" aria-pressed="false" aria-label="Typing sounds">
@@ -312,8 +319,8 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261013120000"></script>
+  <script src="js/data.js?v=20261013150000"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
-  <script src="js/main.js?v=20261013120000" defer></script>
+  <script src="js/main.js?v=20261013150000" defer></script>
 </body>
 </html>
