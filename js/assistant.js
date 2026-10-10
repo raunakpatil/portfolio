@@ -935,7 +935,7 @@ function updateSpace(now, dt) {
 // one the moon is centred behind his head and shoulders, the picture fading into black above and below.
 const moon = {
   built: false, img: $('#rai-bg'), fx: $('#rai-bgfx'), ctx: null, glow: null, mist: null, tex: null, lights: [], k: -1,
-  box: null, at: '', par: { x: 0, y: 0 }, tick: 0, surge: 0, flick: 0, shoot: null, nextShoot: 4,
+  box: null, at: '', par: { x: 0, y: 0 }, tick: 0, shoot: null, nextShoot: 4,
 };
 const BG_ASPECT = 2172 / 724, BG_MOON_X = 0.625, BG_WATER_Y = 0.822;
 const BG_MOON = [0.6245, 0.6402, 0.4991];             // the moon's outline: centre (fractions across / down), radius / height
@@ -997,8 +997,8 @@ function placeBackdrop() {
   moon.box = { x, y, iw, ih, w, h, wide };
 }
 
-// The picture comes alive: the water ripples, the neon in the mountains breathes (with a surge of light running along
-// the range every few seconds, and a flicker now and then), mist drifts along the shore, the moon's lit rim glows, its
+// The picture comes alive: the water ripples, the neon in the mountains glows brighter and softer in a slow breath,
+// mist drifts along the shore, the moon's lit rim glows, its
 // stars twinkle and a shooting star crosses the sky once in a while. Drawn on a canvas over the picture, in the
 // picture's own coordinates, so it all stays put wherever the picture is placed.
 function drawBackdropFx(t, dt) {
@@ -1020,20 +1020,10 @@ function drawBackdropFx(t, dt) {
     ctx.drawImage(img, 0, sy, NW, (band / ih) * NH, x0 + dx, y, iw, band);
   }
   ctx.globalCompositeOperation = 'lighter';
-  // the neon breathing, with a flicker now and then
-  if (moon.flick <= 0 && Math.random() < dt * 0.12) moon.flick = 0.35;
-  moon.flick -= dt;
-  const flick = moon.flick > 0 ? (Math.sin(moon.flick * 60) > 0 ? 0.35 : -0.1) : 0;
+  // the neon glowing up and down in one slow, smooth breath (about 5 s)
   if (moon.glow && moon.glow.complete && moon.glow.naturalWidth) {
-    ctx.globalAlpha = clamp(0.16 + 0.12 * Math.sin(t * 1.25) + 0.05 * Math.sin(t * 3.1) + flick, 0, 1);
+    ctx.globalAlpha = 0.12 + 0.26 * (0.5 - 0.5 * Math.cos((t * Math.PI * 2) / 5));
     ctx.drawImage(moon.glow, x0, y0, iw, ih);
-    // a surge of light running along the range
-    moon.surge = (moon.surge + dt / 5.5) % 1;
-    const sx = x0 + (moon.surge * 1.3 - 0.15) * iw, sy = y0 + 0.7 * ih, sr = 0.16 * ih;
-    ctx.save(); ctx.beginPath(); ctx.ellipse(sx, sy, sr * 1.6, sr, 0, 0, Math.PI * 2); ctx.clip();
-    ctx.globalAlpha = 0.45 * Math.sin(Math.PI * moon.surge);
-    ctx.drawImage(moon.glow, x0, y0, iw, ih);
-    ctx.restore();
   }
   // mist drifting along the foot of the mountains
   if (!moon.mist) {
