@@ -492,7 +492,7 @@ main { padding: 0 var(--gap) var(--gap); }
   .card-map-profile { min-height: 460px; }
 }
 @media (max-width: 760px) {
-  .profile { grid-template-columns: minmax(0, 1fr); grid-template-areas: "t" "persona" "map" "hl"; }
+  .profile { grid-template-columns: minmax(0, 1fr); grid-template-areas: "persona" "t" "map" "hl"; }   /* (phones: who he is, first) */
   .traits { grid-template-columns: minmax(0, 1fr); }
   .trait { min-height: 0; }
   .card-map-profile { min-height: 400px; }
