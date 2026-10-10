@@ -354,7 +354,6 @@
       art = { w: j.w, h: j.h, frames: j.frames.map((f) => f.split('\n')) };
     }).catch(() => {});
     let spin = 0.62, vel = 0.00011, nextGlitch = 0, tear = null, scanPat = null, scanCtx = null;
-    const PHONE = matchMedia('(max-width: 760px)');
     const noise = Float32Array.from({ length: 4096 }, Math.random);
 
     onFrame(card, (now, dt) => {
@@ -463,11 +462,11 @@
       // HUD: target brackets round him, a turning reticle on his head, readouts down the right
       ctx.strokeStyle = HOLO; ctx.lineWidth = 1;
       const br = live ? Math.sin(t * 2.2) * 2 : 0, L = 12;
-      const x0 = ox - 8 - br, y0 = oy - 6 - br, x1 = ox + bw + 8 + br, y1 = oy + bh + 2 + br;
+      const y0 = oy - 6 - br, x1 = ox + bw + 8 + br, y1 = oy + bh + 2 + br;
       ctx.globalAlpha = 0.65;
       ctx.beginPath();
-      // (no bottom-left corner: the readouts sit there; on a phone no top-left one either, as it lands by the title)
-      for (const [cx, cy, sx, sy] of [...(PHONE.matches ? [] : [[x0, y0, 1, 1]]), [x1, y0, -1, 1], [x1, y1, -1, -1]]) {
+      // (only the right-hand corners: the readouts sit bottom left, and a top-left one lands under the title)
+      for (const [cx, cy, sx, sy] of [[x1, y0, -1, 1], [x1, y1, -1, -1]]) {
         ctx.moveTo(cx + sx * L, cy); ctx.lineTo(cx, cy); ctx.lineTo(cx, cy + sy * L);
       }
       ctx.stroke();
