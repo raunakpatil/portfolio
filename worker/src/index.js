@@ -74,11 +74,15 @@ Rules:
 - Play like Akinator: narrow down with general traits first — real or fictional? human? male? alive? famous for sport, music, films, books, games, science, history? magic or powers? a hero? a child? — and only ask about a specific franchise, film, book or team after about 8 questions.
 - Visitors come from all over the world, many from India. For a real person, ask about their country or region early (India? USA? UK?), then their field in that country — e.g. for India: Bollywood, Bhojpuri, Tamil or Telugu cinema, TV and reality shows, cricket, music, politics or business. Think of famous people from every country, not just Hollywood.
 - After about 12 questions, if you have a likely answer, guess it; if wrong, ask two or three more questions and guess again.
-- Never name a specific person or character in a question unless it's your guess. A guess begins with [guess] and is phrased "Is it NAME?". Make one only when you're fairly sure, and at the latest once you've asked about 18 questions.
+- Never name a specific person, character, animal or object in a question unless it's your guess. A guess begins with [guess] and is always phrased "Is it NAME?" (e.g. "[guess] Is it a giraffe?", "[guess] Is it Shah Rukh Khan?"). "Is it a giraffe?" or "Is it a type of giraffe?" IS a guess — tag it. Make one only when you're fairly sure, and at the latest once you've asked about 18 questions.
+- If the visitor said yes (or probably) to a question that already pins down one specific thing, don't ask about it again: guess it straight away.
 - If a guess was wrong, keep asking and guess something else later; never repeat a wrong guess.
 - A tiny awkward or witty aside is welcome, but keep every turn short. Plain text only — no lists, markdown or emoji.
 - Keep it family-friendly. Never ask for personal information.
 - Begin every reply with [face:NAME] [move:NAME] — face: ${GAME_FACES.join(', ')}; move: ${GAME_MOVES.join(', ')}.`;
+
+// kinds of thing, not a thing: "Is it an animal?" is a question, "Is it a giraffe?" is a guess
+const GENERAL = /^(real|fictional|alive|dead|famous|human|person|man|woman|boy|girl|child|adult|animal|mammal|bird|fish|reptile|amphibian|insect|bug|pet|wild animal|domestic animal|predator|plant|tree|flower|fruit|vegetable|food|drink|object|thing|item|tool|toy|machine|device|gadget|vehicle|car|place|building|country|city|character|cartoon|superhero|villain|hero|robot|creature|monster|sport|game|instrument|household item|living thing|carnivore|herbivore|big cat|cat|dog|primate|land animal|sea animal|water animal|big animal|small animal|.*\b(animal|person|character|object|thing|creature)s?)$/i;
 
 async function game(env, body, cors) {
   const messages = (Array.isArray(body.messages) ? body.messages : [])
@@ -98,14 +102,21 @@ async function game(env, body, cors) {
     if (!GAME_MOVES.includes(move) || move === 'none') move = null;
     // a guess: tagged, or any "Is it / Was it / Did you mean <Name>?" that names someone
     const plain = reply.replace(/\[[^\]]*\]/g, '');
+    // what he's guessing: "Is it (a / the / a type of) NAME?", or a bare "Giraffe!"
+    const named = plain.match(/\b(?:is it|was it|did you mean|are you thinking of|is this person|is the character|is he|is she)\s+(?:(?:a|an|the)\s+)?(?:(?:type|kind|sort) of\s+)?["“]?([^?"”]{2,60}?)["”]?\s*\?/i);
+    const bare = plain.trim().replace(/[!.?]+$/, '');
+    let name = named ? named[1].trim() : (bare && bare.split(/\s+/).length <= 4 && !/\?/.test(plain) ? bare : null);
+    if (name && GENERAL.test(name)) name = null;
     const guess = /\[\s*guess\s*\]/i.test(reply)
+      // "Is it a giraffe?" — a specific animal or object, not a category ("Is it an animal?")
+      || (!!named && !!name && /^(is it|was it)/i.test(named[0]) && name.split(/\s+/).length <= 4 && /\b(a|an|the|type of|kind of)\s/i.test(named[0]))
       || /\b([Ii]s it|[Ww]as it|[Dd]id you mean|[Aa]re you thinking of)\s+(the\s+)?["“]?[A-Z][a-z]+/.test(plain)
       // "Is this person / Is he / Is the character Narendra Modi?" — a full name (two capitalised words)
       || /\b([Ii]s|[Ww]as) (this person|this character|the character|he|she)\s+["“]?[A-Z][a-z]+\s+[A-Z][a-z]+/.test(plain);
     reply = reply.replace(/\[\s*[a-z]+\s*(:\s*[a-z]*\s*)?\]/gi, '').replace(/\s*\n+\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
     reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\(\s*\w+ly\s*\)\s*/g, '').trim();
     if (!reply) return json({ error: 'empty' }, 502, cors);
-    return json({ reply, face, move, guess, model: opts.used }, 200, cors);
+    return json({ reply, face, move, guess, name: guess ? name : null, model: opts.used }, 200, cors);
   } catch (err) {
     return json({ error: quotaGone(err) ? 'quota' : 'unavailable' }, 503, cors);
   }
