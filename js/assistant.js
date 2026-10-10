@@ -45,9 +45,13 @@ const SHEET_MIN = 3000, sheetSince = performance.now();
 function reveal() {
   const wait = SHEET_MIN - (performance.now() - sheetSince);
   if (wait > 0) { loadPct.textContent = '100%'; return void setTimeout(reveal, wait); }
+  // the handoff: the room fades in underneath while the sheet's panels dissolve one by one behind a scan line,
+  // and the wake button comes up as the last of them goes
   root.classList.add('ready');
-  loading.hidden = true;
-  showWake();
+  if (!MOTION) { loading.hidden = true; showWake(); return; }
+  loading.classList.add('leaving');
+  setTimeout(showWake, 750);
+  setTimeout(() => { loading.hidden = true; loading.classList.remove('leaving'); }, 1300);
 }
 
 export function open() {
