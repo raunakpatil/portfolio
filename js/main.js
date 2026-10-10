@@ -1337,6 +1337,7 @@
       <h3 class="cover-title">${esc(c.short || c.title)}</h3>
       <div class="cert-art">${art}</div>
       <p class="cover-by">${esc(issuerShort(c.issuer))}</p>
+      ${c.cover ? `<img class="cover-img" src="${esc(c.cover)}" alt="" onerror="this.remove()">` : ''}
       <span class="grain"></span>
     </div>`;
   }
