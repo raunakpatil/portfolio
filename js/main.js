@@ -193,24 +193,64 @@
         ctx.fillRect(i * 3, h - v * h, 1.6, v * h);
       }
     }
+    // the boot count shown climbs smoothly over the sheet's few seconds rather than jumping when he loads from cache
+    const bootEl = $id('sp-boot'), parts = [...box.querySelectorAll('.sp-strip figure')], tiles = [...box.querySelectorAll('.sp-tiles figure')];
+    const t0 = performance.now(), SHOW = 4300;
+    let shown = 0, focus = -1, focusAt = 0;
+    const put = (el, v) => { if (el && el.textContent !== v) el.textContent = v; };
+    // the title types itself in; the measurements count up
+    const h2 = box.querySelector('.sp-title h2');
+    if (h2 && !h2.dataset.typed) {
+      h2.dataset.typed = '1';
+      const tn = h2.firstChild;
+      if (tn && tn.nodeType === 3) {
+        const chars = tn.textContent.split('').map((ch, i) => `<span class="sp-ch" style="animation-delay:${(0.15 + i * 0.06).toFixed(2)}s">${ch === ' ' ? '&nbsp;' : ch}</span>`).join('');
+        tn.replaceWith(document.createRange().createContextualFragment(chars));
+      }
+    }
+    const counts = [...box.querySelectorAll('.sp-meas .sp-kv dd')].map((dd) => {
+      const m = dd.textContent.match(/^(\D*)(\d+)(.*)$/);
+      return m && { dd, pre: m[1], n: +m[2], post: m[3] };
+    }).filter(Boolean);
     const step = (now) => {
       // stop once Ronie has loaded (or the sheet was replaced by an error message)
       if (box.hidden || !pctEl.isConnected) { bootRunning = false; return; }
       requestAnimationFrame(step);
       if (document.querySelector('[data-view="assistant"]').hidden) return;
-      const pct = parseInt(pctEl.textContent, 10) || 0;
-      if (sync) sync.textContent = `${(96 + pct * 0.012 + Math.sin(now / 700) * 0.35).toFixed(1)}%`;
-      if (core) { const on = Math.round((pct / 100) * 7); core.textContent = '▮'.repeat(on) + '▯'.repeat(7 - on); }
-      if (mode) mode.textContent = pct >= 99 ? 'Standby' : 'Booting';
-      if (line) line.style.width = `${pct}%`;
-      const steps = BOOT_LOG.filter(([at]) => pct >= at);
-      const cur = steps.length ? steps[steps.length - 1][1] : 'initialising';
-      const msg = `› ${cur}${'.'.repeat(1 + (((now / 400) | 0) % 3))}`;
-      if (logEl && msg !== lastLog) { logEl.textContent = msg; lastLog = msg; }
-      if (foot) foot.innerHTML = `// ${(96 + pct * 0.012).toFixed(1)}% sync<br>// ${String(pct).padStart(3, '0')} boot<br>// ${pct >= 99 ? 'standby' : 'booting'}`;
       const t = MOTION ? now : 0;
+      // the canvases first (they measure themselves), then the text — measuring after writing would make every
+      // frame lay the page out twice
       for (const cv of waves) if (cv.offsetWidth) wave(cv, t);
       if (spec && spec.offsetWidth) spectrum(spec, t);
+      const real = parseInt(pctEl.textContent, 10) || 0;
+      const el = now - t0;
+      const goal = Math.min(real, MOTION ? (el / SHOW) * 100 : 100);
+      shown += (goal - shown) * (MOTION ? 0.08 : 1);
+      const pct = Math.round(shown);
+      put(bootEl, `${pct}%`);
+      put(sync, `${(96 + pct * 0.012 + Math.sin(now / 700) * 0.35).toFixed(1)}%`);
+      if (core) { const on = Math.round((pct / 100) * 7); put(core, '▮'.repeat(on) + '▯'.repeat(7 - on)); }
+      put(mode, pct >= 99 ? 'Standby' : 'Booting');
+      if (line) line.style.transform = `scaleX(${(shown / 100).toFixed(3)})`;
+      const steps = BOOT_LOG.filter(([at]) => pct >= at);
+      const cur = steps.length ? steps[steps.length - 1][1] : 'initialising';
+      put(logEl, `› ${cur}${'.'.repeat(1 + (((now / 400) | 0) % 3))}`);
+      if (foot) {
+        const lines = [`// ${(96 + pct * 0.012).toFixed(1)}% sync`, `// ${String(pct).padStart(3, '0')} boot`, `// ${pct >= 99 ? 'standby' : 'booting'}`];
+        if (foot.dataset.v !== lines.join('|')) { foot.dataset.v = lines.join('|'); foot.innerHTML = lines.join('<br>'); }
+      }
+      // armor components load one after another with the boot
+      parts.forEach((f, i) => f.classList.toggle('ready', pct >= ((i + 1) / parts.length) * 100 - 1));
+      // the focus hops from detail to detail
+      if (tiles.length && MOTION && now - focusAt > 850) {
+        focusAt = now;
+        if (focus >= 0) tiles[focus].classList.remove('on');
+        focus = (focus + 1) % tiles.length;
+        tiles[focus].classList.add('on');
+      }
+      // measurements count up over the first second and a bit
+      const k = Math.min(1, Math.max(0, (el - 400) / 1100)), e = 1 - (1 - k) ** 3;
+      for (const c of counts) put(c.dd, `${c.pre}${Math.round(c.n * (MOTION ? e : 1))}${c.post}`);
     };
     requestAnimationFrame(step);
   }

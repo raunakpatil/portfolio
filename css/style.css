@@ -520,7 +520,7 @@ main { padding: 0 var(--gap) var(--gap); }
 .sp-title h2 span { margin-left: .4em; font-size: .5em; letter-spacing: .08em; color: var(--sp-dim); text-transform: uppercase; }
 .sp-title p { font-size: 11px; color: #b9bec3; }
 .sp-line { position: relative; display: block; width: 60%; height: 1px; margin-top: 4px; background: var(--sp-line); }
-.sp-line b { position: absolute; left: 0; top: -1px; height: 3px; width: 0; border-radius: 2px; background: var(--sp-o); transition: width .4s; }
+.sp-line b { position: absolute; left: 0; top: -1px; height: 3px; border-radius: 2px; background: var(--sp-o); }
 .sp-top { grid-area: top; display: grid; grid-template-columns: 1fr 1fr auto; gap: 18px; align-items: start; padding-right: 58px; }   /* (room for the close button) */
 .sp-model { padding-left: 18px; box-shadow: -1px 0 0 var(--sp-line); }
 .sp-kv { display: grid; grid-template-columns: auto 1fr; gap: 3px 18px; align-items: baseline; }
@@ -558,7 +558,6 @@ main { padding: 0 var(--gap) var(--gap); }
 .sp-details { grid-area: details; display: flex; flex-direction: column; }
 .sp-tiles { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 8px 10px; }
 .sp-tiles figure, .sp-strip figure { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
-.sp-tiles img { flex: 1; min-height: 0; width: 100%; object-fit: cover; border-radius: 3px; box-shadow: 0 0 0 1px var(--sp-line); }
 .sp-tiles figcaption { font-size: 9.5px; color: var(--sp-tx); }
 .sp-palette { grid-area: palette; }
 .sp-palette ul { display: grid; gap: 8px; }
@@ -589,6 +588,68 @@ main { padding: 0 var(--gap) var(--gap); }
 .sp > :nth-child(5) { animation-delay: .24s; } .sp > :nth-child(6) { animation-delay: .3s; } .sp > :nth-child(7) { animation-delay: .36s; }
 .sp > :nth-child(8) { animation-delay: .42s; } .sp > :nth-child(9) { animation-delay: .48s; } .sp > :nth-child(10) { animation-delay: .54s; }
 @keyframes spin { to { transform: rotate(360deg); } }
+/* ---- the sheet comes alive: only transforms, opacity and reveals, so it stays smooth ---- */
+.sp-line b { width: 100%; transform: scaleX(0); transform-origin: left; transition: transform .35s linear; }
+.sp-title h2 .sp-ch { display: inline-block; animation: sp-type .5s var(--ease) backwards; }
+@keyframes sp-type { from { opacity: 0; transform: translateY(.35em); } }
+.sp-cmd::after { content: "▍"; margin-left: 2px; color: var(--sp-o); animation: sp-blink 1s steps(1) infinite; }
+@keyframes sp-blink { 50% { opacity: 0; } }
+/* the views build up from the floor, one after another, under a scan line; the blueprint grid drifts */
+.sp-ortho { overflow: hidden; background-image: none; }
+.sp-ortho::before {
+  content: ""; position: absolute; inset: -28px; z-index: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(255, 255, 255, .03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .03) 1px, transparent 1px);
+  background-size: 28px 28px; animation: sp-drift 7s linear infinite;
+}
+@keyframes sp-drift { to { transform: translate(28px, 28px); } }
+.sp-ortho > * { position: relative; z-index: 1; }
+.sp-views { position: relative; }
+.sp-views figure { animation: sp-build 1.1s cubic-bezier(.2, .7, .2, 1) backwards; }
+.sp-views figure:nth-of-type(1) { animation-delay: .25s; } .sp-views figure:nth-of-type(2) { animation-delay: .45s; } .sp-views figure:nth-of-type(3) { animation-delay: .65s; }
+@keyframes sp-build { from { clip-path: inset(100% 0 0 0); opacity: .3; } to { clip-path: inset(0 0 0 0); opacity: 1; } }
+.sp-views::after {
+  content: ""; position: absolute; left: 0; right: 0; top: 0; height: 16%; pointer-events: none;
+  background: linear-gradient(rgba(255, 122, 26, 0), rgba(255, 122, 26, .07) 70%, rgba(255, 170, 110, .35) 97%, rgba(255, 122, 26, 0));
+  border-bottom: 1px solid rgba(255, 170, 110, .55);
+  transform: translateY(-110%); animation: sp-scan-v 3.4s cubic-bezier(.45, 0, .55, 1) .9s infinite; will-change: transform;
+}
+@keyframes sp-scan-v { 0% { transform: translateY(-110%); opacity: 0; } 10% { opacity: 1; } 85% { opacity: 1; } 100% { transform: translateY(640%); opacity: 0; } }
+/* details: a slow drift in every picture; an orange focus hops from tile to tile */
+.sp-ph { position: relative; flex: 1; min-height: 0; overflow: hidden; border-radius: 3px; box-shadow: 0 0 0 1px var(--sp-line); transition: box-shadow .45s; }
+.sp-ph img { display: block; width: 100%; height: 100%; object-fit: cover; animation: sp-kb 11s ease-in-out infinite alternate; will-change: transform; }
+.sp-tiles figure:nth-child(2) img { animation-delay: -2s; } .sp-tiles figure:nth-child(3) img { animation-delay: -4s; }
+.sp-tiles figure:nth-child(4) img { animation-delay: -6s; } .sp-tiles figure:nth-child(5) img { animation-delay: -8s; } .sp-tiles figure:nth-child(6) img { animation-delay: -10s; }
+@keyframes sp-kb { from { transform: scale(1.02) translate(0, 0); } to { transform: scale(1.1) translate(-2%, -1.5%); } }
+.sp-tiles figure.on .sp-ph { box-shadow: 0 0 0 1.5px var(--sp-o), 0 0 16px rgba(255, 122, 26, .25); }
+.sp-tiles figcaption { transition: color .45s; }
+.sp-tiles figure.on figcaption { color: var(--sp-o); }
+/* joint layout: the leader lines draw in, the rings pulse, the labels fade up */
+.sp-jsvg path { stroke-dasharray: 220; stroke-dashoffset: 220; animation: sp-draw .9s cubic-bezier(.3, .7, .3, 1) forwards; }
+.sp-jsvg text { opacity: 0; animation: sp-fade .6s ease forwards; }
+.sp-jsvg circle { transform-box: fill-box; transform-origin: center; animation: sp-ring 1.8s ease-in-out infinite; }
+.sp-jsvg g:nth-of-type(1) path, .sp-jsvg g:nth-of-type(1) text { animation-delay: .5s; } .sp-jsvg g:nth-of-type(2) path, .sp-jsvg g:nth-of-type(2) text { animation-delay: .7s; }
+.sp-jsvg g:nth-of-type(3) path, .sp-jsvg g:nth-of-type(3) text { animation-delay: .9s; } .sp-jsvg g:nth-of-type(4) path, .sp-jsvg g:nth-of-type(4) text { animation-delay: 1.1s; }
+.sp-jsvg g:nth-of-type(5) path, .sp-jsvg g:nth-of-type(5) text { animation-delay: 1.3s; }
+.sp-jsvg g:nth-of-type(2) circle { animation-delay: -.35s; } .sp-jsvg g:nth-of-type(3) circle { animation-delay: -.7s; } .sp-jsvg g:nth-of-type(4) circle { animation-delay: -1.05s; } .sp-jsvg g:nth-of-type(5) circle { animation-delay: -1.4s; }
+@keyframes sp-draw { to { stroke-dashoffset: 0; } }
+@keyframes sp-fade { to { opacity: 1; } }
+@keyframes sp-ring { 50% { transform: scale(1.35); opacity: .55; } }
+/* palette swatches pop in; list items slide in */
+.sp-palette li { animation: sp-pop .5s cubic-bezier(.3, 1.4, .5, 1) backwards; }
+.sp-palette li:nth-child(1) { animation-delay: .5s; } .sp-palette li:nth-child(2) { animation-delay: .6s; } .sp-palette li:nth-child(3) { animation-delay: .7s; } .sp-palette li:nth-child(4) { animation-delay: .8s; }
+@keyframes sp-pop { from { opacity: 0; transform: scale(.6); } }
+.sp-list li { animation: sp-slide .5s var(--ease) backwards; }
+.sp-list li:nth-child(1) { animation-delay: .6s; } .sp-list li:nth-child(2) { animation-delay: .7s; } .sp-list li:nth-child(3) { animation-delay: .8s; }
+.sp-list li:nth-child(4) { animation-delay: .9s; } .sp-list li:nth-child(5) { animation-delay: 1s; }
+@keyframes sp-slide { from { opacity: 0; transform: translateX(-10px); } }
+/* armor components "load" one after another as the boot goes: grey, then full colour with a tick */
+.sp-strip figure { opacity: .32; transition: opacity .6s ease; }
+.sp-strip figure img { filter: grayscale(1); transition: filter .6s ease; }
+.sp-strip figure.ready { opacity: 1; }
+.sp-strip figure.ready img { filter: none; }
+.sp-strip figcaption::after { content: " ✓"; color: var(--sp-o); opacity: 0; transition: opacity .4s .2s; }
+.sp-strip figure.ready figcaption::after { opacity: 1; }
+
 /* loaded: the panels dissolve one after another (their entrance delays stagger this too) behind an orange scan line */
 .rai-loading.leaving { pointer-events: none; }
 .rai-loading.leaving .sp > * { animation: sp-out .6s cubic-bezier(.4, 0, .2, 1) forwards; }
@@ -634,7 +695,7 @@ main { padding: 0 var(--gap) var(--gap); }
   .sp-views img { flex: none; height: auto; max-height: 420px; }
   .sp-jsvg { flex: none; height: auto; max-height: 340px; }
   .sp-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: none; gap: 10px 8px; }
-  .sp-tiles img { flex: none; height: auto; aspect-ratio: 5 / 3; }
+  .sp-ph { flex: none; aspect-ratio: 5 / 3; }
   .sp-sign { position: static; margin-top: 10px; }
 }
 /* phones: one column, a little tighter */
