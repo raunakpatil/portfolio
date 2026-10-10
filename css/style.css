@@ -537,7 +537,24 @@ main { padding: 0 var(--gap) var(--gap); }
 .sp-motto { font-size: 9.5px; line-height: 1.55; color: var(--sp-dim); }
 .sp-wave { display: block; width: 130px; height: 24px; }
 .sp-ortho { grid-area: ortho; display: flex; flex-direction: column; background-image: linear-gradient(rgba(255, 255, 255, .025) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, .025) 1px, transparent 1px); background-size: 28px 28px; background-color: rgba(12, 14, 16, .92); }
-.sp-ortho img, .sp-joints img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
+/* the three views, each its own render, with dimension lines and labels as real text */
+.sp-views { flex: 1; min-height: 0; display: grid; grid-template-columns: auto repeat(3, minmax(0, 1fr)); gap: 0 12px; }
+.sp-views figure { display: flex; flex-direction: column; align-items: center; min-height: 0; }
+.sp-views img { flex: 1; min-height: 0; width: 100%; object-fit: contain; filter: drop-shadow(0 18px 24px rgba(0, 0, 0, .55)); }
+.sp-views figcaption { margin-top: 6px; font-size: 10px; color: var(--sp-tx); }
+.sp-dim { position: relative; width: 76%; margin-top: 4px; padding-top: 5px; text-align: center; font-size: 8.5px; color: var(--sp-dim); border-top: 1px solid rgba(255, 255, 255, .3); }
+.sp-dim::before, .sp-dim::after { content: ""; position: absolute; top: -4px; width: 1px; height: 7px; background: rgba(255, 255, 255, .45); }
+.sp-dim::before { left: 0; } .sp-dim::after { right: 0; }
+.sp-height { position: relative; display: flex; flex-direction: column; justify-content: center; width: 46px; margin: 2% 0 44px; border-left: 1px solid rgba(255, 255, 255, .3); padding-left: 6px; font-size: 9px; color: var(--sp-tx); }
+.sp-height::before, .sp-height::after { content: ""; position: absolute; left: -4px; width: 7px; height: 1px; background: rgba(255, 255, 255, .45); }
+.sp-height::before { top: 0; } .sp-height::after { bottom: 0; }
+.sp-height b { font-weight: 500; }
+.sp-height small { font-size: 7.5px; text-transform: none; }
+/* the joint diagram: one SVG, so the labels scale with it */
+.sp-jsvg { flex: 1; min-height: 0; width: 100%; overflow: visible; }
+.sp-jsvg circle { fill: none; stroke: var(--sp-o); stroke-width: 3; }
+.sp-jsvg path { fill: none; stroke: var(--sp-o); stroke-width: 2; }
+.sp-jsvg text { fill: var(--sp-tx); font-family: var(--mono); font-size: 21px; letter-spacing: .08em; text-transform: uppercase; }
 .sp-details { grid-area: details; display: flex; flex-direction: column; }
 .sp-tiles { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 8px 10px; }
 .sp-tiles figure, .sp-strip figure { display: flex; flex-direction: column; gap: 4px; min-height: 0; }
@@ -577,10 +594,10 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai-loading.leaving .sp > * { animation: sp-out .6s cubic-bezier(.4, 0, .2, 1) forwards; }
 /* top to bottom, just behind the scan line */
 .rai-loading.leaving .sp > :nth-child(2) { animation-delay: .05s; }
-.rai-loading.leaving .sp > :nth-child(3), .rai-loading.leaving .sp > :nth-child(4), .rai-loading.leaving .sp > :nth-child(6) { animation-delay: .2s; }
-.rai-loading.leaving .sp > :nth-child(5), .rai-loading.leaving .sp > :nth-child(7) { animation-delay: .32s; }
-.rai-loading.leaving .sp > :nth-child(8), .rai-loading.leaving .sp > :nth-child(9), .rai-loading.leaving .sp > :nth-child(10) { animation-delay: .45s; }
-.rai-loading.leaving .sp > :nth-child(11) { animation-delay: .58s; }
+.rai-loading.leaving .sp > :nth-child(3), .rai-loading.leaving .sp > :nth-child(4), .rai-loading.leaving .sp > :nth-child(5) { animation-delay: .2s; }
+.rai-loading.leaving .sp > :nth-child(6) { animation-delay: .32s; }
+.rai-loading.leaving .sp > :nth-child(7), .rai-loading.leaving .sp > :nth-child(8), .rai-loading.leaving .sp > :nth-child(9) { animation-delay: .45s; }
+.rai-loading.leaving .sp > :nth-child(10) { animation-delay: .58s; }
 .rai-loading.leaving::after {
   content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; pointer-events: none;
   background: linear-gradient(90deg, transparent, #e67e22 30%, #ffd2a8 50%, #e67e22 70%, transparent);
@@ -588,14 +605,6 @@ main { padding: 0 var(--gap) var(--gap); }
 }
 @keyframes sp-out { to { opacity: 0; transform: scale(.97) translateY(-8px); filter: blur(6px); } }
 @keyframes sp-scan { 0% { top: 0; opacity: 0; } 12% { opacity: 1; } 85% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
-/* the exploded view and the map: phones only (the laptop board has no room for them) */
-.sp-explode, .sp-map { display: none; }
-.sp-ex { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 4px; align-items: center; }
-.sp-ex img { width: 100%; height: auto; }
-.sp-ex ul { display: grid; gap: 9px; }
-.sp-ex li { display: flex; align-items: center; gap: 8px; font-size: 9.5px; color: var(--sp-tx); }
-.sp-ex li::before { content: ""; flex: none; width: 18px; border-top: 1px dashed rgba(255, 255, 255, .35); }
-.sp-ex li::after { content: ""; order: -1; flex: none; width: 5px; height: 5px; border-radius: 50%; background: var(--sp-o); }
 .sp h3 small { display: inline; font-size: .85em; }
 /* short laptop screens: trim the lists so every panel keeps its room; shorter still, the joint layout steps aside */
 @media (min-width: 1181px) and (max-height: 860px) {
@@ -611,40 +620,36 @@ main { padding: 0 var(--gap) var(--gap); }
   .sp-palette { grid-row: 2 / 4; }
   .sp-palette ul { grid-template-columns: 1fr; }
 }
-/* narrower screens: fewer panels */
+/* tablets and phones: the sheet flows — every panel at its natural, readable size, as many side by side as the
+   width allows (three on a tablet, one on a phone), and it scrolls while he loads if it's taller than the screen */
 @media (max-width: 1180px) {
-  .sp { grid-template-columns: 1fr 1fr; grid-template-rows: auto auto minmax(0, 1fr) auto auto;
-    grid-template-areas: "title title" "top top" "ortho details" "armor armor" "foot foot"; }
-  .sp-palette, .sp-joints, .sp-meas, .sp-notes { display: none; }
-  .sp-tiles { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, minmax(0, 1fr)); }
-  .sp-tiles small { display: none; }
-}
-/* phones: the sheet becomes a column you can scroll while he loads — every panel at a readable size, two side by
-   side wherever the screen has room for them */
-@media (max-width: 760px) {
-  .rai-loading { inset: 8px; display: block; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; text-align: left; }
+  .rai-loading { display: block; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none; text-align: left; }
   .rai-loading::-webkit-scrollbar { display: none; }
   .sp {
-    height: auto; min-height: 100%; gap: 8px; font-size: 10px;
+    height: auto; min-height: 100%;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); grid-template-rows: none; grid-template-areas: none;
   }
   .sp > * { grid-area: auto; }
-  .sp-title, .sp-top, .sp-ortho, .sp-details, .sp-explode, .sp-armor, .sp-foot { grid-column: 1 / -1; }
-  .sp-palette, .sp-meas, .sp-explode { display: block; }
-  .sp-joints { display: flex; }
+  .sp-title, .sp-top, .sp-ortho, .sp-details, .sp-armor, .sp-foot { grid-column: 1 / -1; }
+  .sp-views img { flex: none; height: auto; max-height: 420px; }
+  .sp-jsvg { flex: none; height: auto; max-height: 340px; }
+  .sp-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: none; gap: 10px 8px; }
+  .sp-tiles img { flex: none; height: auto; aspect-ratio: 5 / 3; }
+  .sp-sign { position: static; margin-top: 10px; }
+}
+/* phones: one column, a little tighter */
+@media (max-width: 760px) {
+  .rai-loading { inset: 8px; }
+  .sp { gap: 8px; font-size: 10px; }
   .sp-notes, .sp-id, .sp-foot-log { display: none; }
-  .sp-map { display: block; width: 100%; height: auto; margin: 4px 0 10px; opacity: .9; }
   .sp-title { padding-right: 104px; }                     /* clear of the sound and close buttons */
   .sp-title h2 { font-size: 22px; }
   .sp-title h2 span { display: block; margin: 4px 0 0; }
   .sp-top { grid-template-columns: 1fr 1fr; gap: 12px; padding-right: 14px; }
   .sp-model { padding-left: 12px; }
   .sp-kv { gap: 3px 10px; }
-  .sp-ortho img { flex: none; height: auto; }
-  .sp-joints img { flex: none; height: auto; max-height: 300px; }
-  .sp-tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-rows: none; gap: 10px 8px; }
-  .sp-tiles img { flex: none; height: auto; aspect-ratio: 195 / 112; }
-  .sp-tiles small { display: block; }
+  .sp-views { gap: 0 6px; }
+  .sp-height { width: 30px; }
   .sp-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .sp-strip img { height: 64px; }
   .sp-palette ul { grid-template-columns: 1fr 1fr; }
