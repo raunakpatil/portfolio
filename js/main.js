@@ -297,6 +297,9 @@
       art = { w: j.w, h: j.h, frames: j.frames.map((f) => f.split('\n')) };
     }).catch(() => {});
     let spin = 0.62, vel = 0.00011, nextGlitch = 0, tear = null, scanPat = null, scanCtx = null;
+    let titleKey = '', tBottom = 0, tRight = 0;
+    const PHONE = matchMedia('(max-width: 760px)');
+    document.fonts?.ready.then(() => { titleKey = ''; });
     const noise = Float32Array.from({ length: 4096 }, Math.random);
 
     onFrame(card, (now, dt) => {
@@ -310,7 +313,20 @@
       const turn = ((spin % 1) + 1) % 1;
       const frame = art.frames[Math.floor(turn * art.frames.length) % art.frames.length];
       // where he stands: right of centre, feet near the bottom, as big as the card allows
-      const k = Math.min(1, (h * 0.8) / (art.h * CH), (w * 0.85) / (art.w * CW));
+      let k = Math.min(1, (h * 0.8) / (art.h * CH), (w * 0.85) / (art.w * CW));
+      // on a phone his light cone (and the reticle on his head) would reach in behind the title: there, shrink him so
+      // all of it starts below the title
+      if (titleKey !== `${w}x${h}`) {   // the words' own extent (the heading itself spans the card), per size
+        titleKey = `${w}x${h}`;
+        const cr = canvas.getBoundingClientRect(), range = document.createRange();
+        tBottom = tRight = 0;
+        $$('span', title).forEach((sp) => {
+          range.selectNodeContents(sp.firstChild || sp);
+          const r = range.getBoundingClientRect();
+          tBottom = Math.max(tBottom, r.bottom - cr.top); tRight = Math.max(tRight, r.right - cr.left);
+        });
+      }
+      if (PHONE.matches && w * 0.65 - art.w * CW * k * 0.54 < tRight + 6) k = Math.min(k, (h * 0.93 - tBottom - 10) / (art.h * CH * 1.07));
       const cw = CW * k, ch = CH * k, bw = art.w * cw, bh = art.h * ch;
       const ox = w * 0.65 - bw / 2, oy = h * 0.93 - bh;
       const t = now / 1000, live = MOTION ? 1 : 0;
