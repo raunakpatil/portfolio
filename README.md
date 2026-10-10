@@ -41,9 +41,18 @@ and NIELIT's emblems, used to identify who issued a certificate). Opening a book
 credential `id` and a link to `url`.
 
 ## Ronie's surroundings
-By default Ronie stands on a black, glassy sea under a giant planet with a purple orbit ring, beams of light, stars
-and a crystal-rock shore (`buildSpace` in `js/assistant.js`; everything is placed from where it sits in the design
-frame). The earlier neon-tube room is kept: open `raunakpatil.com/ronie?room=tubes` to see it.
+By default Ronie stands in front of a picture, `img/ronie-bg.webp` (neon mountains under a colossal moon, 3:1),
+behind his transparent 3D canvas. `placeBackdrop` in `js/assistant.js` fits it to the window: on landscape
+screens it fills the frame with the moon just right of him and the waterline 87% down; on portrait screens the
+moon sits behind his head like a halo. A canvas over it brings it to life (`drawBackdropFx`):
+- the water ripples;
+- the neon breathes and flickers, using `img/ronie-bg-glow.webp`, the picture's purple parts;
+- mist drifts along the mountains;
+- the moon's rim glows, its stars twinkle, and a shooting star crosses now and then;
+- the picture drifts slightly against the mouse.
+
+Other rooms are kept: `/ronie?room=space` builds the same idea in 3D, and `/ronie?room=tubes` is the earlier
+neon-tube room.
 
 ## Ronie's extra moves (Blender)
 `models/ronie-anims.glb` holds Ronie's idle variations, the chat moves, and the guessing game's photo moves

@@ -476,6 +476,14 @@ main { padding: 0 var(--gap) var(--gap); }
 }
 .rai-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 1.4s ease; }
 .rai.ready .rai-canvas { opacity: 1; }
+/* his backdrop picture, behind the see-through canvas; js places and sizes it for the window (only the default room) */
+.rai-bg {
+  position: absolute; left: 0; top: 0; max-width: none; width: 100%; pointer-events: none; user-select: none;
+  opacity: 0; transition: opacity 1.4s ease;
+}
+.rai-bgfx { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: opacity 1.4s ease; }
+.rai[data-room="moon"].ready .rai-bg, .rai[data-room="moon"].ready .rai-bgfx { opacity: 1; }
+.rai-bg.tall { -webkit-mask-image: linear-gradient(transparent, #000 10%, #000 86%, transparent); mask-image: linear-gradient(transparent, #000 10%, #000 86%, transparent); }
 .rai [hidden] { display: none !important; }
 .rai::before { /* keeps the dialogue readable over the neon tubes */
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
@@ -879,7 +887,7 @@ main { padding: 0 var(--gap) var(--gap); }
 
 /* the space room's captions: small mono labels round the edges, faded in once he's awake (the panel shows) */
 .rai-hud { display: none; }
-.rai[data-room="space"] .rai-hud {
+.rai:not([data-room="tubes"]) .rai-hud {
   display: block; position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0; transition: opacity 1.4s var(--ease) .8s;
   font-family: var(--mono); font-size: 10.5px; letter-spacing: .3em; text-transform: uppercase; color: rgba(255, 255, 255, .45);
 }
@@ -893,8 +901,9 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai-hud-loop i { display: block; width: 40px; height: 1px; margin-top: 9px; background: linear-gradient(90deg, #fff 70%, rgba(255, 255, 255, .25) 70%); }
 .rai-hud-tag { left: clamp(20px, 5vw, 72px); bottom: 64px; padding-left: 14px; border-left: 1px solid #8a4dff; color: rgba(255, 255, 255, .5); }
 .rai:has(.rai-panel.chatting) .rai-hud-stack, .rai:has(.rai-panel.chatting) .rai-hud-tag { opacity: 0; }
+@media (max-width: 1400px) { .rai-hud-loop { display: none; } }   /* (his shoulder reaches it) */
 @media (max-width: 820px) {
-  .rai[data-room="space"] .rai-hud { display: none; }   /* (no room for captions beside the buttons) */
+  .rai:not([data-room="tubes"]) .rai-hud { display: none; }   /* (no room for captions beside the buttons) */
 }
 .rai-progress { position: absolute; left: 0; right: 0; bottom: 0; z-index: 3; height: 3px; background: rgba(255, 255, 255, .06); }
 .rai-progress i { display: block; width: 0; height: 100%; background: linear-gradient(90deg, #ff7a1a, #38ffb3); transition: width .9s var(--ease); }
