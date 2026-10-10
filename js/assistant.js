@@ -2147,13 +2147,15 @@ function buzz() {
 /* ======================= voice ======================= */
 // With sound on, Ronie says every line he types. Computers that can run it get Kokoro, a small, natural and
 // expressive voice model that runs in the browser (no server, no quota); it starts loading as soon as his room opens,
-// and a line he says before it's ready just goes unspoken — never a different voice for a moment, as the mix sounds
-// like two robots. Phones, and computers where Kokoro can't run or fails to load, get the device's own speech voice
+// and a line he says before it's ready waits for it (spoken the moment it's in, if it's still his latest line) — never a
+// different voice for a moment, as the mix sounds like two robots. (A first visit downloads the model, which can take a
+// while: without the wait, his greeting went unspoken.) Phones, and computers where Kokoro can't run or fails to load, get the device's own speech voice
 // (a male English one where available) for the whole visit. No server voice: it would spend the free AI allowance
 // the chat needs.
 const VOICE = { model: 'onnx-community/Kokoro-82M-v1.0-ONNX', voice: 'am_puck', speed: 1.04, ...(A.voice || {}) };
 let kokoroReady = false, kokoroFailed = false, kokoroLoading = null, voiceToken = 0, voiceSrc = null, voiceAnalyser = null, voiceLevel = 0;
 let speechDone = Promise.resolve();               // settles when the line he's saying now is finished
+let pendingLine = null;                           // a line he said before his voice was ready: { text, token, at }
 const voiceData = new Uint8Array(256);
 const audioCtx = () => (audio ||= new (window.AudioContext || window.webkitAudioContext)());
 
@@ -2184,7 +2186,13 @@ function loadKokoro() {
     kokoroReady = true;
     return true;
   })().catch((err) => { console.warn('natural voice unavailable, using the quick one', err); return false; })
-    .then((ok) => { if (!ok) kokoroFailed = true; return ok; });
+    .then((ok) => {
+      if (!ok) kokoroFailed = true;
+      // the line he's been waiting to say, if nothing has been said since and it isn't stale
+      const p = pendingLine; pendingLine = null;
+      if (p && p.token === voiceToken && performance.now() - p.at < 30000) speak(p.text);
+      return ok;
+    });
   return kokoroLoading;
 }
 
@@ -2243,8 +2251,8 @@ async function speak(text) {
       }
       return;
     }
-    // Kokoro is still on its way: this line goes unspoken rather than in a second, different voice
-    if (!kokoroFailed) return;
+    // Kokoro is still on its way: the line waits for it (see loadKokoro) rather than going out in a second voice
+    if (!kokoroFailed) { pendingLine = { text: said, token: my, at: performance.now() }; loadKokoro(); return; }
     // phones, and computers that can't run Kokoro: the device's own voice (free, no server, no quota)
     await speakDevice(said, my);
   } catch { /* no voice this time — the text is still there */ }
