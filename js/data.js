@@ -7,6 +7,8 @@ window.PORTFOLIO = {
   name: 'Raunak Patil',
   shortName: 'RP',
   timezone: 'Europe/London', // used for the live clock in the menu
+  // what Ronie leads with: newer than anything else in this file, so it wins wherever they disagree
+  status: "Open to work — looking for his next role. Living in Nagpur, India right now. He's no longer at Sigma AI (he was an AI Quality Engineer there from Apr 2024).",
   bio: 'AI Quality Engineer (LLM & Generative AI) at Sigma AI in London — auditing RAG systems, evaluating LLMs and building RLHF quality frameworks. MSc Data Science & AI, University of Liverpool.',
 
   links: [
@@ -482,12 +484,12 @@ window.PORTFOLIO = {
       'journey-2': { progress: 0.4, story: 'journey-3', say: ["Signals and circuits by day… and a growing obsession with machine learning by night."] },
       'journey-3': { progress: 0.55, story: 'journey-4', say: ["In 2021 he joined Zummit Infolabs in Bengaluru as a Junior Data Scientist. His models cut equipment downtime by 15%."] },
       'journey-4': { progress: 0.7, story: 'journey-5', say: ["Then the UK: an MSc in Data Science & AI at the University of Liverpool, with a dissertation on multi-agent reinforcement learning."] },
-      'journey-5': { progress: 0.85, story: 'story-done', say: ["Today he's an AI Quality Engineer at Sigma AI in London, making large language models more trustworthy."] },
+      'journey-5': { progress: 0.85, story: 'story-done', say: ["Most recently he was an AI Quality Engineer at Sigma AI in London, making large language models more trustworthy. Now he's back in Nagpur — and open to work."] },
       'builds-1': { progress: 0.3, story: 'builds-2', say: ["He builds free tools. Like ResRescue — a desktop app that rewrites résumés to get past applicant tracking systems."] },
       'builds-2': { progress: 0.5, story: 'builds-3', say: ["And a YouTube Agentic AI Studio that researches, scripts, narrates and uploads videos on its own. 96 stars on GitHub."] },
       'builds-3': { progress: 0.7, story: 'builds-4', say: ["There's TriviaFlux, an AI trivia game, and a Titanic survival predictor that explains its own decisions with SHAP."] },
       'builds-4': { progress: 0.85, story: 'story-done', say: ["And Interdimensional Cable — a retro TV that streams random rabbit holes. The man has range."] },
-      'works-1': { progress: 0.3, story: 'works-2', say: ["At Sigma AI he audits RAG systems, tracing hallucinations back to their source. Dataset accuracy went up 18%."] },
+      'works-1': { progress: 0.3, story: 'works-2', say: ["At Sigma AI he audited RAG systems, tracing hallucinations back to their source. Dataset accuracy went up 18%."] },
       'works-2': { progress: 0.5, story: 'works-3', say: ["He's been data controller on 14+ multilingual LLM projects — with 100% compliance on safety and alignment guidelines."] },
       'works-3': { progress: 0.7, story: 'works-4', say: ["He led a team of four reviewers on RLHF datasets, and built Power BI tracking that made the team 27% more consistent."] },
       'works-4': { progress: 0.85, story: 'story-done', say: ["His rule of thumb: the best AI system is one that knows what it doesn't know. I'm working on it."] },
