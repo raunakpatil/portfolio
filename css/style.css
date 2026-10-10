@@ -1332,10 +1332,7 @@ main { padding: 0 var(--gap) var(--gap); }
 .trait:hover .trait-tags span { box-shadow: var(--dneu-in); }
 .id-card { box-shadow: var(--neu-in); }
 
-/* header tabs: the open page raised (the black key), the others pressed in */
-.tabs { gap: 4px; }
-.tabs a { box-shadow: var(--neu-in-sm); transition: color .35s, box-shadow .35s; }
-.tabs a.active { box-shadow: none; }
+/* header tabs: a plain white bar; only the open page is raised (the black key) */
 .tabs-indicator { box-shadow: var(--key); }
 /* links button: pressed in while closed, raised (black) when open; its icons pressed in, rising on hover */
 .social-btn { box-shadow: var(--neu-in-sm); }
