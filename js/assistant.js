@@ -1758,8 +1758,8 @@ function linksFor(reply) {
   for (const p of D.projects) {
     if (p.link && p.link !== '#' && reply.toLowerCase().includes(p.title.toLowerCase())) out.push({ label: p.title, href: p.link });
   }
-  // he said the links are below but named none: the ways to reach Raunak
-  if (!out.length && /\b(below|underneath|under this)\b/i.test(reply)) {
+  // about hiring or reaching him, but no place named: the ways to reach Raunak
+  if (!out.length && /open to (work|new roles|opportunities)|\bhir(e|ing)\b|reach (him|out|raunak)|contact|connect|get in touch|next role/i.test(reply)) {
     for (const p of PLACES.slice(0, 2)) if (p.href()) out.push({ label: p.label, href: p.href() });
   }
   return out.slice(0, 6);
@@ -1769,6 +1769,9 @@ const scrubLinks = (text) => text
   .replace(/[\w.+-]+@[\w-]+\.[\w.]+\w/g, 'his email')
   .replace(/\(?https?:\/\/\S+?\)?(?=[\s,]|[.!?]?$|[.!?]\s)/g, 'the link below')
   .replace(/\s{2,}/g, ' ');
+// when there are buttons, he points at them — a different line each time
+const POINT = ['The links are just below.', 'Tap one below to take a look.', "They're waiting right under this message.", 'Buttons below, if you want a closer look.', 'Everything you need is one tap below.', 'I left the links right underneath.', 'Scroll a hair down — the links are there.'];
+const POINTS_DOWN = /\b(below|underneath|under this)\b/i;
 function linkRow(links) {
   const row = document.createElement('div');
   row.className = 'rai-links';
@@ -1895,7 +1898,9 @@ function showChat(id, step, offerEmail = false, links = []) {
       return showChat(id, step, true);
     }
     if (answer) {
-      const reply = scrubLinks(answer.reply);
+      let reply = scrubLinks(answer.reply);
+      const links = linksFor(`${answer.reply} ${reply}`);
+      if (links.length && !POINTS_DOWN.test(reply)) reply = `${reply} ${pick(POINT)}`;
       chatLog.push({ role: 'assistant', content: reply });
       // his expression and icon follow the answer: the model's pick, or what the answer is about
       const mood = FACES[answer.face] ? answer.face : 'happy';
@@ -1909,7 +1914,7 @@ function showChat(id, step, offerEmail = false, links = []) {
       setIcon(mood === 'confused' && shown === 'question' ? null : shown, 9000);
       await typeLine(reply);
       setTimeout(() => { if (face.name === mood) setFace('neutral'); }, 2500);
-      showChat(id, step, false, linksFor(`${answer.reply} ${reply}`));
+      showChat(id, step, false, links);
     } else {
       chatLog.pop();
       setFace('sleepy');
