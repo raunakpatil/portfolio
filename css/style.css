@@ -17,16 +17,14 @@
   --font: "Inter Tight", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
   --ease: cubic-bezier(.7, 0, .2, 1);
-  /* soft UI (the header's buttons): moulded out of the page itself — lit from the top left, shadowed bottom right;
-     raised when at rest, pressed in when active, with an orange accent */
+  /* soft depth for the header's buttons (their colours unchanged): lit from the top left, shadowed bottom right —
+     raised at rest, pressed in where it's a well */
   --neu-hi: rgba(255, 255, 255, .95);
   --neu-lo: rgba(163, 168, 186, .55);
   --neu-out: -5px -5px 12px var(--neu-hi), 5px 5px 12px var(--neu-lo);
   --neu-out-sm: -3px -3px 8px var(--neu-hi), 3px 3px 8px var(--neu-lo);
   --neu-in: inset 3px 3px 6px var(--neu-lo), inset -3px -3px 6px var(--neu-hi);
   --neu-in-sm: inset 2px 2px 4px var(--neu-lo), inset -2px -2px 4px var(--neu-hi);
-  --neu-accent: #ff7a1a;
-  --neu-accent-ink: #c2470a;      /* (the orange, deep enough for small text on the grey) */
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -60,18 +58,18 @@ img { display: block; max-width: 100%; }
 
 .tabs {
   position: relative; display: flex; padding: 4px;
-  background: var(--bg); border-radius: 999px;
-  box-shadow: var(--neu-out);
+  background: var(--surface); border-radius: 999px;
+  box-shadow: var(--neu-out), 0 0 0 1px rgba(0, 0, 0, .04);
 }
 .tabs a {
   position: relative; z-index: 1; padding: 6px 20px; border-radius: 999px;
-  font-size: 13px; color: #555; white-space: nowrap; transition: color .35s;
+  font-size: 13px; color: #333; white-space: nowrap; transition: color .35s;
 }
-.tabs a:hover { color: #111; }
-.tabs a.active { color: var(--neu-accent-ink); font-weight: 500; }
+.tabs a.active { color: #fff; }
 .tabs-indicator {
   position: absolute; top: 4px; bottom: 4px; left: 0; width: 0;
-  background: var(--bg); box-shadow: var(--neu-in); border-radius: 999px;
+  background: #111; border-radius: 999px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .18), 0 3px 8px rgba(0, 0, 0, .22);   /* a black key with a little depth */
   transition: transform .5s var(--ease), width .5s var(--ease);
 }
 
@@ -81,9 +79,9 @@ img { display: block; max-width: 100%; }
 .social { --snap: cubic-bezier(.22, 1, .36, 1); justify-self: end; position: relative; z-index: 2; display: flex; align-items: center; height: 40px; }
 .social-btn {
   position: relative; z-index: 1; display: grid; place-items: center;
-  width: 46px; height: 28px; margin-right: 6px; border-radius: 999px; color: #555;
-  background: var(--bg); box-shadow: var(--neu-out-sm);
-  transition: color .45s var(--snap), box-shadow .45s var(--snap);
+  width: 46px; height: 28px; margin-right: 6px; border-radius: 999px; color: #111;
+  background: var(--surface); box-shadow: var(--neu-out-sm), 0 0 0 1px rgba(0, 0, 0, .04);
+  transition: background .45s var(--snap), color .45s var(--snap), box-shadow .45s var(--snap);
 }
 .social-dots {
   display: grid; grid-template-columns: repeat(2, 4px); gap: 3.5px;
@@ -94,24 +92,27 @@ img { display: block; max-width: 100%; }
 .social-btn:hover .social-dots i:nth-child(2) { transform: translate(1px, -1px); }
 .social-btn:hover .social-dots i:nth-child(3) { transform: translate(-1px, 1px); }
 .social-btn:hover .social-dots i:nth-child(4) { transform: translate(1px, 1px); }
-.social-btn:active { box-shadow: var(--neu-in-sm); }
-.social.open .social-btn { color: var(--neu-accent); box-shadow: var(--neu-in-sm); --turn: 45deg; }   /* pressed in; the square turns into a diamond */
+.social-btn:active { box-shadow: var(--neu-in-sm), 0 0 0 1px rgba(0, 0, 0, .04); }
+.social.open .social-btn {                                    /* black like the active tab; the square turns into a diamond */
+  background: #111; color: #fff; --turn: 45deg;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .18), 0 3px 8px rgba(0, 0, 0, .22);
+}
 .social.open .social-btn:hover .social-dots i { transform: none; }
 .social-links {
   position: absolute; right: 0; top: 0; height: 40px; display: flex; align-items: center; gap: 2px;
   padding: 0 58px 0 6px; border-radius: 999px; white-space: nowrap;
-  background: var(--bg); box-shadow: var(--neu-out);
+  background: var(--surface); box-shadow: var(--neu-out), 0 0 0 1px rgba(0, 0, 0, .04);
   clip-path: inset(6px 6px 6px calc(100% - 52px) round 999px);          /* closed: just the button's own pill */
   transition: clip-path .55s var(--snap); will-change: clip-path;
 }
 .social.open .social-links { clip-path: inset(-18px round 999px); }   /* (room for its soft shadow) */
 .social-links a {
-  position: relative; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #666;
+  position: relative; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #555;
   opacity: 0; transform: translateX(10px);
   transition: opacity .3s var(--snap), transform .45s var(--snap), box-shadow .3s var(--snap), color .25s;
 }
 .social.open .social-links a { opacity: 1; transform: none; transition-delay: calc(var(--i) * 45ms + 80ms), calc(var(--i) * 45ms + 80ms), 0s, 0s; }
-.social-links a:hover { box-shadow: var(--neu-in-sm); color: var(--neu-accent-ink); }   /* sinks into a small well */
+.social-links a:hover { box-shadow: var(--neu-in-sm); color: #111; }   /* sinks into a small well */
 .social-links svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .social-links a::after {           /* its name, small, underneath on hover */
   content: attr(data-label); position: absolute; top: calc(100% + 10px); left: 50%; transform: translate(-50%, -4px);
