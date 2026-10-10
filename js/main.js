@@ -1361,7 +1361,9 @@
         title: c.title, year: c.date, category: `Certificate · ${issuerShort(c.issuer)}`,
         description: `${c.brief || ''}${c.id ? ` Credential ID: ${c.id}.` : ''} Issued by ${c.issuer}.`,
         tags: c.skills, link: c.url, linkText: 'Show credential ↗',
-        mediaHTML: `<div class="modal-cover" style="--spine:${esc(c.spine)}">${certCoverHTML(c, i)}</div>`,
+        // the real certificate when there's a scan of it, else the book's cover
+        mediaHTML: `<div class="modal-cover" style="--spine:${esc(c.spine)}">${c.scan
+          ? `<img class="modal-scan" src="${esc(c.scan)}" alt="${esc(c.title)} certificate">` : certCoverHTML(c, i)}</div>`,
       });
     });
   }

@@ -992,6 +992,7 @@ main { padding: 0 var(--gap) var(--gap); }
 }
 .modal-cover { position: absolute; inset: 0; display: grid; place-items: center; background: var(--spine); }
 .modal-cover .cover { width: auto; height: 86%; aspect-ratio: 3 / 4; border-radius: 3px 6px 6px 3px; box-shadow: 0 18px 40px rgba(0, 0, 0, .35); }
+.modal-scan { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 88%; max-height: 84%; border-radius: 4px; box-shadow: 0 18px 40px rgba(0, 0, 0, .35); }   /* a certificate itself, fitted inside the coloured band */
 
 /* Library: two cards side by side — case studies (a bookshelf) and certificates (a file folder), each with its title */
 /* the whole Library fits one screen, never scrolls: the view is exactly the space under the nav bar, the cards share
