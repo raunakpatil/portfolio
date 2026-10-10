@@ -103,31 +103,31 @@ window.PORTFOLIO = {
      Add image: 'img/your-shot.jpg' to use a real screenshot instead. */
   projects: [
     {
-      title: 'YouTube Agentic AI Studio', category: 'AI Agents', year: 2026, image: 'img/projects/youtube-agentic-ai-studio.webp', imageFocus: '50% 55%', colors: ['#c6f432', '#7c5cff'],
+      title: 'YouTube Agentic AI Studio', category: 'AI Agents', year: 2026, image: 'img/projects/youtube-agentic-ai-studio.webp', imageMobile: 'img/projects/youtube-agentic-ai-studio-mobile.webp', colors: ['#c6f432', '#7c5cff'],
       tags: ['Python', 'Gemini', 'LangChain', 'Edge TTS', 'YouTube API'],
       description: 'A 100% free AI pipeline that researches, scripts, narrates, animates and auto-uploads faceless YouTube videos — one command, zero cost per video. 96★ on GitHub.',
       link: 'https://github.com/raunakpatil/youtube-agentic-ai-studio',
     },
     {
-      title: 'ResRescue', category: 'App', year: 2026, image: 'img/projects/resrescue.webp', colors: ['#7c5cff', '#22d3ee'],
+      title: 'ResRescue', category: 'App', year: 2026, image: 'img/projects/resrescue.webp', imageMobile: 'img/projects/resrescue-mobile.webp', colors: ['#7c5cff', '#22d3ee'],
       tags: ['React 18', 'Electron', 'Gemini API', 'Vite', 'Tailwind'],
       description: 'A free AI-powered desktop app that scrapes jobs, rewrites your resume to beat Applicant Tracking Systems, finds skill gaps, writes cover letters and exports pixel-perfect PDF & DOCX.',
       link: 'https://github.com/raunakpatil/Resrescue-ats-resume-optimizer',
     },
     {
-      title: 'TriviaFlux', category: 'App', year: 2026, image: 'img/projects/triviaflux.webp', colors: ['#ff4fd8', '#22d3ee'],
+      title: 'TriviaFlux', category: 'App', year: 2026, image: 'img/projects/triviaflux.webp', imageMobile: 'img/projects/triviaflux-mobile.webp', colors: ['#ff4fd8', '#22d3ee'],
       tags: ['Next.js 15', 'TypeScript', 'Firebase', 'Genkit'],
       description: 'An AI-powered trivia game with Genkit-generated questions, four game modes, real-time leaderboards, a cyberpunk UI and a full Android APK release.',
       link: 'https://github.com/raunakpatil/triviaflux',
     },
     {
-      title: 'Titanic Survival Predictor', category: 'Dashboard', year: 2026, image: 'img/projects/titanic-survival-predictor.webp', imageFocus: '50% 64%', colors: ['#3b82f6', '#5eead4'],
+      title: 'Titanic Survival Predictor', category: 'Dashboard', year: 2026, image: 'img/projects/titanic-survival-predictor.webp', imageMobile: 'img/projects/titanic-survival-predictor-mobile.webp', colors: ['#3b82f6', '#5eead4'],
       tags: ['XGBoost', 'SHAP', 'Streamlit', 'Plotly'],
       description: 'An interactive ML explainability dashboard: survival prediction, passenger search, a fairness audit and model insights powered by XGBoost and SHAP.',
       link: 'https://titanic-survival-predictor-untighkxeujjcqbj7h79kn.streamlit.app/',
     },
     {
-      title: 'Interdimensional Cable', category: 'Website', year: 2026, image: 'img/projects/interdimensional-cable.webp', imageFocus: '50% 74%', colors: ['#4ade80', '#a78bfa'],
+      title: 'Interdimensional Cable', category: 'Website', year: 2026, image: 'img/projects/interdimensional-cable.webp', imageMobile: 'img/projects/interdimensional-cable-mobile.webp', colors: ['#4ade80', '#a78bfa'],
       tags: ['Vanilla JS', 'Canvas', 'Web Audio API', 'YouTube API'],
       description: 'A nostalgic analog-TV simulator inspired by Rick and Morty — no algorithm, no grid, just a non-stop stream of curated rabbit holes behind a CSS CRT and a 60fps canvas static engine.',
       link: 'https://raunakpatil.github.io/InterdimentionalCable/',
