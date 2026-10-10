@@ -2249,7 +2249,7 @@ function updateCard(now, dt) {
 }
 const guessedName = (text) => {
   const m = text.match(/\b(?:is it|was it|did you mean|are you thinking of|is this person|was this person|is this character|is the character|is he|is she)\s+(?:the\s+)?["“]?([^?"”]{2,60}?)["”]?\s*\?/i);
-  return m ? m[1].trim() : null;
+  return m ? m[1].trim().replace(/^(a|an|the)\s+/i, '').replace(/^(type|kind|sort) of\s+/i, '') : null;
 };
 
 // Like Akinator: the visitor thinks of someone or something; Ronie asks yes/no questions (worker mode 'game') and
@@ -2311,7 +2311,7 @@ async function gameAsk(my, first = false) {
   actions.innerHTML = '';
   setStatus('mind reader · thinking…', 'game busy');
   // (if he's still throwing away a wrong guess, he finishes that first)
-  if (performance.now() >= busyUntil) { setFace('thinking'); setIcon('dots', 30000); playGesture('think'); }
+  if (performance.now() >= busyUntil) { setFace('thinking'); setIcon('dots', 30000); if (Math.random() < 0.5) playGesture(Math.random() < 0.6 ? 'think' : 'scratch'); }
   else untilFree().then(() => { if (my === game.token && sayEl.textContent === '…') { setFace('thinking'); setIcon('dots', 30000); } });
   sayEl.classList.remove('done'); sayEl.textContent = '…';
   const res = await askGame();
@@ -2328,6 +2328,17 @@ async function gameAsk(my, first = false) {
   showQuestion(my, res);
 }
 
+// each question gets its own body language: a mix of moves, never the same one twice running, now and then none
+const ASK_MOVES = ['think', 'scratch', 'point', 'present', 'nod', 'think', 'point'];
+const askMoves = [];
+function askMove(wanted) {
+  if (Math.random() < 0.2) return null;
+  const fresh = (m) => gestures[m] && !askMoves.slice(-2).includes(m);
+  const m = wanted === 'shake' && fresh('shake') ? 'shake' : pick(ASK_MOVES.filter(fresh)) || null;
+  if (m) askMoves.push(m);
+  return m;
+}
+
 async function showQuestion(my, res) {
   await untilFree();                       // a photo still being thrown away lands first
   if (my !== game.token) return;
@@ -2337,11 +2348,12 @@ async function showQuestion(my, res) {
   if (res.guess) {
     // he's got it! down he goes for a photo of his guess, and comes up holding it, thrilled
     setFace('excited'); setIcon(null);
-    held = pickUpPhoto(guessedName(res.reply));
+    held = pickUpPhoto(res.name || guessedName(res.reply));
     if (!held) playGesture('point');
   } else {
     setFace(FACES[res.face] ? res.face : 'curious'); setIcon(null);
-    if (res.move && gestures[res.move]) playGesture(res.move);
+    const move = askMove(res.move);
+    if (move) playGesture(move);
   }
   await typeLine(res.reply);
   if (my !== game.token) return;
