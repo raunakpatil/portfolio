@@ -6,10 +6,10 @@
 window.PORTFOLIO = {
   name: 'Raunak Patil',
   shortName: 'RP',
-  timezone: 'Europe/London', // used for the live clock in the menu
+  timezone: 'Asia/Kolkata', // used for the live clock in the menu
   // what Ronie leads with: newer than anything else in this file, so it wins wherever they disagree
   status: "Open to work — looking for his next role. Living in Nagpur, India right now. He's no longer at Sigma AI (he was an AI Quality Engineer there from Apr 2024).",
-  bio: 'AI Quality Engineer (LLM & Generative AI) at Sigma AI in London — auditing RAG systems, evaluating LLMs and building RLHF quality frameworks. MSc Data Science & AI, University of Liverpool.',
+  bio: 'AI Quality Engineer (LLM & Generative AI) — auditing RAG systems, evaluating LLMs and building RLHF quality frameworks, most recently at Sigma AI in London. Now based in Nagpur, India and open to work. MSc Data Science & AI, University of Liverpool.',
 
   links: [
     { label: 'Email', href: 'mailto:raunakpatil15@gmail.com' },
@@ -36,7 +36,7 @@ window.PORTFOLIO = {
     perDay: [4, 6],        // hours added per day
     unit: 'Hours',
     start: { year: 2021, city: 'Bengaluru', region: 'India', lat: 12.9716, lon: 77.5946, hours: 1900 }, // estimate
-    end: { year: 'now', city: 'London', region: 'the UK', lat: 51.5072, lon: -0.1276 },
+    end: { year: 2026, city: 'London', region: 'the UK', lat: 51.5072, lon: -0.1276 },   // his UK years, up to 2026
   },
 
   /* Card 3 — skill matrix. Scores are self-assessed estimates; they're shown as
@@ -84,7 +84,7 @@ window.PORTFOLIO = {
       'A friend to robots, a critic of their facts.',
       'A night owl with a GPU.',
       'Fluent in Python, Hindi, Marathi and English.',
-      'From Nagpur to London, still curious.',
+      'From Nagpur to London and back, still curious.',
       'A student who never logged off.',
     ],
   },
@@ -96,7 +96,7 @@ window.PORTFOLIO = {
     { years: '2015 — 2021', org: 'BE, Electrical, Electronics & Communications Engineering', role: 'GH Raisoni University', place: 'Nagpur, IN', lat: 21.1458, lon: 79.0882 },
     { years: 'Feb 2021 — Jan 2022', org: 'Junior Data Scientist · Zummit Infolabs', role: 'Internship — predictive maintenance ML, TensorFlow, DNNs', place: 'Bengaluru, IN', lat: 12.9716, lon: 77.5946 },
     { years: 'Sep 2022 — Sep 2023', org: 'MSc Data Science & AI · University of Liverpool', role: 'Dissertation: Multi-Agent Reinforcement Learning (MARL)', place: 'Liverpool, UK', lat: 53.4084, lon: -2.9916 },
-    { years: 'Apr 2024 — Present', org: 'AI Quality Engineer · Sigma AI', role: 'LLM & Generative AI — RAG auditing, RLHF, LLM QA', place: 'Hammersmith, London, UK', lat: 51.4927, lon: -0.2239 },
+    { years: 'Apr 2024 — 2026', org: 'AI Quality Engineer · Sigma AI', role: 'LLM & Generative AI — RAG auditing, RLHF, LLM QA', place: 'Hammersmith, London, UK', lat: 51.4927, lon: -0.2239 },
   ],
 
 
@@ -208,7 +208,7 @@ window.PORTFOLIO = {
         { label: 'Builder', value: 85 },
       ],
       goal: ['Builds AI people can trust', 'Finds signal in the noise', 'Ships tools that are free for everyone'],
-      role: 'AI Quality Engineer · Sigma AI',
+      role: 'AI Quality Engineer · Open to work',
       photo: 'https://avatars.githubusercontent.com/u/90265520?v=4&s=400',
       quote: 'The best AI system is one that knows what it doesn\'t know.',
       mindset: ['Learns best by building', 'Measures before guessing', 'Treats edge cases as the real test'],
