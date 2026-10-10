@@ -1,11 +1,39 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#ffa060"/>
-      <stop offset="1" stop-color="#ff6a10"/>
-    </linearGradient>
-  </defs>
-  <rect width="64" height="64" rx="14" fill="#111"/>
-  <path d="M5 15 L13 5 H51 L59 15 L32 60 Z" fill="url(#g)"/>
-  <path d="M24 37 V13 H32 a7 7 0 0 1 0 14 H24 M30.5 27 L40 37" fill="none" stroke="#111" stroke-width="6.5" stroke-linejoin="miter"/>
+  <!-- R in dots, like Ronie's hologram and loading screen -->
+  <rect width="64" height="64" rx="14" fill="#111111"/>
+  <circle cx="17" cy="11" r="2.7" fill="#f2f2f2"/>
+  <circle cx="24.5" cy="11" r="2.7" fill="#f2f2f2"/>
+  <circle cx="32" cy="11" r="2.7" fill="#f2f2f2"/>
+  <circle cx="39.5" cy="11" r="2.7" fill="#f2f2f2"/>
+  <circle cx="47" cy="11" r="1.3" fill="#3a3a3a"/>
+  <circle cx="17" cy="18" r="2.7" fill="#f2f2f2"/>
+  <circle cx="24.5" cy="18" r="1.3" fill="#3a3a3a"/>
+  <circle cx="32" cy="18" r="1.3" fill="#3a3a3a"/>
+  <circle cx="39.5" cy="18" r="1.3" fill="#3a3a3a"/>
+  <circle cx="47" cy="18" r="2.7" fill="#f2f2f2"/>
+  <circle cx="17" cy="25" r="2.7" fill="#f2f2f2"/>
+  <circle cx="24.5" cy="25" r="1.3" fill="#3a3a3a"/>
+  <circle cx="32" cy="25" r="1.3" fill="#3a3a3a"/>
+  <circle cx="39.5" cy="25" r="1.3" fill="#3a3a3a"/>
+  <circle cx="47" cy="25" r="2.7" fill="#f2f2f2"/>
+  <circle cx="17" cy="32" r="2.7" fill="#f2f2f2"/>
+  <circle cx="24.5" cy="32" r="2.7" fill="#f2f2f2"/>
+  <circle cx="32" cy="32" r="2.7" fill="#f2f2f2"/>
+  <circle cx="39.5" cy="32" r="2.7" fill="#f2f2f2"/>
+  <circle cx="47" cy="32" r="1.3" fill="#3a3a3a"/>
+  <circle cx="17" cy="39" r="2.7" fill="#f2f2f2"/>
+  <circle cx="24.5" cy="39" r="1.3" fill="#3a3a3a"/>
+  <circle cx="32" cy="39" r="2.7" fill="#f2f2f2"/>
+  <circle cx="39.5" cy="39" r="1.3" fill="#3a3a3a"/>
+  <circle cx="47" cy="39" r="1.3" fill="#3a3a3a"/>
+  <circle cx="17" cy="46" r="2.7" fill="#f2f2f2"/>
+  <circle cx="24.5" cy="46" r="1.3" fill="#3a3a3a"/>
+  <circle cx="32" cy="46" r="1.3" fill="#3a3a3a"/>
+  <circle cx="39.5" cy="46" r="2.7" fill="#f2f2f2"/>
+  <circle cx="47" cy="46" r="1.3" fill="#3a3a3a"/>
+  <circle cx="17" cy="53" r="2.7" fill="#f2f2f2"/>
+  <circle cx="24.5" cy="53" r="1.3" fill="#3a3a3a"/>
+  <circle cx="32" cy="53" r="1.3" fill="#3a3a3a"/>
+  <circle cx="39.5" cy="53" r="1.3" fill="#3a3a3a"/>
+  <circle cx="47" cy="53" r="2.7" fill="#f2f2f2"/>
 </svg>
