@@ -1769,6 +1769,17 @@ const scrubLinks = (text) => text
   .replace(/[\w.+-]+@[\w-]+\.[\w.]+\w/g, 'his email')
   .replace(/\(?https?:\/\/\S+?\)?(?=[\s,]|[.!?]?$|[.!?]\s)/g, 'the link below')
   .replace(/\s{2,}/g, ' ');
+// the project an answer is about (the first one it names that has a picture), for him to hold up
+function projectIn(text) {
+  const t = text.toLowerCase();
+  let best = null, at = Infinity;
+  for (const p of D.projects) {
+    const i = p.image && p.link && p.link !== '#' ? t.indexOf(p.title.toLowerCase()) : -1;
+    if (i >= 0 && i < at) { best = p; at = i; }
+  }
+  return best;
+}
+
 // when there are buttons, he points at them — a different line each time
 const POINT = ['The links are just below.', 'Tap one below to take a look.', "They're waiting right under this message.", 'Buttons below, if you want a closer look.', 'Everything you need is one tap below.', 'I left the links right underneath.', 'Scroll a hair down — the links are there.'];
 const POINTS_DOWN = /\b(below|underneath|under this)\b/i;
@@ -1884,7 +1895,7 @@ function showChat(id, step, offerEmail = false, links = []) {
     chatLog.push({ role: 'user', content: q });
     setFace('thinking');
     setIcon('dots', 30000);
-    playGesture('think');
+    if (!(holdingProject() && throwPhoto('toss'))) playGesture('think');
     sayEl.classList.remove('done');
     sayEl.textContent = '…';
     const answer = await askRonie();
@@ -1905,7 +1916,10 @@ function showChat(id, step, offerEmail = false, links = []) {
       // his expression and icon follow the answer: the model's pick, or what the answer is about
       const mood = FACES[answer.face] ? answer.face : 'happy';
       const move = gestures[answer.move] ? answer.move : moveFor(q, reply);
-      if (move) playGesture(move);
+      // about a project: he picks up its card and shows it while he talks (once a throw has landed); else his move
+      const proj = projectIn(reply);
+      if (proj) untilFree().then(() => { if (history[history.length - 1] === id && !pickUpProject(proj) && move) playGesture(move); });
+      else if (move) playGesture(move);
       setFace(mood);
       // a "?" only when he's actually unsure; otherwise show what the answer is about
       const unsure = /don.t know|not sure|no information|don.t have/i.test(reply);
@@ -1991,8 +2005,10 @@ const TOSS = {                               // when each throw lets go, and its
   toss: { release: 0.42, push: [-2.6, 1.4, 0.3], spin: 8 },
 };
 const CARD_W = 0.27, CARD_H = 0.33;
+const PROJ_W = 0.42, PROJ_H = 0.3;          // a project's card: landscape, so its 16:9 picture shows whole
 const card = {
   group: null, tex: null, canvas: null, state: 'off', toss: null, token: 0, scale: 0, flyT: 0, name: '', img: null,
+  mode: 'photo', project: null, faces: null, pCanvas: null, pTex: null, pFront: null, heldTimer: 0,
   vel: new THREE.Vector3(), spin: new THREE.Vector3(), prev: new THREE.Vector3(), handVel: new THREE.Vector3(),
 };
 let rHand = null, busyUntil = 0;
@@ -2013,10 +2029,74 @@ function buildCard() {
   const back = new THREE.Mesh(new THREE.PlaneGeometry(CARD_W, CARD_H), new THREE.MeshStandardMaterial({
     color: 0xe8e3d8, emissive: 0xe8e3d8, emissiveIntensity: 0.15, roughness: 0.85 }));
   back.rotation.y = Math.PI;
+  // the project card: the same paper, landscape
+  card.pCanvas = document.createElement('canvas');
+  card.pCanvas.width = 700; card.pCanvas.height = 500;
+  card.pTex = new THREE.CanvasTexture(card.pCanvas);
+  card.pTex.colorSpace = THREE.SRGBColorSpace;
+  card.pTex.anisotropy = 4;
+  card.pFront = new THREE.Mesh(new THREE.PlaneGeometry(PROJ_W, PROJ_H), new THREE.MeshStandardMaterial({
+    map: card.pTex, emissiveMap: card.pTex, emissive: 0xffffff, emissiveIntensity: 0.55, roughness: 0.55 }));
+  const pBack = new THREE.Mesh(new THREE.PlaneGeometry(PROJ_W, PROJ_H), back.material);
+  pBack.rotation.y = Math.PI;
+  card.faces = { photo: [front, back], project: [card.pFront, pBack] };
   card.group = new THREE.Group();
-  card.group.add(front, back);
+  card.group.add(front, back, card.pFront, pBack);
   card.group.visible = false;
   scene.add(card.group);
+  setCardMode('photo');
+}
+function setCardMode(mode) {
+  card.mode = mode;
+  for (const [m, meshes] of Object.entries(card.faces)) for (const o of meshes) o.visible = m === mode;
+}
+
+// a project's card: its picture whole (16:9), its name underneath and a small "tap to open"
+function drawProjectCard() {
+  const c = card.pCanvas, x = c.getContext('2d'), W = c.width, H = c.height, m = 26, iw = W - 2 * m, ih = Math.round(iw * 9 / 16);
+  const p = card.project || {}, img = card.img;
+  x.fillStyle = '#f3efe6'; x.fillRect(0, 0, W, H);
+  x.fillStyle = '#1b1b1b'; x.fillRect(m, m, iw, ih);
+  if (img) {
+    const k = Math.min(iw / img.width, ih / img.height), dw = img.width * k, dh = img.height * k;
+    x.drawImage(img, m + (iw - dw) / 2, m + (ih - dh) / 2, dw, dh);
+  }
+  x.textBaseline = 'middle';
+  x.fillStyle = '#29241e'; x.textAlign = 'left';
+  let size = 46;
+  do { x.font = `italic ${size}px "Instrument Serif", Georgia, serif`; size -= 2; } while (x.measureText(p.title || '').width > iw - 150 && size > 24);
+  x.fillText(p.title || '', m + 4, m + ih + (H - m - ih) * 0.42);
+  x.fillStyle = '#8a8478'; x.textAlign = 'right'; x.font = '500 17px "JetBrains Mono", monospace';
+  x.fillText('TAP TO OPEN ↗', W - m - 4, m + ih + (H - m - ih) * 0.42);
+  card.pTex.needsUpdate = true;
+}
+
+// talking about a project: down he goes for its card, and holds it up while he answers (false if he can't move now)
+function pickUpProject(p) {
+  if (!card.group || !rHand || !gestures.pickup || !playGesture('pickup')) return false;
+  const my = ++card.token;
+  Object.assign(card, { state: 'wait', toss: null, scale: 0, name: '', img: null, project: p });
+  setCardMode('project');
+  card.group.visible = false;
+  drawProjectCard();
+  if (document.fonts) document.fonts.load('italic 46px "Instrument Serif"').then(() => { if (my === card.token) drawProjectCard(); }).catch(() => {});
+  const img = new Image();
+  img.onload = () => { if (my === card.token) { card.img = img; drawProjectCard(); } };
+  img.src = p.image;
+  busyUntil = performance.now() + gestures.pickup.getClip().duration * 1000;
+  // he doesn't hold it forever: after a while it goes over his shoulder
+  clearTimeout(card.heldTimer);
+  card.heldTimer = setTimeout(() => { if (my === card.token && card.mode === 'project') throwPhoto('toss'); }, 30000);
+  return true;
+}
+const holdingProject = () => card.mode === 'project' && (card.state === 'held' || card.state === 'wait');
+
+// tap the card he's holding to open the project
+function cardUnder(e) {
+  if (!holdingProject() || card.state !== 'held' || !card.project) return false;
+  const r = canvas.getBoundingClientRect();
+  _ray.setFromCamera(_ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+  return _ray.intersectObject(card.pFront, false).length > 0;
 }
 
 // a polaroid: the picture (cover-fit, faces sit near the top of a portrait) and the name written underneath
@@ -2046,7 +2126,9 @@ function drawCard() {
 function pickUpPhoto(name) {
   if (!card.group || !rHand || !gestures.pickup || !playGesture('pickup')) return false;
   const my = ++card.token;
-  Object.assign(card, { state: 'wait', toss: null, scale: 0, name: name || '', img: null });
+  Object.assign(card, { state: 'wait', toss: null, scale: 0, name: name || '', img: null, project: null });
+  setCardMode('photo');
+  clearTimeout(card.heldTimer);
   card.group.visible = false;
   drawCard();
   if (document.fonts) document.fonts.load('italic 56px "Instrument Serif"').then(() => { if (my === card.token) drawCard(); }).catch(() => {});
@@ -2111,6 +2193,7 @@ function updateCard(now, dt) {
   const k = holding ? smooth(Math.min(1, Math.max(0, (pick.time - PICK_GRAB) / 0.8))) : 1;
   card.scale = Math.min(1, card.scale + dt * 7);
   g.position.copy(_cv).addScaledVector(UP, lerp(0.04, 0.2, k)).addScaledVector(facing, lerp(0.1, 0.05, k));
+  if (card.mode === 'project') g.position.addScaledVector(_right, -0.09 * k);   // the wide card sits out clear of his face
   g.lookAt(camera.position);
   _cq.copy(g.quaternion).multiply(_cq2.setFromAxisAngle(_cz, -0.1 + (MOTION ? Math.sin(now / 650) * 0.025 : 0)));
   g.quaternion.copy(FLAT).slerp(_cq, k);
@@ -2390,6 +2473,9 @@ function init() {
     if (soundOn) { audioCtx().resume?.(); loadKokoro(); blip(); } else stopVoice();
   });
   wakeBtn.addEventListener('click', wake);
+  // the project card in his hand opens the project
+  canvas.addEventListener('click', (e) => { if (cardUnder(e)) window.open(card.project.link, '_blank', 'noopener'); });
+  canvas.addEventListener('pointermove', (e) => { canvas.style.cursor = cardUnder(e) ? 'pointer' : ''; }, { passive: true });
   backBtn.addEventListener('click', () => {
     if (!canGoBack()) return;
     history.pop();
