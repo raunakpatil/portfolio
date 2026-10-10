@@ -1166,6 +1166,7 @@ main { padding: 0 var(--gap) var(--gap); }
   .card-map { height: 400px; }
   #skill-bars { height: 64px; }   /* a bigger strip to tap and slide along */
   .pin:not(.active) .pin-label { opacity: 0; pointer-events: none; }
+  .map-info { display: none; }   /* phones: just the map */
   .pgrid { grid-template-columns: minmax(0, 1fr); }
   .pcard-media { aspect-ratio: 4 / 3; }   /* phones get the 4:3 pictures */
   .pcard { grid-column: auto; }
