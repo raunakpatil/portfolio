@@ -286,7 +286,7 @@
     const card = $('#card-hello');
     const canvas = $('#ascii');
     const title = $('#hello-title');
-    title.innerHTML = H.greeting.map((w) => `<span>${esc(w)}</span>`).join('');
+    title.innerHTML = H.greeting.map((w) => `<span data-t="${esc(w)}">${esc(w)}</span>`).join('');
 
     const ptr = trackPointer(card);
     const RAMP = ' .:-=+*#%@';
