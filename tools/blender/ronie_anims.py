@@ -97,12 +97,18 @@ def apply(offs):
     for side in ('L', 'R'):
         r = offs.get('R' + side)
         if r and r.get('w', 0) > 1e-3 and side in REACH_TARGET: reach(side, REACH_TARGET[side], r['w'])
+    r = offs.get('RS')                       # the right hand out in front, showing something ('show')
+    if r and r.get('w', 0) > 1e-3: reach('R', 'show', r['w'])
     for bone in (HD_L, HD_R):
         if bone in offs: turn(bone)
     for side in ('L', 'R'):
         h = offs.get('F' + side)
         if h and FINGERS: curl(side, h.get('f', 0), h.get('t', 0))
         if h and h.get('palm', 0) > 1e-3: palm_to_camera(side, h['palm'])   # after the fingers, so it sees the final hand
+        if h and abs(h.get('tilt', 0)) > 1e-3: rot_world(HD_R if side == 'R' else HD_L, 'right', h['tilt'])   # fingers tip up
+        if h and abs(h.get('opp', 0)) > 1e-3:                       # the thumb swings round in front of the palm
+            t1 = FING[side][1][0]
+            rot_axis(t1, pb[t1].matrix.to_3x3().col[2].normalized(), h['opp'])
 
 # Hands: four fingers driven as one block by the Index1-3 chain, plus a thumb (Thumb1-3).
 # Pseudo-bones 'FL'/'FR' in a pose: {'f': finger curl, 't': thumb curl} in degrees. + closes towards a fist,
@@ -162,6 +168,8 @@ REACH = {
     'floor':   (B('R_Foot'), (-0.07, -0.34, -0.06)),
     # a hand resting on top of the left knee while he crouches
     'knee':    (B('L_Calf'), (0.03, -0.12, 0.10)),
+    # holding a card out to the viewer: arm's length in front, out to his right, chest high
+    'show':    (SP2, (-0.30, -0.42, -0.05)),
 }
 REACH_POLE_DOWN = {'R': (-1.0, 0.4, 0.5), 'L': (1.0, 0.4, 0.5)}   # reaching down: elbows out, back and up
 def reach(side, where, w):
@@ -389,6 +397,14 @@ peek = {HEAD: {'right': -14}, NK2: {'right': -6}, SP2: {'right': -4}}
 make('pickup', 2.6, [(0, Z), (0.3, peek), (0.85, squat), (1.1, {**squat, HEAD: {'right': -10}}),
                      (1.9, HOLD), (2.2, {**HOLD, UA_R: {'right': 58, 'fwd': 26}, SP2: {'up': 6, 'right': 5}}), (2.6, HOLD)],
      [*LEGS_IK, WAIST, SP1, SP2, NK2, HEAD, *ARM_R, *ARM_L], step=1, reach_to={'R': 'floor', 'L': 'knee'})
+
+# pickup_show: the same pickup, but he comes up holding the card out to the viewer at arm's length, pinched by its
+# bottom-left corner: hand up behind the card, the thumb over its front (a project card, shown while he talks about it)
+SHOW = {SP2: {'up': 4}, HEAD: {'fwd': 4, 'up': 5}, NK2: {'up': 3}, 'RS': {'w': 1},
+        'FR': {'palm': 1, 'f': (-30, -20, -5), 't': (0, 30, 30), 'tilt': 55, 'opp': 60}}
+make('pickup_show', 2.6, [(0, Z), (0.3, peek), (0.85, squat), (1.1, {**squat, HEAD: {'right': -10}}),
+                          (1.9, SHOW), (2.2, {**SHOW, SP2: {'up': 6, 'right': 2}, HEAD: {'fwd': 5, 'up': 7}}), (2.6, SHOW)],
+     [*LEGS_IK, WAIST, SP1, SP2, NK2, HEAD, *ARM_R, *ARM_L], step=1, reach_to={'R': 'floor', 'L': 'knee'}, fingers=True)
 
 # toss_happy: fling the photo high into the air (released at 0.5 s), then both arms up and a hop of joy
 fling_back = {**HOLD, UA_R: {'right': 40, 'fwd': 6}, FA_R: {'right': 100}, SP2: {'right': -4}, HEAD: {'right': -4}}

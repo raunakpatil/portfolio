@@ -42,7 +42,7 @@ credential `id` and a link to `url`.
 
 ## Ronie's extra moves (Blender)
 `models/ronie-anims.glb` holds Ronie's idle variations, the chat moves, and the guessing game's photo moves
-(`pickup`, `toss_happy`, `toss_angry`, `toss`), authored in Blender 5.2 by
+(`pickup`, `toss_happy`, `toss_angry`, `toss`) and the project card's `pickup_show` (held out to the viewer by its bottom-left corner), authored in Blender 5.2 by
 `tools/blender/ronie_anims.py` on the original model (unzip `3dmodel/sci-fi_o.b._robot_unit_th-icc02_animated.zip`):
 
 ```
