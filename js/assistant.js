@@ -1724,6 +1724,43 @@ async function askRonie() {
   } catch { return null; } finally { clearTimeout(timer); }
 }
 
+// buttons for the places an answer points to — his email, LinkedIn, GitHub, YouTube channel, or a project he names —
+// so nobody has to copy an address out of a sentence; any address the model still writes out is swapped for words
+const linkOf = (label) => (D.links.find((l) => l.label === label) || {}).href;
+const PLACES = [
+  { label: 'Email Raunak', href: () => `mailto:${A.email}`, test: /e-?mail|@\w+\.\w|get in touch|reach (out|him)|contact/i },
+  { label: 'LinkedIn', href: () => linkOf('LinkedIn'), test: /linked\s?in/i },
+  { label: 'GitHub', href: () => linkOf('GitHub'), test: /git\s?hub/i },
+  { label: 'YouTube channel', href: () => linkOf('YouTube'), test: /youtube channel|fractured timelines/i },
+];
+function linksFor(reply) {
+  const out = [];
+  for (const p of PLACES) if (p.test.test(reply) && p.href()) out.push({ label: p.label, href: p.href() });
+  for (const p of D.projects) {
+    if (p.link && p.link !== '#' && reply.toLowerCase().includes(p.title.toLowerCase())) out.push({ label: p.title, href: p.link });
+  }
+  return out.slice(0, 4);
+}
+const scrubLinks = (text) => text
+  .replace(/[\w.+-]+@[\w-]+\.[\w.]+\w/g, 'his email')
+  .replace(/\(?https?:\/\/\S+?\)?(?=[\s,]|[.!?]?$|[.!?]\s)/g, 'the link below')
+  .replace(/\s{2,}/g, ' ');
+function linkRow(links) {
+  const row = document.createElement('div');
+  row.className = 'rai-links';
+  links.forEach((l, i) => {
+    const a = document.createElement('a');
+    a.className = 'rai-link';
+    a.href = l.href;
+    if (!l.href.startsWith('mailto:')) { a.target = '_blank'; a.rel = 'noopener'; }
+    a.textContent = l.label;
+    a.insertAdjacentHTML('beforeend', '<span aria-hidden="true">↗</span>');
+    a.style.animationDelay = `${i * 60}ms`;
+    row.appendChild(a);
+  });
+  return row;
+}
+
 // tap-to-ask suggestions: the ones not asked yet, best first
 const suggested = new Set();
 const nextSuggestions = (step, n = 3) => (step.suggest || []).filter((q) => !suggested.has(q)).slice(0, n);
@@ -1737,10 +1774,11 @@ function sendButton() {
   return send;
 }
 
-function showChat(id, step, offerEmail = false) {
+function showChat(id, step, offerEmail = false, links = []) {
   actions.innerHTML = '';
   actions.classList.remove('row');
   setStatus('online');
+  if (links.length) actions.appendChild(linkRow(links));
   const field = document.createElement('div');
   field.className = 'rai-field';
   const el = document.createElement('input');
@@ -1812,7 +1850,7 @@ function showChat(id, step, offerEmail = false) {
     suggested.add(q);
     el.value = '';   // the question moves up into the bubble
     // while he thinks, only the question stays: the suggestions and the game step aside
-    actions.querySelectorAll('.rai-suggest, .rai-play, .rai-who, .rai-choice').forEach((n) => n.remove());
+    actions.querySelectorAll('.rai-links, .rai-suggest, .rai-play, .rai-who, .rai-choice').forEach((n) => n.remove());
     setStatus('thinking…', 'busy');
     // the visitor's question sits above Ronie's answer
     showYou(q);
@@ -1833,7 +1871,7 @@ function showChat(id, step, offerEmail = false) {
       return showChat(id, step, true);
     }
     if (answer) {
-      const { reply } = answer;
+      const reply = scrubLinks(answer.reply);
       chatLog.push({ role: 'assistant', content: reply });
       // his expression and icon follow the answer: the model's pick, or what the answer is about
       const mood = FACES[answer.face] ? answer.face : 'happy';
@@ -1847,7 +1885,7 @@ function showChat(id, step, offerEmail = false) {
       setIcon(mood === 'confused' && shown === 'question' ? null : shown, 9000);
       await typeLine(reply);
       setTimeout(() => { if (face.name === mood) setFace('neutral'); }, 2500);
-      showChat(id, step);
+      showChat(id, step, false, linksFor(`${answer.reply} ${reply}`));
     } else {
       chatLog.pop();
       setFace('sleepy');
