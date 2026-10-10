@@ -266,7 +266,7 @@
     const clock = $('#clock');
     const tick = () => {
       try {
-        clock.textContent = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: D.timezone, timeZoneName: 'short' }).format(new Date());
+        clock.textContent = new Intl.DateTimeFormat('en-IN', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone: D.timezone, timeZoneName: 'short' }).format(new Date());
       } catch { clock.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
     };
     tick(); setInterval(tick, 30000);
