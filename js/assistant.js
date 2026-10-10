@@ -276,6 +276,7 @@ function onModel(gltf) {
   neck = findBone(/NeckTwist01/, /neck/i);
   spine = findBone(/Spine02/, /spine/i);
   for (const b of [head, neck, spine]) if (b) rest.set(b, b.quaternion.clone());
+  buildPokeParts();
 
   // which way is the robot facing? (from its eyes, if it has them)
   const eyeL = findBone(/L_Eye/), eyeR = findBone(/R_Eye/);
@@ -1303,6 +1304,7 @@ function loop(now) {
     turn(head, yaw * 0.25 + sway * 0.25, pitch * 0.35 + slump * 0.35 + listen * 0.05);
     if (listen > 0.002) addWorldRotation(head, _q.setFromAxisAngle(facing, -0.17 * listen));   // a curious head tilt
     if (talkK > 0.002) addWorldRotation(head, _q.setFromAxisAngle(facing, talkK * Math.sin(t * 0.7 + 2) * 0.06));
+    updatePokes(now, dt);
     updateCard(now, dt);
     updateReflections();
   }
@@ -2057,6 +2059,180 @@ function drawProjectCard() {
   card.pTex.needsUpdate = true;
 }
 
+/* ======================= pokes ======================= */
+// Click (or tap) a part of him and he reacts. Each part is a capsule between two bones, measured on screen, so
+// finding what was hit is cheap (no raycasting the skinned mesh) and the cursor can show it. The poked part flinches
+// away from the push on a damped spring — out, back, a little wobble, settled — while his face, visor icon and,
+// where it fits, a whole-body move react on top. He may glance at the spot. Keep poking and his patience runs out.
+const POKE_K = 95, POKE_DAMP = 0.42;          // spring stiffness and damping ratio (under 1: one soft wobble)
+const springs = [];                           // { bone, axis (world), angle, vel }
+const glance = { yaw: 0, pitch: 0, toYaw: 0, toPitch: 0, until: 0 };
+const pokes = [];                             // when he was last poked, for his patience
+let pokeParts = [], pokeFaceTimer = 0;
+const _pa = new THREE.Vector3(), _pb = new THREE.Vector3(), _pc = new THREE.Vector3(), _pm = new THREE.Vector3(), _ps = new THREE.Vector3(), _pdir = new THREE.Vector3();
+
+function buildPokeParts() {
+  const b = (re) => findBone(re);
+  const B = {
+    head, neck, spine, waist: b(/CC_Base_Waist_\d/), spine1: b(/CC_Base_Spine01_\d/), pelvis: b(/CC_Base_Pelvis_\d/),
+    lClav: b(/CC_Base_L_Clavicle_\d/), rClav: b(/CC_Base_R_Clavicle_\d/),
+    lUp: b(/CC_Base_L_Upperarm_\d/), rUp: b(/CC_Base_R_Upperarm_\d/), lFore: b(/CC_Base_L_Forearm_\d/), rFore: b(/CC_Base_R_Forearm_\d/),
+    lHand: b(/CC_Base_L_Hand_\d/), rHand: b(/CC_Base_R_Hand_\d/),
+    lThigh: b(/CC_Base_L_Thigh_\d/), rThigh: b(/CC_Base_R_Thigh_\d/), lCalf: b(/CC_Base_L_Calf_\d/), rCalf: b(/CC_Base_R_Calf_\d/),
+    lFoot: b(/CC_Base_L_Foot_\d/), rFoot: b(/CC_Base_R_Foot_\d/),
+  };
+  // bones the springs move keep their animated pose between frames (see the frame loop)
+  for (const k of ['pelvis', 'waist', 'lClav', 'rClav', 'lUp', 'rUp', 'lFore', 'rFore', 'lThigh', 'rThigh']) {
+    if (B[k] && !rest.has(B[k])) rest.set(B[k], B[k].quaternion.clone());
+  }
+  // [part, from bone, to bone (or a lift up from 'from'), radius in m]; L/R are his left and right
+  const P = (part, from, to, r, side = 0) => from && (to || typeof to === 'number') && pokeParts.push({ part, from, to, r, side });
+  pokeParts = [];
+  P('head', B.head, 0.2, 0.14);
+  P('chest', B.spine1, B.neck, 0.2);
+  P('belly', B.waist, B.spine1, 0.15);
+  P('crotch', B.pelvis, -0.16, 0.12);
+  P('shoulder', B.lClav, B.lUp, 0.12, 1); P('shoulder', B.rClav, B.rUp, 0.12, -1);
+  P('arm', B.lUp, B.lFore, 0.09, 1); P('arm', B.rUp, B.rFore, 0.09, -1);
+  P('arm', B.lFore, B.lHand, 0.08, 1); P('arm', B.rFore, B.rHand, 0.08, -1);
+  P('hand', B.lHand, 0.12, 0.09, 1); P('hand', B.rHand, 0.12, 0.09, -1);
+  P('leg', B.lThigh, B.lCalf, 0.12, 1); P('leg', B.rThigh, B.rCalf, 0.12, -1);
+  P('leg', B.lCalf, B.lFoot, 0.1, 1); P('leg', B.rCalf, B.rFoot, 0.1, -1);
+  pokeParts.B = B;
+}
+
+// a world point → canvas pixels
+function toScreen(v, r) {
+  _ps.copy(v).project(camera);
+  return { x: (_ps.x + 1) / 2 * r.width, y: (1 - _ps.y) / 2 * r.height };
+}
+// the part under a pointer event, or null (with how far along it the hit was, 0 at 'from' … 1 at 'to')
+function partAt(e) {
+  if (!model || !camera || !pokeParts.length) return null;
+  const r = canvas.getBoundingClientRect(), px = e.clientX - r.left, py = e.clientY - r.top;
+  let best = null, bestD = 1;
+  for (const p of pokeParts) {
+    p.from.getWorldPosition(_pa);
+    if (typeof p.to === 'number') _pb.copy(_pa).addScaledVector(UP, p.to); else p.to.getWorldPosition(_pb);
+    const a = toScreen(_pa, r), b = toScreen(_pb, r);
+    // the capsule's radius on screen, from a point beside its middle
+    _pm.addVectors(_pa, _pb).multiplyScalar(0.5);
+    const m = toScreen(_pm, r), side = toScreen(_pm.addScaledVector(_right, p.r), r);
+    const rad = Math.max(8, Math.hypot(side.x - m.x, side.y - m.y));
+    const vx = b.x - a.x, vy = b.y - a.y, len2 = vx * vx + vy * vy || 1;
+    const u = Math.max(0, Math.min(1, ((px - a.x) * vx + (py - a.y) * vy) / len2));
+    const d = Math.hypot(px - (a.x + vx * u), py - (a.y + vy * u)) / rad;
+    if (d < bestD) { bestD = d; best = { ...p, u }; }
+  }
+  return best;
+}
+
+// a flinch: the bone tips the way it was pushed and springs back
+function flinch(bone, push, amount) {
+  if (!bone) return;
+  _pc.crossVectors(UP, push);
+  if (_pc.lengthSq() < 1e-6) _pc.copy(_right);
+  springs.push({ bone, axis: _pc.clone().normalize(), angle: 0, vel: amount });
+}
+// a twist: the bone turns about the vertical
+function twist(bone, amount) { if (bone) springs.push({ bone, axis: UP.clone(), angle: 0, vel: amount }); }
+function glanceAt(yaw, pitch, ms = 1300) { Object.assign(glance, { toYaw: yaw, toPitch: pitch, until: performance.now() + ms }); }
+
+function updatePokes(now, dt) {
+  if (dt > 0) {
+    const c = 2 * POKE_DAMP * Math.sqrt(POKE_K);
+    for (let i = springs.length - 1; i >= 0; i--) {
+      const sp = springs[i];
+      sp.vel += (-POKE_K * sp.angle - c * sp.vel) * dt;
+      sp.angle += sp.vel * dt;
+      if (Math.abs(sp.angle) < 1e-4 && Math.abs(sp.vel) < 1e-3) springs.splice(i, 1);
+    }
+  }
+  for (const sp of springs) addWorldRotation(sp.bone, _q.setFromAxisAngle(sp.axis, sp.angle));
+  // a glance at the spot: eases there, holds, eases back
+  if (now > glance.until) glance.toYaw = glance.toPitch = 0;
+  const k = Math.min(1, dt * 7);
+  glance.yaw += (glance.toYaw - glance.yaw) * k; glance.pitch += (glance.toPitch - glance.pitch) * k;
+  if (Math.abs(glance.yaw) > 1e-4) { addWorldRotation(neck, _q.setFromAxisAngle(UP, glance.yaw * 0.5)); addWorldRotation(head, _q.setFromAxisAngle(UP, glance.yaw * 0.5)); }
+  if (Math.abs(glance.pitch) > 1e-4) { addWorldRotation(neck, _q.setFromAxisAngle(_right, glance.pitch * 0.5)); addWorldRotation(head, _q.setFromAxisAngle(_right, glance.pitch * 0.5)); }
+}
+
+// how he takes it: [faces (more annoyed further along), visor icon, a move now and then]
+const POKE = {
+  head: { faces: ['surprised', 'dizzy', 'angry'], icon: 'sweat', move: 'scratch' },
+  chest: { faces: ['laugh', 'surprised', 'smug'], icon: 'exclamation', move: 'chest' },
+  belly: { faces: ['laugh', 'laugh', 'nervous'], icon: 'music', move: 'laugh' },
+  crotch: { faces: ['shy', 'nervous', 'angry'], icon: 'blush', move: 'facepalm' },
+  shoulder: { faces: ['curious', 'confused', 'smug'], icon: 'question', move: null },
+  arm: { faces: ['surprised', 'curious', 'confused'], icon: null, move: null },
+  hand: { faces: ['happy', 'excited', 'confused'], icon: 'wave', move: 'wave' },
+  leg: { faces: ['surprised', 'nervous', 'confused'], icon: 'exclamation', move: null },
+};
+function poke(hit, e) {
+  const now = performance.now();
+  if (!awake) { if (wakeBtn && !wakeBtn.hidden) wake(); return; }   // asleep: a poke wakes him
+  while (pokes.length && now - pokes[0] > 8000) pokes.shift();
+  pokes.push(now);
+  const n = pokes.length;                     // pokes in the last 8 s: 1 surprised … 3+ running out of patience
+  const B = pokeParts.B, side = hit.side;
+  // which way the push goes: from the camera through the spot, flattened
+  const r = canvas.getBoundingClientRect();
+  _ray.setFromCamera(_ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1), camera);
+  _pdir.copy(_ray.ray.direction).setY(0).normalize();
+  const f = MOTION ? Math.min(1.5, 1 + (n - 1) * 0.12) : 0;   // the more he's poked, the bigger the jolt
+  const lr = side * 1;                        // +1 his left (the viewer's right)
+  switch (hit.part) {
+    case 'head':
+      flinch(head, _pdir, 2.6 * f); flinch(neck, _pdir, 1.6 * f); flinch(spine, _pdir, 0.5 * f);
+      break;
+    case 'chest':
+      flinch(spine, _pdir, 2.2 * f); flinch(B.waist, _pdir, 0.8 * f); flinch(head, _pdir, -0.9 * f);   // the head lags behind
+      glanceAt(0, 0.28);
+      break;
+    case 'belly':
+      flinch(B.waist, _pdir, 2.0 * f); flinch(B.spine1, _pdir, 1.2 * f); flinch(head, _pdir, -0.8 * f);
+      twist(spine, (Math.random() - 0.5) * 2.4 * f);   // squirms
+      glanceAt(0, 0.35);
+      break;
+    case 'crotch':
+      flinch(B.pelvis, _pdir, 2.4 * f); flinch(spine, _pdir, -1.6 * f);   // hips back, chest forward: a jolt
+      glanceAt(0, 0.45, 900);
+      break;
+    case 'shoulder': {
+      const clav = side > 0 ? B.lClav : B.rClav, up = side > 0 ? B.lUp : B.rUp;
+      flinch(clav, _pdir, 3.0 * f); flinch(up, _pdir, 1.6 * f);
+      twist(spine, lr * 1.4 * f);             // the shoulder turns away
+      glanceAt(lr * 0.75, 0.32, 1500);            // and he looks at it
+      break;
+    }
+    case 'arm':
+      flinch(side > 0 ? B.lUp : B.rUp, _pdir, 2.4 * f); flinch(side > 0 ? B.lFore : B.rFore, _pdir, 2.0 * f);
+      glanceAt(lr * 0.6, 0.38, 1100);
+      break;
+    case 'hand':
+      flinch(side > 0 ? B.lFore : B.rFore, _pdir, 2.8 * f);
+      glanceAt(lr * 0.55, 0.5, 1100);
+      break;
+    case 'leg':
+      flinch(side > 0 ? B.lThigh : B.rThigh, _pdir, 2.2 * f); flinch(B.pelvis, _pdir, 0.8 * f);
+      glanceAt(lr * 0.3, 0.6, 1100);
+      break;
+  }
+  blip();
+  // his face and icon, angrier the more he's poked; a move, when he's free to make one
+  const R = POKE[hit.part];
+  const mood = n >= 5 ? 'angry' : R.faces[Math.min(R.faces.length - 1, n - 1)];
+  setFace(mood);
+  setIcon(n >= 5 ? 'exclamation' : R.icon, 2200);
+  clearTimeout(pokeFaceTimer);
+  pokeFaceTimer = setTimeout(() => { if (face.name === mood) setFace('neutral'); }, 2400);
+  const free = card.state === 'off' && !skipTyping;          // not holding a card, not mid-sentence
+  if (free && MOTION) {
+    const move = n >= 6 ? 'shake' : n >= 4 && hit.part !== 'hand' ? 'confused' : R.move;
+    if (move && (n === 1 || n >= 4 || Math.random() < 0.5)) setTimeout(() => playGesture(move), 260);   // after the flinch
+  }
+}
+
 // talking about a project: down he goes for its card, and holds it up while he answers (false if he can't move now)
 function pickUpProject(p) {
   if (!card.group || !rHand || !gestures.pickup || !playGesture('pickup')) return false;
@@ -2497,8 +2673,12 @@ function init() {
   });
   wakeBtn.addEventListener('click', wake);
   // the project card in his hand opens the project
-  canvas.addEventListener('click', (e) => { if (cardUnder(e)) window.open(card.project.link, '_blank', 'noopener'); });
-  canvas.addEventListener('pointermove', (e) => { canvas.style.cursor = cardUnder(e) ? 'pointer' : ''; }, { passive: true });
+  canvas.addEventListener('click', (e) => {
+    if (cardUnder(e)) return window.open(card.project.link, '_blank', 'noopener');
+    const hit = partAt(e);
+    if (hit) poke(hit, e);
+  });
+  canvas.addEventListener('pointermove', (e) => { canvas.style.cursor = cardUnder(e) || partAt(e) ? 'pointer' : ''; }, { passive: true });
   backBtn.addEventListener('click', () => {
     if (!canGoBack()) return;
     history.pop();
