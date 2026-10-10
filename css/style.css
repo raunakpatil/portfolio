@@ -573,6 +573,15 @@ main { padding: 0 var(--gap) var(--gap); }
   animation: rise .5s var(--ease) both; transition: box-shadow .25s, background .25s;
 }
 .rai-field:has(textarea) { align-items: flex-end; border-radius: 18px; padding-top: 10px; }
+/* the mic: a quiet icon in the box; while he listens it turns orange and pulses */
+.rai-mic {
+  flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; color: #9a9a9a;
+  transition: color .25s, background .25s;
+}
+.rai-mic svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.rai-mic:hover, .rai-mic:focus-visible { color: #fff; background: rgba(255, 255, 255, .08); }
+.rai-mic.on { color: #111; background: #ff7a1a; animation: mic-pulse 1.4s ease-out infinite; }
+@keyframes mic-pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 122, 26, .55); } 100% { box-shadow: 0 0 0 12px rgba(255, 122, 26, 0); } }
 .rai-field:focus-within { background: rgba(255, 255, 255, .09); box-shadow: inset 0 0 0 1px #ff7a1a; }
 .rai-field input, .rai-field textarea {
   flex: 1; min-width: 0; padding: 4px 0; border: 0; outline: none; resize: none;
