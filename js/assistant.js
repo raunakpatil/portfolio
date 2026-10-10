@@ -2068,6 +2068,14 @@ const POKE_K = 95, POKE_DAMP = 0.42;          // spring stiffness and damping ra
 const springs = [];                           // { bone, axis (world), angle, vel }
 const glance = { yaw: 0, pitch: 0, toYaw: 0, toPitch: 0, until: 0 };
 const pokes = [];                             // when he was last poked, for his patience
+// the shove: a tap pushes his whole body back a little along the push, then he eases back to his spot. His place
+// is set afresh every frame (placeForLeap), so this is simply added on top, shadow and all.
+const SHOVE_K = 55, SHOVE_DAMP = 0.78;
+const shove = { off: 0, vel: 0, dir: new THREE.Vector3() };
+const _shv = new THREE.Vector3();
+// what he says when he's poked again and again
+const OUCH = ['Ouch!', 'Oww!', 'Oof!', 'Ow, ow, ow!', 'Ouchie.', 'Hey! Ow!', 'Owie!', 'Okay — ow.', 'Ow! Rude.', 'Yowch!'];
+let lastOuch = -1, ouchEl = null;
 let pokeParts = [], pokeFaceTimer = 0;
 const _pa = new THREE.Vector3(), _pb = new THREE.Vector3(), _pc = new THREE.Vector3(), _pm = new THREE.Vector3(), _ps = new THREE.Vector3(), _pdir = new THREE.Vector3();
 
@@ -2149,6 +2157,16 @@ function updatePokes(now, dt) {
     }
   }
   for (const sp of springs) addWorldRotation(sp.bone, _q.setFromAxisAngle(sp.axis, sp.angle));
+  if (model && (shove.off || shove.vel)) {
+    if (dt > 0) {
+      shove.vel += (-SHOVE_K * shove.off - 2 * SHOVE_DAMP * Math.sqrt(SHOVE_K) * shove.vel) * dt;
+      shove.off += shove.vel * dt;
+      if (Math.abs(shove.off) < 1e-4 && Math.abs(shove.vel) < 1e-3) shove.off = shove.vel = 0;
+    }
+    _shv.copy(shove.dir).multiplyScalar(shove.off).setY(0);
+    model.position.add(_shv);
+    if (contact) contact.position.add(_shv);
+  }
   // a glance at the spot: eases there, holds, eases back
   if (now > glance.until) glance.toYaw = glance.toPitch = 0;
   const k = Math.min(1, dt * 7);
@@ -2181,6 +2199,12 @@ function poke(hit, e) {
   _pdir.copy(_ray.ray.direction).setY(0).normalize();
   const f = MOTION ? Math.min(1.5, 1 + (n - 1) * 0.12) : 0;   // the more he's poked, the bigger the jolt
   const lr = side * 1;                        // +1 his left (the viewer's right)
+  // the whole of him rocks back a step's worth, leaning with it, then settles back into place
+  if (MOTION) {
+    shove.dir.copy(_pdir);
+    shove.vel += (hit.part === 'leg' || hit.part === 'hand' ? 0.45 : 0.8) * f;
+    flinch(B.waist, _pdir, 0.7 * f);
+  }
   switch (hit.part) {
     case 'head':
       flinch(head, _pdir, 2.6 * f); flinch(neck, _pdir, 1.6 * f); flinch(spine, _pdir, 0.5 * f);
@@ -2219,6 +2243,7 @@ function poke(hit, e) {
       break;
   }
   blip();
+  if (n >= 2) ouch();
   // his face and icon, angrier the more he's poked; a move, when he's free to make one
   const R = POKE[hit.part];
   const mood = n >= 5 ? 'angry' : R.faces[Math.min(R.faces.length - 1, n - 1)];
@@ -2231,6 +2256,27 @@ function poke(hit, e) {
     const move = n >= 6 ? 'shake' : n >= 4 && hit.part !== 'hand' ? 'confused' : R.move;
     if (move && (n === 1 || n >= 4 || Math.random() < 0.5)) setTimeout(() => playGesture(move), 260);   // after the flinch
   }
+}
+
+// "Ouch!": a little bubble that pops up by his head and floats away — and, with sound on, said out loud
+// (unless he's in the middle of saying something, which a poke shouldn't cut off)
+function ouch() {
+  let i = (Math.random() * OUCH.length) | 0;
+  if (i === lastOuch) i = (i + 1) % OUCH.length;
+  lastOuch = i;
+  const text = OUCH[i];
+  if (head && camera) {
+    if (!ouchEl) { ouchEl = document.createElement('span'); ouchEl.className = 'rai-ouch'; ouchEl.setAttribute('aria-hidden', 'true'); root.appendChild(ouchEl); }
+    head.getWorldPosition(_pa).addScaledVector(UP, 0.3).addScaledVector(_right, 0.18);
+    const r = canvas.getBoundingClientRect(), rr = root.getBoundingClientRect(), p = toScreen(_pa, r);
+    ouchEl.textContent = text;
+    ouchEl.style.left = `${Math.round(r.left - rr.left + p.x)}px`;
+    ouchEl.style.top = `${Math.round(r.top - rr.top + p.y)}px`;
+    ouchEl.style.setProperty('--tilt', `${(Math.random() * 16 - 8).toFixed(1)}deg`);
+    ouchEl.classList.remove('pop'); void ouchEl.offsetWidth; ouchEl.classList.add('pop');
+  }
+  const talking = voiceSrc || ('speechSynthesis' in window && speechSynthesis.speaking) || skipTyping;
+  if (!talking) speak(text);
 }
 
 // talking about a project: down he goes for its card, and holds it up while he answers (false if he can't move now)
