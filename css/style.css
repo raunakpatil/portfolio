@@ -134,7 +134,17 @@ main { padding: 0 var(--gap) var(--gap); }
   text-shadow: 0 0 24px rgba(21, 21, 21, .9);
   pointer-events: none;
 }
-.hello-title span { display: block; }
+.hello-title span { position: relative; display: block; color: #878a8c; }
+/* a shine sweeping across the words now and then (like micheledu.com): a copy of each line on top, filled only by a
+   moving white band */
+.hello-title span::after {
+  content: attr(data-t); position: absolute; inset: 0; text-shadow: none; color: transparent;
+  background: linear-gradient(102deg, transparent 0%, transparent 35.6%, #fff 50%, transparent 64.4%, transparent 100%) no-repeat;
+  background-size: 200% 200%; -webkit-background-clip: text; background-clip: text;
+  animation: shine 2.8s linear infinite;
+}
+.hello-title span + span::after { animation-delay: .12s; }   /* the second line a beat behind, so the band runs on a slant */
+@keyframes shine { 0%, 28.57% { background-position: 200% center; } 100% { background-position: -100% center; } }
 .scramble { color: rgb(0, 226, 141); }
 @keyframes blink { 50% { opacity: 0; } }
 
