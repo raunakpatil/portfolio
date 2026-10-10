@@ -979,6 +979,10 @@ const moon = {
 };
 const BG_ASPECT = 2172 / 724, BG_MOON_X = 0.6651, BG_WATER_Y = 0.84;
 const BG_MOON = [0.6651, 0.6781, 0.5263];             // the moon's outline: centre (fractions across / down), radius / height
+// the moon's lit edge, traced out of the picture (fractions across, down; from the upper left round to just above the
+// mountains on the right) — it isn't quite a circle, so the rim light follows this rather than an arc
+const BG_RIM = [[0.4990, 0.4723], [0.5027, 0.4479], [0.5068, 0.4241], [0.5114, 0.4010], [0.5164, 0.3788], [0.5218, 0.3575], [0.5276, 0.3372], [0.5337, 0.3177], [0.5400, 0.2993], [0.5467, 0.2818], [0.5536, 0.2653], [0.5608, 0.2498], [0.5681, 0.2352], [0.5757, 0.2217], [0.5834, 0.2092], [0.5913, 0.1979], [0.5994, 0.1876], [0.6077, 0.1785], [0.6160, 0.1706], [0.6245, 0.1639], [0.6331, 0.1585], [0.6418, 0.1542], [0.6505, 0.1513], [0.6593, 0.1496], [0.6680, 0.1492], [0.6768, 0.1501], [0.6856, 0.1522], [0.6943, 0.1555], [0.7030, 0.1603], [0.7116, 0.1661], [0.7201, 0.1731], [0.7285, 0.1814], [0.7367, 0.1908], [0.7448, 0.2014], [0.7528, 0.2133], [0.7605, 0.2264], [0.7680, 0.2405], [0.7753, 0.2558], [0.7824, 0.2722], [0.7891, 0.2898], [0.7956, 0.3084], [0.8017, 0.3280], [0.8075, 0.3485], [0.8129, 0.3699], [0.8179, 0.3923], [0.8225, 0.4154], [0.8266, 0.4393], [0.8303, 0.4638], [0.8336, 0.4888], [0.8363, 0.5144], [0.8385, 0.5404], [0.8403, 0.5668], [0.8414, 0.5933], [0.8419, 0.6200], [0.8417, 0.6466], [0.8409, 0.6731], [0.8397, 0.6992], [0.8382, 0.7251], [0.8364, 0.7505]];
+const BG_RIM_A = [-2.75, 0.14];                       // the angles (round the moon's centre) it runs between
 const BG_PAR = 10;                                    // px the picture drifts against the mouse (a hint of depth)
 // the picture's own brightest stars (fractions across, down; brightness), found in it; they twinkle
 const BG_STARS = [[0.0120, 0.0704, 1.00], [0.3407, 0.0981, 1.00], [0.9351, 0.1381, 1.00], [0.2721, 0.3273, 1.00], [0.0502, 0.3536, 1.00],
@@ -1157,7 +1161,7 @@ function drawBackdropFx(t, dt) {
   ctx.globalAlpha = Math.min(1, (0.5 + 0.35 * Math.sin(t * 0.55)) * (1 + 0.35 * (1 - dim)));
   // (the light catches the edge most on the right and fades away round the top towards the left, like the rim in the
   // picture, rather than stopping short)
-  const mcx = x0 + mx * iw, mcy = y0 + my * ih, A0 = -2.75, A1 = 0.24;
+  const mcx = x0 + mx * iw, mcy = y0 + my * ih, [A0, A1] = BG_RIM_A;
   if (ctx.createConicGradient) {
     const cg = ctx.createConicGradient(A0, mcx, mcy), span = (A1 - A0) / (Math.PI * 2);
     const stop = (f, a) => cg.addColorStop(f * span, `rgba(225, 230, 255, ${a})`);
@@ -1167,7 +1171,9 @@ function drawBackdropFx(t, dt) {
   } else ctx.strokeStyle = 'rgba(225, 230, 255, 0.45)';
   ctx.lineWidth = Math.max(1.2, ih * 0.0025);
   ctx.shadowColor = 'rgba(210, 220, 255, 0.9)'; ctx.shadowBlur = ih * 0.025;
-  ctx.beginPath(); ctx.arc(mcx, mcy, mr * ih, A0, A1); ctx.stroke();
+  ctx.beginPath();
+  BG_RIM.forEach(([u, v], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, x0 + u * iw, y0 + v * ih));
+  ctx.lineJoin = 'round'; ctx.stroke();
   ctx.shadowBlur = 0;
   // the stars: soft points of light that twinkle at their own uneven pace (the picture's bright ones with a glint of
   // diffraction spikes), and a fine dust of faint ones between them
