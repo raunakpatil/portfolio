@@ -17,7 +17,7 @@
   <link rel="icon" href="favicon.ico" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="preload" href="fonts/gobitta.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/style.css?v=20261012180000">
+  <link rel="stylesheet" href="css/style.css?v=20261012200000">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -210,7 +210,75 @@
     <section class="view" data-view="assistant" hidden>
       <div class="rai" id="rai">
         <canvas class="rai-canvas" id="rai-canvas" aria-hidden="true"></canvas>
-        <div class="rai-loading" id="rai-loading" aria-live="polite"><pre class="rai-ascii" id="rai-ascii" aria-hidden="true"></pre><p>Booting R.O.N.I.E.… <b id="rai-load-pct">0%</b></p><pre class="rai-bootlog" id="rai-bootlog" aria-hidden="true"></pre></div>
+        <div class="rai-loading" id="rai-loading" aria-live="polite">
+          <!-- while he loads: his spec sheet. The boot % is live (#rai-load-pct), the rest animates in main.js -->
+          <div class="sp" id="rai-spec">
+            <header class="sp-box sp-title">
+              <h2>R.O.N.I.E. <span>// Unit 01</span></h2>
+              <p>Raunak's Own Neural Intelligence Engine</p>
+              <i class="sp-line" aria-hidden="true"><b id="sp-line"></b></i>
+            </header>
+            <section class="sp-box sp-top" aria-label="System specs">
+              <dl class="sp-kv">
+                <dt class="sp-h">System specs</dt><dd></dd>
+                <dt>Sync</dt><dd id="sp-sync">96.0%</dd>
+                <dt>Boot</dt><dd><b id="rai-load-pct">0%</b></dd>
+                <dt>Core</dt><dd id="sp-core" class="sp-core">▯▯▯▯▯▯▯</dd>
+                <dt>Mode</dt><dd id="sp-mode">Booting</dd>
+                <dt class="sp-cmd" id="sp-log">› initialising</dt>
+              </dl>
+              <dl class="sp-kv sp-model">
+                <dt class="sp-h">Model</dt><dd></dd>
+                <dt>R.O.N.I.E.</dt><dd>(Unit 01)</dd>
+                <dt>Type</dt><dd>: Humanoid AI</dd>
+                <dt>Height</dt><dd>: 180 cm (approx.)</dd>
+                <dt>Weight</dt><dd>: 120 kg (approx.)</dd>
+              </dl>
+              <div class="sp-id">
+                <p class="sp-owner"><i aria-hidden="true"></i>Raunak Patil</p>
+                <canvas class="sp-wave" id="sp-wave" aria-hidden="true"></canvas>
+                <p class="sp-motto">Same mind.<br>New body.<br>More possibilities.</p>
+              </div>
+            </section>
+            <section class="sp-box sp-ortho" aria-label="Orthographic views"><h3>Orthographic views</h3><img src="img/ronie-spec/ortho.webp" alt="Ronie from the front, side and back" decoding="async"></section>
+            <section class="sp-box sp-details" aria-label="Details"><h3>Details</h3><div class="sp-tiles"><figure><img src="img/ronie-spec/d-helmet.webp" alt="" loading="eager" decoding="async"><figcaption>Helmet detail<small>Visor (HUD display)<br>Neural interface</small></figcaption></figure><figure><img src="img/ronie-spec/d-chest.webp" alt="" loading="eager" decoding="async"><figcaption>Chest plate<small>Core housing<br>Cooling vents</small></figcaption></figure><figure><img src="img/ronie-spec/d-shoulder.webp" alt="" loading="eager" decoding="async"><figcaption>Shoulder armor<small>Layered plating<br>Flex joints</small></figcaption></figure><figure><img src="img/ronie-spec/d-forearm.webp" alt="" loading="eager" decoding="async"><figcaption>Forearm detail<small>Segmented armor<br>Hydraulic lines</small></figcaption></figure><figure><img src="img/ronie-spec/d-back.webp" alt="" loading="eager" decoding="async"><figcaption>Back core<small>Power unit<br>Heat dissipation</small></figcaption></figure><figure><img src="img/ronie-spec/d-boot.webp" alt="" loading="eager" decoding="async"><figcaption>Boot detail<small>Grip sole<br>Stability frame</small></figcaption></figure></div></section>
+            <section class="sp-box sp-palette" aria-label="Colour palette"><h3>Colour palette</h3>
+              <ul>
+                <li><i style="--c:#e67e22"></i><span>Orange<br><small>#E67E22 · armor</small></span></li>
+                <li><i style="--c:#1b1b1b"></i><span>Black<br><small>#1B1B1B · matte</small></span></li>
+                <li><i style="--c:#c0c6cc"></i><span>Silver<br><small>#C0C6CC · metal</small></span></li>
+                <li><i style="--c:#3a3a3a"></i><span>Dark grey<br><small>#3A3A3A · joints</small></span></li>
+              </ul>
+            </section>
+            <section class="sp-box sp-joints" aria-label="Joint layout"><h3>Joint layout</h3><img src="img/ronie-spec/joints.webp" alt="" decoding="async"></section>
+            <section class="sp-box sp-armor" aria-label="Armor components"><h3>Armor components</h3><div class="sp-strip"><figure><img src="img/ronie-spec/a-helmet.webp" alt="" loading="eager" decoding="async"><figcaption>Helmet</figcaption></figure><figure><img src="img/ronie-spec/a-shoulder.webp" alt="" loading="eager" decoding="async"><figcaption>Shoulder armor</figcaption></figure><figure><img src="img/ronie-spec/a-chest.webp" alt="" loading="eager" decoding="async"><figcaption>Chest plate</figcaption></figure><figure><img src="img/ronie-spec/a-forearm.webp" alt="" loading="eager" decoding="async"><figcaption>Forearm armor</figcaption></figure><figure><img src="img/ronie-spec/a-thigh.webp" alt="" loading="eager" decoding="async"><figcaption>Thigh armor</figcaption></figure><figure><img src="img/ronie-spec/a-knee.webp" alt="" loading="eager" decoding="async"><figcaption>Knee guard</figcaption></figure><figure><img src="img/ronie-spec/a-boot.webp" alt="" loading="eager" decoding="async"><figcaption>Boot</figcaption></figure></div></section>
+            <section class="sp-box sp-meas" aria-label="Key measurements">
+              <h3>Key measurements</h3>
+              <dl class="sp-kv"><dt>Total height</dt><dd>: 180 cm</dd><dt>Shoulder width</dt><dd>: 85 cm</dd><dt>Body depth</dt><dd>: 60 cm</dd><dt>Weight (approx.)</dt><dd>: 120 kg</dd></dl>
+              <h3>Materials</h3>
+              <ul class="sp-list"><li>Carbon fiber composite</li><li>Aluminium alloy</li><li>Titanium alloy</li><li>High strength polymer</li></ul>
+            </section>
+            <section class="sp-box sp-notes" aria-label="Notes">
+              <h3>Notes</h3>
+              <ul class="sp-list"><li>Compact humanoid design</li><li>Optimised for mobility &amp; stability</li><li>Modular armor plates</li><li>Advanced sensor suite</li><li>Designed for multi-environment operations</li></ul>
+              <p class="sp-sign">Built by Raunak <span>/</span> AI assistant</p>
+              <svg class="sp-globe" viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="28"/><ellipse cx="32" cy="32" rx="12" ry="28"/><ellipse cx="32" cy="32" rx="22" ry="28"/><path d="M4 32h56M8 18h48M8 46h48"/></svg>
+            </section>
+            <footer class="sp-box sp-foot">
+              <span class="sp-foot-name">R.O.N.I.E. // Unit 01</span>
+              <canvas class="sp-wave" id="sp-wave2" aria-hidden="true"></canvas>
+              <span class="sp-foot-log" id="sp-foot-log">// booting<br>// 000 boot<br>// standby</span>
+              <canvas class="sp-spectrum" id="sp-spectrum" aria-hidden="true"></canvas>
+              <span class="sp-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            </footer>
+          </div>
+          <!-- phones: the portrait board, with the live values laid over its spec box -->
+          <div class="sp-phone" aria-hidden="true">
+            <img src="img/ronie-spec/phone.webp" alt="" decoding="async">
+            <dl class="spp-live"><dd id="spp-sync">96.0%</dd><dd id="spp-boot">000</dd><dd id="spp-core">▯▯▯▯▯▯▯</dd><dd id="spp-mode">BOOTING</dd></dl>
+            <p class="spp-log" id="spp-log">› initialising</p>
+          </div>
+        </div>
         <button class="rai-wake" id="rai-wake" type="button" hidden><span>WAKE RONIE</span></button>
         <div class="rai-panel" id="rai-panel" hidden>
           <div class="rai-head">
@@ -243,8 +311,8 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261012180000"></script>
+  <script src="js/data.js?v=20261012200000"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
-  <script src="js/main.js?v=20261012180000" defer></script>
+  <script src="js/main.js?v=20261012200000" defer></script>
 </body>
 </html>

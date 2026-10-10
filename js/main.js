@@ -155,52 +155,65 @@
     [60, 'syncing neon tubes'],
     [85, 'warming up personality'],
   ];
+  // While Ronie loads: his spec sheet comes alive — SYNC drifts up, BOOT is the real download %, the CORE bar fills
+  // with it, the status line follows the boot log, and the waveforms and the spectrum play. Once he's loaded the
+  // sheet is hidden (assistant.js) and this stops.
   function bootScreen() {
-    const pre = document.getElementById('rai-ascii');
-    const log = document.getElementById('rai-bootlog');
-    const pctEl = document.getElementById('rai-load-pct');
     const box = document.getElementById('rai-loading');
-    if (!pre || bootRunning || box.hidden) return;
+    const pctEl = document.getElementById('rai-load-pct');
+    if (!box || !pctEl || bootRunning || box.hidden) return;
     bootRunning = true;
-    // ASCII Ronie: a turntable of the real 3D model, baked into characters (js/ronie-ascii.json).
-    // He's "assembled" from the feet up as the download progresses, with a scan line at the edge.
-    const RAMP = ' .:-=+*#%@';
-    let art = null, spin = 0, last = performance.now(), shown = 0;
-    fetch(`js/ronie-ascii.json${ASSET_V ? `?v=${ASSET_V}` : ''}`).then((r) => r.json()).then((j) => {
-      art = { w: j.w, h: j.h, frames: j.frames.map((f) => f.split('\n')) };
-    }).catch(() => {});
-    const step = (now) => {
-      // stop once Ronie has loaded (or the loading box was replaced by an error message)
-      if (box.hidden || !pre.isConnected) { bootRunning = false; return; }
-      requestAnimationFrame(step);
-      const dt = Math.min(50, now - last); last = now;
-      if (document.querySelector('[data-view="assistant"]').hidden || !art) return;
-      spin += dt * 0.00014 * MOTION;                    // one full turn every ~7 s
-      const frame = art.frames[Math.floor(((spin % 1) + 1) % 1 * art.frames.length) % art.frames.length];
-      const pct = parseInt(pctEl.textContent, 10) || 0;
-      shown += (Math.min(1, 0.08 + pct / 100) - shown) * Math.min(1, dt / 160);
-      const edge = art.h * (1 - shown);                 // rows above this are still being "printed"
-      let txt = '';
-      for (let r = 0; r < art.h; r++) {
-        const row = frame[r] || '';
-        const scan = Math.abs(r - edge) < 0.9;
-        for (let c = 0; c < art.w; c++) {
-          const code = row.charCodeAt(c);
-          if (!(code >= 97)) { txt += ' '; continue; }   // empty cell
-          let v = (code - 97) / 25;
-          if (r < edge - 0.9) { txt += (r * 7 + c * 3) % 5 ? ' ' : '.'; continue; } // faint outline still to come
-          if (scan) v = 1;
-          else v *= 0.9 + 0.1 * Math.sin(now / 240 + r * 0.6 + c * 0.2);   // a slow shimmer
-          txt += RAMP[Math.max(1, Math.min(RAMP.length - 1, Math.round(v * (RAMP.length - 1))))];
-        }
-        txt += '\n';
+    const $id = (id) => document.getElementById(id);
+    const sync = $id('sp-sync'), core = $id('sp-core'), mode = $id('sp-mode'), logEl = $id('sp-log'), line = $id('sp-line'), foot = $id('sp-foot-log');
+    const waves = [$id('sp-wave'), $id('sp-wave2')].filter(Boolean), spec = $id('sp-spectrum');
+    let lastLog = '';
+    // a little audio-style trace: a dotted baseline with a burst of thin bars travelling along it
+    function wave(cv, t) {
+      const { ctx, w, h } = fit(cv);
+      ctx.clearRect(0, 0, w, h);
+      const n = Math.floor(w / 3), mid = h / 2;
+      for (let i = 0; i < n; i++) {
+        const x = i * 3 + 1, u = i / n;
+        const env = Math.exp(-((u - (0.5 + 0.35 * Math.sin(t * 0.0006))) ** 2) / 0.02);
+        const amp = (0.08 + env * (0.5 + 0.5 * Math.sin(t * 0.012 + i * 0.9) * Math.sin(t * 0.004 + i * 0.31))) * h * 0.5;
+        ctx.fillStyle = env > 0.2 ? 'rgba(220, 225, 230, .85)' : 'rgba(150, 156, 162, .45)';
+        ctx.fillRect(x, mid - amp, 1, Math.max(1, amp * 2));
       }
-      pre.textContent = txt;
-      // boot log follows the download percentage
-      log.textContent = BOOT_LOG.filter(([at]) => pct >= at).map(([at, label], i, shown) => {
-        const done = i < shown.length - 1;
-        return `› ${label} ${done ? '… ok' : '.'.repeat(1 + (((now / 400) | 0) % 3))}`;
-      }).join('\n');
+    }
+    // the rainbow spectrum along the footer, orange through violet to cyan
+    function spectrum(cv, t) {
+      const { ctx, w, h } = fit(cv);
+      ctx.clearRect(0, 0, w, h);
+      const n = Math.floor(w / 3);
+      for (let i = 0; i < n; i++) {
+        const u = i / n;
+        const v = 0.25 + 0.75 * Math.abs(Math.sin(t * 0.003 + i * 0.35) * Math.sin(t * 0.0011 + i * 0.07)) * (0.55 + 0.45 * Math.sin(u * Math.PI));
+        ctx.fillStyle = `hsl(${(28 - u * 230 + 360) % 360} 85% 62%)`;
+        ctx.fillRect(i * 3, h - v * h, 1.6, v * h);
+      }
+    }
+    const step = (now) => {
+      // stop once Ronie has loaded (or the sheet was replaced by an error message)
+      if (box.hidden || !pctEl.isConnected) { bootRunning = false; return; }
+      requestAnimationFrame(step);
+      if (document.querySelector('[data-view="assistant"]').hidden) return;
+      const pct = parseInt(pctEl.textContent, 10) || 0;
+      if (sync) sync.textContent = `${(96 + pct * 0.012 + Math.sin(now / 700) * 0.35).toFixed(1)}%`;
+      if (core) { const on = Math.round((pct / 100) * 7); core.textContent = '▮'.repeat(on) + '▯'.repeat(7 - on); }
+      if (mode) mode.textContent = pct >= 99 ? 'Standby' : 'Booting';
+      if (line) line.style.width = `${pct}%`;
+      const steps = BOOT_LOG.filter(([at]) => pct >= at);
+      const cur = steps.length ? steps[steps.length - 1][1] : 'initialising';
+      const msg = `› ${cur}${'.'.repeat(1 + (((now / 400) | 0) % 3))}`;
+      if (logEl && msg !== lastLog) { logEl.textContent = msg; lastLog = msg; }
+      if (foot) foot.innerHTML = `// ${(96 + pct * 0.012).toFixed(1)}% sync<br>// ${String(pct).padStart(3, '0')} boot<br>// ${pct >= 99 ? 'standby' : 'booting'}`;
+      // the phone board's live values
+      const sp = (id, v) => { const el = $id(id); if (el && el.textContent !== v) el.textContent = v; };
+      sp('spp-sync', sync ? sync.textContent : ''); sp('spp-boot', String(pct).padStart(3, '0'));
+      sp('spp-core', core ? core.textContent : ''); sp('spp-mode', pct >= 99 ? 'STANDBY' : 'BOOTING'); sp('spp-log', msg);
+      const t = MOTION ? now : 0;
+      for (const cv of waves) if (cv.offsetWidth) wave(cv, t);
+      if (spec && spec.offsetWidth) spectrum(spec, t);
     };
     requestAnimationFrame(step);
   }
