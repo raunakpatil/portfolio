@@ -1812,6 +1812,51 @@ function sendButton() {
   return send;
 }
 
+// Talk to him: the browser's own speech recognition (Chrome, Edge, Safari — free, nothing of ours on a server).
+// Tap the mic, ask out loud; the words appear in the box as you speak and go off when you stop. While he listens he
+// leans in with his head tilted. Browsers without it just don't get the button.
+const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognizer = null;
+function micButton(el, err, submit) {
+  const mic = document.createElement('button');
+  mic.type = 'button';
+  mic.className = 'rai-mic';
+  mic.setAttribute('aria-label', 'Ask out loud');
+  mic.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21"/></svg>';
+  mic.addEventListener('click', () => {
+    if (recognizer) { recognizer.stop(); return; }    // a second tap: done talking
+    stopVoice();                                        // so he doesn't hear himself
+    const r = recognizer = new Recognition();
+    r.lang = navigator.language || 'en-US';
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+    let heard = '';
+    const before = el.placeholder;
+    mic.classList.add('on'); mic.setAttribute('aria-label', 'Stop listening');
+    el.placeholder = 'Listening…';
+    err.textContent = '';
+    setFace('curious');
+    r.onresult = (e) => {
+      heard = Array.from(e.results, (x) => x[0].transcript).join('').trim();
+      el.value = heard;
+      listenUntil = performance.now() + 1400;           // he leans in as the words come
+    };
+    r.onerror = (e) => {
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') err.textContent = 'The microphone is blocked — allow it in your browser to talk to me.';
+      else if (e.error === 'no-speech') err.textContent = "I didn't catch that. Tap the mic and try again?";
+      else if (e.error !== 'aborted') err.textContent = "My ears glitched. Try again, or type it.";
+    };
+    r.onend = () => {
+      recognizer = null;
+      mic.classList.remove('on'); mic.setAttribute('aria-label', 'Ask out loud');
+      el.placeholder = before;
+      if (heard) submit();
+    };
+    try { r.start(); } catch { recognizer = null; mic.classList.remove('on'); el.placeholder = before; }
+  });
+  return mic;
+}
+
 function showChat(id, step, offerEmail = false, links = []) {
   actions.innerHTML = '';
   actions.classList.remove('row');
@@ -1827,10 +1872,12 @@ function showChat(id, step, offerEmail = false, links = []) {
   el.autocomplete = 'off';
   el.addEventListener('input', () => { listenUntil = performance.now() + 1400; });
   const send = sendButton();
-  field.append(el, send);
-  actions.appendChild(field);
   const err = document.createElement('p');
   err.className = 'rai-error';
+  field.append(el);
+  if (Recognition) field.append(micButton(el, err, () => actions.requestSubmit()));
+  field.append(send);
+  actions.appendChild(field);
   actions.appendChild(err);
   if (offerEmail) button('Email Raunak instead', 'rai-choice', () => { location.href = `mailto:${A.email}`; }, 60);
   // for anyone who'd rather not type
@@ -1882,6 +1929,7 @@ function showChat(id, step, offerEmail = false, links = []) {
   }
   actions.onsubmit = async (e) => {
     e.preventDefault();
+    if (recognizer) recognizer.abort();
     const q = el.value.trim();
     if (!q) { err.textContent = 'Type a question first.'; el.focus(); confused(); return; }
     el.disabled = send.disabled = true;
