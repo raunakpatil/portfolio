@@ -69,7 +69,6 @@ const cursor = { x: 0, y: 0, inside: false, level: 0 };
 let floorMat, tubeGlass, tubeMetal; // room materials that fade back while he's asleep
 let emblemMat = null;                  // the glowing R.O.N.I.E crest on his chest plate
 let faceMat = null;                    // his visor is an old CRT screen showing two expressive eyes
-let smokeMat; const puffs = [];       // soft smoke, lit by the room's own lights
 let dustVel = null;                    // per-particle velocity, so dust can be pushed around by the mouse
 const cursorVel = new THREE.Vector3(), _prevCursor = new THREE.Vector3(); let cursorTracked = false;
 let cursorRing; // the cursor's neon ring light: three coloured lights + a ring seen only in reflections
@@ -129,7 +128,6 @@ function init3D() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000); // pitch black while he's asleep, rises to BG with the room light
-  scene.fog = new THREE.Fog(0x000000, 6.5, 13);
   camera = new THREE.PerspectiveCamera(30, 1, 0.05, 60);
 
   // Reflections: a cube camera photographs the room from Ronie's chest a few times a second,
@@ -182,7 +180,14 @@ function init3D() {
   root.addEventListener('pointerleave', () => { cursor.inside = false; });
 
   // an unlit black floor (no coloured pools or reflections on it), plus a soft contact shadow under his feet
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 72), floorMat = new THREE.MeshBasicMaterial({ color: 0x000000 }));
+  // (it fades out towards its edge, so there's no horizon line where it meets the background)
+  const fade = document.createElement('canvas'); fade.width = fade.height = 256;
+  const fx = fade.getContext('2d'), fg = fx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  fg.addColorStop(0, '#fff'); fg.addColorStop(0.35, '#fff'); fg.addColorStop(1, '#000');
+  fx.fillStyle = fg; fx.fillRect(0, 0, 256, 256);
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 72), floorMat = new THREE.MeshBasicMaterial({
+    color: 0x000000, transparent: true, alphaMap: new THREE.CanvasTexture(fade), depthWrite: false }));
+  floor.renderOrder = -1;
   floor.rotation.x = -Math.PI / 2;
   scene.add(floor);
   const blob = document.createElement('canvas'); blob.width = blob.height = 128;
@@ -420,53 +425,11 @@ function placeTubes(dt) {
   }
 }
 
-// a soft, cloudy smoke sprite drawn once into a canvas
-function smokeTexture() {
-  const c = document.createElement('canvas'); c.width = c.height = 256;
-  const x = c.getContext('2d');
-  for (let i = 0; i < 46; i++) {
-    const r = 30 + Math.random() * 70;
-    const px = 128 + (Math.random() - 0.5) * 120, py = 128 + (Math.random() - 0.5) * 120;
-    const g = x.createRadialGradient(px, py, 0, px, py, r);
-    g.addColorStop(0, 'rgba(255,255,255,0.13)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-    x.fillStyle = g; x.fillRect(0, 0, 256, 256);
-  }
-  // fade the edges so no square ever shows
-  x.globalCompositeOperation = 'destination-in';
-  const m = x.createRadialGradient(128, 128, 40, 128, 128, 128);
-  m.addColorStop(0, 'rgba(0,0,0,1)'); m.addColorStop(1, 'rgba(0,0,0,0)');
-  x.fillStyle = m; x.fillRect(0, 0, 256, 256);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  return t;
-}
-
-// Smoke and dust. Positions are set up around him relative to the way he faces.
+// Dust. Positions are set up around him relative to the way he faces.
 const _right2 = new THREE.Vector3();
 function buildAtmosphere() {
   _right2.crossVectors(UP, facing);
   const place = (sideways, height, depth) => new THREE.Vector3().addScaledVector(_right2, sideways).addScaledVector(facing, depth).setY(height);
-
-  // smoke: camera-facing puffs with a lit (Lambert) material, so the tube colours and the mouse light tint them
-  smokeMat = new THREE.MeshLambertMaterial({ map: smokeTexture(), color: 0x9a9a9a, transparent: true, opacity: 0, depthWrite: false });
-  // each puff is a flat sprite; where one dips into the floor it would show a hard straight edge,
-  // so the smoke fades out over the last 0.6 m above the floor
-  smokeMat.onBeforeCompile = (sh) => {
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying float vSmokeY;')
-      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvSmokeY = (modelMatrix * vec4(transformed, 1.0)).y;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vSmokeY;')
-      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\ngl_FragColor.a *= smoothstep(0.0, 0.6, vSmokeY);');
-  };
-  for (let i = 0; i < 18; i++) {
-    const ang = rand(i + 500) * Math.PI * 2, r = 1.6 + rand(i + 600) * 4;
-    // keep the space right between him and the camera clear
-    const sideways = Math.sin(ang) * r, depth = Math.cos(ang) * r;
-    const near = depth > 0.6 && Math.abs(sideways) < 1.4;
-    const size = 2 + rand(i + 700) * 2.4;
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), smokeMat);
-    mesh.position.copy(place(near ? sideways + Math.sign(sideways || 1) * 1.6 : sideways, 0.15 + rand(i + 800) ** 2 * 1.3, near ? depth - 1.2 : depth));
-    scene.add(mesh);
-    puffs.push({ mesh, vel: new THREE.Vector3(), drift: new THREE.Vector3((rand(i + 900) - 0.5) * 0.04, 0.012 + rand(i + 950) * 0.02, (rand(i + 990) - 0.5) * 0.04), rot: rand(i) * 6, spin: (rand(i + 77) - 0.5) * 0.06, home: mesh.position.clone() });
-  }
 
   // dust: tiny floating particles, mostly in the air around and in front of him
   const N = 420, pos = new Float32Array(N * 3);
@@ -509,25 +472,6 @@ function updateAtmosphere(dt) {
     }
     a.needsUpdate = true;
   }
-  for (const p of puffs) {
-    const m = p.mesh;
-    if (active) {
-      _d.subVectors(m.position, P);
-      const d = _d.length();
-      if (d < 1.6) {
-        const f = (1 - d / 1.6) * cursor.level;
-        p.vel.addScaledVector(_d.normalize(), 0.9 * f * dt).addScaledVector(cursorVel, 0.25 * f * dt);
-      }
-    }
-    // drift, ease back towards where it started, damp the pushes
-    p.vel.multiplyScalar(Math.exp(-0.8 * dt));
-    m.position.addScaledVector(p.vel, dt).addScaledVector(p.drift, dt * MOTION);
-    m.position.lerp(p.home, Math.min(1, dt * 0.05));
-    p.rot += p.spin * dt * MOTION;
-    m.lookAt(camera.position);
-    m.rotateZ(p.rot);
-  }
-  if (smokeMat) smokeMat.opacity = 0.004 + 0.088 * power;
 }
 
 function tubeState(tb, since) {
@@ -563,7 +507,6 @@ function updateTubes(now, dt) {
   lights.moon.intensity = 0.55 - 0.3 * power;
   softbox.material.color.setScalar(0.05 + 1.5 * power);
   scene.background.copy(BG).multiplyScalar(power);
-  scene.fog.color.copy(scene.background);
   // while he's asleep the room is barely there: near-clear glass and dull caps
   // (his own lighting is untouched). Clearcoat never quite hits 0 so the shader isn't rebuilt.
   if (tubeGlass) {
@@ -1269,11 +1212,6 @@ function landingBurst() {
       const f = (1 - d / 1.8) * (1 - arr[i + 1] / 1.4);
       dustVel[i] += (dx / d) * 3.2 * f; dustVel[i + 1] += 1.6 * f; dustVel[i + 2] += (dz / d) * 3.2 * f;
     }
-  }
-  for (const p of puffs) {
-    _d.subVectors(p.mesh.position, homePos).setY(0);
-    const d = _d.length() || 0.001;
-    if (d < 3) p.vel.addScaledVector(_d.normalize(), 0.5 * (1 - d / 3));
   }
 }
 
