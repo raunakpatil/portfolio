@@ -1292,7 +1292,7 @@ main { padding: 0 var(--gap) var(--gap); }
   .pcard-media { aspect-ratio: 4 / 3; }   /* phones get the 4:3 pictures */
   .pcard { grid-column: auto; }
   .discover { opacity: 1; transform: none; }
-  .viewby { margin-left: 0; }
+  .viewby { display: none; }   /* phones: no grid / list switch (always the grid) */
   .plist button { grid-template-columns: 34px 1fr 24px; }
   .plist .c, .plist .yr { display: none; }
   .float-preview { display: none; }
