@@ -342,6 +342,7 @@ function onModel(gltf) {
   buildEmblem();
   buildFace();
   rHand = findBone(/CC_Base_R_Hand(_|$)/);
+  rPinch = [findBone(/CC_Base_R_Thumb3/), findBone(/CC_Base_R_Index2/)];   // a card is pinched between these
   buildCard();
   placeForLeap(performance.now());
 
@@ -2048,7 +2049,8 @@ const card = {
   mode: 'photo', project: null, faces: null, pCanvas: null, pTex: null, pFront: null, heldTimer: 0, dev: 1, picPending: false,
   vel: new THREE.Vector3(), spin: new THREE.Vector3(), prev: new THREE.Vector3(), handVel: new THREE.Vector3(),
 };
-let rHand = null, busyUntil = 0;
+let rHand = null, rPinch = [], busyUntil = 0;
+const _pa2 = new THREE.Vector3(), _pb2 = new THREE.Vector3();
 const _cv = new THREE.Vector3(), _cv2 = new THREE.Vector3(), _cq = new THREE.Quaternion(), _cq2 = new THREE.Quaternion();
 const _ce = new THREE.Euler(), _cz = new THREE.Vector3(0, 0, 1);
 const FLAT = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));   // lying face-up
@@ -2542,11 +2544,17 @@ function updateCard(now, dt) {
   if (card.mode === 'project') {
     // a project card is held up by its inner bottom corner, pinched in his fist with the fingers over the front, and
     // hangs out to the side of his face, tipped a little
-    g.position.copy(_cv).addScaledVector(UP, lerp(0.04, 0.07, k)).addScaledVector(facing, lerp(0.1, 0.035, k));
+    // pinched between his thumb and index finger, the card's inner bottom corner sits right in the pinch (the plane
+    // runs through it, so the thumb shows on one side of the card and the finger on the other)
+    if (rPinch[0] && rPinch[1]) {
+      rPinch[0].getWorldPosition(_pa2); rPinch[1].getWorldPosition(_pb2);
+      g.position.addVectors(_pa2, _pb2).add(_cv).multiplyScalar(1 / 3);   // the middle of his fist
+    } else g.position.copy(_cv).addScaledVector(UP, 0.07).addScaledVector(facing, 0.035);
+    if (k < 1) g.position.lerp(_cv2.copy(_cv).addScaledVector(UP, 0.04).addScaledVector(facing, 0.1), 1 - k);
     g.lookAt(camera.position);
     _cq.copy(g.quaternion).multiply(_cq2.setFromAxisAngle(_cz, 0.07 + sway));
     g.quaternion.copy(FLAT).slerp(_cq, k);
-    _cv2.set(-(PROJ_W / 2 - 0.04), PROJ_H / 2 - 0.035, -0.02).applyQuaternion(g.quaternion);   // from the corner to the middle
+    _cv2.set(-(PROJ_W / 2 - 0.07), PROJ_H / 2 - 0.06, 0).applyQuaternion(g.quaternion);   // from the grip (well inside the corner) to the middle
     g.position.addScaledVector(_cv2, k);
   } else {
     g.position.copy(_cv).addScaledVector(UP, lerp(0.04, 0.2, k)).addScaledVector(facing, lerp(0.1, 0.05, k));
