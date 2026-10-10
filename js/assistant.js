@@ -2156,6 +2156,7 @@ const VOICE = { model: 'onnx-community/Kokoro-82M-v1.0-ONNX', voice: 'am_puck', 
 let kokoroReady = false, kokoroFailed = false, kokoroLoading = null, voiceToken = 0, voiceSrc = null, voiceAnalyser = null, voiceLevel = 0;
 let speechDone = Promise.resolve();               // settles when the line he's saying now is finished
 let pendingLine = null;                           // a line he said before his voice was ready: { text, token, at }
+const WARMING = 'warming up voice…';
 const voiceData = new Uint8Array(256);
 const audioCtx = () => (audio ||= new (window.AudioContext || window.webkitAudioContext)());
 
@@ -2175,14 +2176,24 @@ function loadKokoro() {
   kokoroLoading = (async () => {
     // only where it runs well: a desktop browser with a GPU (WebGPU)
     if (!('gpu' in navigator) || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return false;
-    voiceWorker = new Worker(`js/ronie-voice-worker.js${new URL(import.meta.url).search}`, { type: 'module' });
-    voiceWorker.onmessage = ({ data }) => {
+    window.__ronieVoiceStarted = true;
+    const onReply = ({ data }) => {
       const w = rpcWaiting.get(data.id);
       if (!w) return;
       rpcWaiting.delete(data.id);
       if (data.ok) w.resolve(data); else w.reject(new Error(data.error));
     };
-    await voiceRpc({ type: 'load', model: VOICE.model });
+    const pre = window.ronieVoice;                   // the site may have started fetching it already (main.js)
+    if (pre && pre.alive) {
+      pre.adopted = true;
+      voiceWorker = pre.worker;
+      voiceWorker.addEventListener('message', onReply);
+      if (!(await pre.loading)) throw new Error('voice failed to load');
+    } else {
+      voiceWorker = new Worker(`js/ronie-voice-worker.js${new URL(import.meta.url).search}`, { type: 'module' });
+      voiceWorker.addEventListener('message', onReply);
+      await voiceRpc({ type: 'load', model: VOICE.model });
+    }
     kokoroReady = true;
     return true;
   })().catch((err) => { console.warn('natural voice unavailable, using the quick one', err); return false; })
@@ -2190,6 +2201,7 @@ function loadKokoro() {
       if (!ok) kokoroFailed = true;
       // the line he's been waiting to say, if nothing has been said since and it isn't stale
       const p = pendingLine; pendingLine = null;
+      if (statusEl && statusEl.textContent === WARMING) setStatus('online');
       if (p && p.token === voiceToken && performance.now() - p.at < 30000) speak(p.text);
       return ok;
     });
@@ -2252,7 +2264,12 @@ async function speak(text) {
       return;
     }
     // Kokoro is still on its way: the line waits for it (see loadKokoro) rather than going out in a second voice
-    if (!kokoroFailed) { pendingLine = { text: said, token: my, at: performance.now() }; loadKokoro(); return; }
+    if (!kokoroFailed) {
+      pendingLine = { text: said, token: my, at: performance.now() };
+      if (statusEl && statusEl.textContent === 'online') setStatus(WARMING);   // (so the pause reads as a pause)
+      loadKokoro();
+      return;
+    }
     // phones, and computers that can't run Kokoro: the device's own voice (free, no server, no quota)
     await speakDevice(said, my);
   } catch { /* no voice this time — the text is still there */ }

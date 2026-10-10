@@ -1497,6 +1497,37 @@
     </li>`).join('');
   }
 
+  /* ---------- global: Ronie's voice, fetched early ---------- */
+  // His natural voice is a large model (~330 MB) that the browser downloads once and keeps. Waiting until someone opens
+  // his room meant a first visit could hear nothing for a minute, so on a computer that can run it (WebGPU, not a phone)
+  // and a decent connection (no data saver, not 2G), the download starts the moment this page has loaded. If his room
+  // opens meanwhile he takes over this same download (window.ronieVoice); if not, the worker is let go once it's in —
+  // the files stay in the browser's cache, so his room then loads the voice from disk in a moment.
+  (function prefetchVoice() {
+    const c = navigator.connection;
+    if (!('gpu' in navigator) || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return;
+    if (c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ''))) return;
+    const model = (D.assistant && D.assistant.voice && D.assistant.voice.model) || 'onnx-community/Kokoro-82M-v1.0-ONNX';
+    const go = () => {
+      if (window.__ronieVoiceStarted) return;          // (his room got there first)
+      try {
+        const worker = new Worker(`js/ronie-voice-worker.js${ASSET_V ? `?v=${ASSET_V}` : ''}`, { type: 'module' });
+        const v = window.ronieVoice = { worker, alive: true, adopted: false, loading: null };
+        v.loading = new Promise((resolve) => {
+          worker.addEventListener('message', ({ data }) => {
+            if (data.id !== 'prefetch') return;
+            resolve(!!data.ok);
+            if (!v.adopted) { worker.terminate(); v.alive = false; }
+          });
+        });
+        worker.postMessage({ id: 'prefetch', type: 'load', model });
+      } catch { /* no voice prefetch */ }
+    };
+    const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1));
+    const start = () => idle(go, { timeout: 800 });   // (right after the page has loaded — before anyone taps anything)
+    if (document.readyState === 'complete') start(); else addEventListener('load', start, { once: true });
+  })();
+
   /* ---------- global: email links open a ready-to-send message ---------- */
   // Plain mailto: links need a mail app set up — on many computers that's just a "pick an app" box. On a computer, an
   // email link opens Gmail in a new tab instead, with a message to Raunak already written (from the visitor's own
