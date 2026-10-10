@@ -64,9 +64,9 @@ img { display: block; max-width: 100%; }
   transition: transform .5s var(--ease), width .5s var(--ease);
 }
 
-/* links: a small white pill with a chevron pointing left, the way it opens. Clicked, it turns black like the active
-   tab and the chevron swings round to point right while the white pill behind it grows out to the left with the icon
-   links, which fade in one after another — all on the same easing, so it moves as one */
+/* links: a small white pill with a 2×2 grid of dots. Clicked, it turns black like the active tab and the dots swing
+   round into a diamond while the white pill behind it grows out to the left with the icon links, which fade in nearest
+   first — all on one ease-out curve (it answers the click at once and settles gently), so it moves as one */
 .social { --snap: cubic-bezier(.22, 1, .36, 1); justify-self: end; position: relative; z-index: 2; display: flex; align-items: center; height: 40px; }
 .social-btn {
   position: relative; z-index: 1; display: grid; place-items: center;
@@ -74,13 +74,17 @@ img { display: block; max-width: 100%; }
   background: var(--surface); box-shadow: 0 0 0 1px rgba(0, 0, 0, .06);
   transition: background .45s var(--snap), color .45s var(--snap), box-shadow .45s var(--snap);
 }
-.social-btn svg {
-  width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
-  transform: translateX(var(--nudge, 0px)) rotate(var(--turn, 0deg)); transition: transform .55s var(--snap); will-change: transform;
+.social-dots {
+  display: grid; grid-template-columns: repeat(2, 4px); gap: 3.5px;
+  transform: rotate(var(--turn, 0deg)); transition: transform .55s var(--snap); will-change: transform;
 }
-.social-btn:hover { --nudge: -2px; }                      /* a hint of which way it goes */
-.social.open .social-btn { background: #111; color: #fff; box-shadow: 0 0 0 1px #111; --turn: 180deg; }
-.social.open .social-btn:hover { --nudge: 2px; }
+.social-dots i { width: 4px; height: 4px; border-radius: 50%; background: currentColor; transition: transform .55s var(--snap); }
+.social-btn:hover .social-dots i:nth-child(1) { transform: translate(-1px, -1px); }      /* they spread a little on hover */
+.social-btn:hover .social-dots i:nth-child(2) { transform: translate(1px, -1px); }
+.social-btn:hover .social-dots i:nth-child(3) { transform: translate(-1px, 1px); }
+.social-btn:hover .social-dots i:nth-child(4) { transform: translate(1px, 1px); }
+.social.open .social-btn { background: #111; color: #fff; box-shadow: 0 0 0 1px #111; --turn: 45deg; }   /* the square turns into a diamond */
+.social.open .social-btn:hover .social-dots i { transform: none; }
 .social-links {
   position: absolute; right: 0; top: 0; height: 40px; display: flex; align-items: center; gap: 2px;
   padding: 0 58px 0 6px; border-radius: 999px; white-space: nowrap;
