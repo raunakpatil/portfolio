@@ -14,10 +14,11 @@ const add = (s = '') => lines.push(s);
 const clean = (s) => String(s).replace(/\{[a-z]+\}/gi, 'you').replace(/\s+/g, ' ').trim();
 
 add(`Name: ${D.name}`);
+if (D.status) add(`Current status (the newest information — wherever anything below disagrees, this is right): ${clean(D.status)}`);
 add(`Summary: ${clean(D.bio)}`);
 add(`Email: ${A.email}`);
 add(`Links: ${D.links.map((l) => `${l.label}: ${l.href.replace('mailto:', '')}`).join(' | ')}`);
-add(`Time spent in AI/ML: ${D.time.hours}+ hours since ${D.time.start.year} (started in ${D.time.start.city}, now in ${D.time.end.city}).`);
+add(`Time spent in AI/ML: ${D.time.hours}+ hours since ${D.time.start.year} (started in ${D.time.start.city}).`);
 add();
 add('Experience and education (oldest first):');
 for (const e of D.experience) add(`- ${e.years}: ${clean(e.org)} — ${clean(e.role)} (${e.place})`);
