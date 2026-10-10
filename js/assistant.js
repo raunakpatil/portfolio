@@ -456,25 +456,62 @@ function buildAtmosphere() {
   _right2.crossVectors(UP, facing);
   const place = (sideways, height, depth) => new THREE.Vector3().addScaledVector(_right2, sideways).addScaledVector(facing, depth).setY(height);
 
-  // dust: tiny floating particles, mostly in the air around and in front of him
-  const N = 420, pos = new Float32Array(N * 3);
+  // dust: soft motes of light floating in the air around and in front of him — mixed sizes, each twinkling at its own
+  // pace, drifting slowly up and sideways (lavender and white by the moon; warm in the tube room)
+  const N = 420, pos = new Float32Array(N * 3), size = new Float32Array(N), phase = new Float32Array(N), col = new Float32Array(N * 3);
   dustVel = new Float32Array(N * 3);
+  const pal = ROOM === 'tubes' ? [0xffe2c8, 0xffd2a8, 0xfff2e6] : [0xd9c8ff, 0xb894ff, 0xf2eeff, 0x9f7bff];
   for (let i = 0; i < N; i++) {
     const v = place((Math.random() - 0.5) * 6.5, Math.random() * 3.2, (Math.random() - 0.5) * 4.5 + 0.4);
     pos[i * 3] = v.x; pos[i * 3 + 1] = v.y; pos[i * 3 + 2] = v.z;
+    const r = Math.random();
+    size[i] = r > 0.97 ? 0.075 : r > 0.85 ? 0.04 : 0.018 + Math.random() * 0.012;
+    phase[i] = Math.random() * 6.28;
+    _c.set(pal[(Math.random() * pal.length) | 0]); col[i * 3] = _c.r; col[i * 3 + 1] = _c.g; col[i * 3 + 2] = _c.b;
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  dust = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffe2c8, size: 0.013, transparent: true, opacity: 0, depthWrite: false }));
+  g.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+  g.setAttribute('aPhase', new THREE.BufferAttribute(phase, 1));
+  g.setAttribute('aCol', new THREE.BufferAttribute(col, 3));
+  const m = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uOpacity: { value: 0 }, uScale: { value: 1 } },
+    vertexShader: `attribute float aSize; attribute float aPhase; attribute vec3 aCol; uniform float uTime; uniform float uScale;
+      varying vec3 vCol; varying float vA;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        float tw = 0.55 + 0.45 * sin(uTime * (0.8 + fract(aPhase * 7.3) * 1.6) + aPhase);
+        vCol = aCol; vA = tw * smoothstep(0.0, 0.35, position.y);   // (no motes poking through the floor)
+        gl_PointSize = aSize * uScale / -mv.z;
+        gl_Position = projectionMatrix * mv;
+      }`,
+    fragmentShader: `uniform float uOpacity; varying vec3 vCol; varying float vA;
+      void main() {
+        float d = length(gl_PointCoord - 0.5) * 2.0;
+        float a = exp(-d * d * 4.0) + exp(-d * d * 30.0) * 0.6;
+        if (d > 1.0) discard;
+        gl_FragColor = vec4(vCol * a, a) * vA * uOpacity;
+      }`,
+    transparent: true, depthWrite: false,
+    // adds light without making the canvas any less see-through (the picture shows behind it)
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor, blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+  });
+  dust = new THREE.Points(g, m);
+  dust.frustumCulled = false;
   scene.add(dust);
 }
 
+let dustT = 0;
 // the mouse pushes particles out of its way and stirs them along the direction it moves
 const _d = new THREE.Vector3();
 function updateAtmosphere(dt) {
   const P = cursorRing ? cursorRing.position : null;
   const active = cursor.level > 0.05 && P;
   if (dust && dustVel) {
+    dustT += dt;
+    const u = dust.material.uniforms;
+    u.uTime.value = dustT; u.uOpacity.value = dust.material.opacity;
+    u.uScale.value = renderer.domElement.height / (2 * Math.tan((camera.fov * Math.PI) / 360));   // world size → pixels
     const a = dust.geometry.attributes.position, arr = a.array;
     const damp = Math.exp(-2.4 * dt);
     for (let i = 0; i < arr.length; i += 3) {
@@ -491,6 +528,7 @@ function updateAtmosphere(dt) {
       dustVel[i] *= damp; dustVel[i + 1] *= damp; dustVel[i + 2] *= damp;
       arr[i] += dustVel[i] * dt;
       arr[i + 1] += (dustVel[i + 1] + 0.035 * MOTION) * dt;   // a slow rise
+      arr[i] += Math.sin(dustT * 0.35 + i * 0.37) * 0.025 * dt * MOTION;   // and a lazy sway
       arr[i + 2] += dustVel[i + 2] * dt;
       if (arr[i + 1] > 3.3) arr[i + 1] = 0.02;
       if (arr[i + 1] < 0) arr[i + 1] = 0.02;
@@ -935,7 +973,7 @@ function updateSpace(now, dt) {
 // one the moon is centred behind his head and shoulders, the picture fading into black above and below.
 const moon = {
   built: false, img: $('#rai-bg'), fx: $('#rai-bgfx'), ctx: null, glow: null, mist: null, tex: null, lights: [], k: -1,
-  box: null, at: '', par: { x: 0, y: 0 }, tick: 0, shoot: null, nextShoot: 4,
+  box: null, at: '', par: { x: 0, y: 0 }, tick: 0, shoots: [], nextShoot: 4, embers: [], sprites: null,
 };
 const BG_ASPECT = 2172 / 724, BG_MOON_X = 0.625, BG_WATER_Y = 0.822;
 const BG_MOON = [0.6245, 0.6402, 0.4991];             // the moon's outline: centre (fractions across / down), radius / height
@@ -997,8 +1035,56 @@ function placeBackdrop() {
   moon.box = { x, y, iw, ih, w, h, wide };
 }
 
+// sprites for the backdrop's lights, the faint star field, and where on the picture the neon glows (for the embers)
+function bgSprites() {
+  if (moon.sprites) {
+    if (!moon.sprites.hot.length && moon.glow && moon.glow.complete && moon.glow.naturalWidth && !moon.sprites.tried) {
+      moon.sprites.tried = true;
+      try {
+        const c = document.createElement('canvas'), w = 362, h = 121; c.width = w; c.height = h;
+        const x = c.getContext('2d'); x.drawImage(moon.glow, 0, 0, w, h);
+        const d = x.getImageData(0, 0, w, h).data;
+        for (let j = 0; j < h * (BG_WATER_Y - 0.01); j++) for (let i = 0; i < w; i++) if (d[(j * w + i) * 4 + 3] > 150) moon.sprites.hot.push([i / w, j / h]);
+      } catch { /* no embers */ }
+    }
+    return moon.sprites;
+  }
+  const sprite = (inner, outer) => {
+    const c = document.createElement('canvas'); c.width = c.height = 64;
+    const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+    g.addColorStop(0, 'rgba(255, 255, 255, 1)'); g.addColorStop(0.12, inner); g.addColorStop(0.4, outer); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+    return c;
+  };
+  const dot = [sprite('rgba(235, 238, 255, 0.9)', 'rgba(170, 160, 255, 0.18)'), sprite('rgba(210, 225, 255, 0.9)', 'rgba(120, 160, 255, 0.16)'),
+    sprite('rgba(255, 240, 225, 0.9)', 'rgba(255, 190, 160, 0.14)')];
+  const ember = sprite('rgba(230, 170, 255, 0.95)', 'rgba(150, 70, 255, 0.35)');
+  const spike = document.createElement('canvas'); spike.width = spike.height = 128;
+  {
+    const x = spike.getContext('2d');
+    for (const v of [false, true]) {
+      const g = v ? x.createLinearGradient(64, 0, 64, 128) : x.createLinearGradient(0, 64, 128, 64);
+      g.addColorStop(0, 'rgba(210, 200, 255, 0)'); g.addColorStop(0.5, 'rgba(255, 255, 255, 1)'); g.addColorStop(1, 'rgba(210, 200, 255, 0)');
+      x.fillStyle = g;
+      if (v) x.fillRect(63.25, 0, 1.5, 128); else x.fillRect(0, 63.25, 128, 1.5);
+    }
+  }
+  // the faint field: anywhere in the sky clear of the moon and the mountain tops
+  const [mx, my, mr] = BG_MOON, field = [];
+  for (let i = 0; field.length < 170 && i < 3000; i++) {
+    const u = rand(i * 3 + 11), v = 0.02 + rand(i * 5 + 7) * 0.56;
+    if (((u - mx) * BG_ASPECT) ** 2 + (v - my) ** 2 < (mr + 0.015) ** 2) continue;
+    if (v > 0.46 && u > 0.1 && u < 0.9) continue;
+    const big = rand(i * 13 + 2);
+    field.push({ u, v, i, r: big > 0.92 ? 2.4 : big > 0.6 ? 1.6 : 1.1, b: 0.25 + rand(i * 17 + 9) * 0.55, sp: 0.4 + rand(i * 19 + 4) * 1.6,
+      c: big > 0.8 ? 1 : big < 0.12 ? 2 : 0 });
+  }
+  moon.sprites = { dot, ember, spike, field, hot: [], tried: false };
+  return moon.sprites;
+}
+
 // The picture comes alive: the water ripples, the neon in the mountains glows brighter and softer in a slow breath,
-// mist drifts along the shore, the moon's lit rim glows, its
+// mist drifts along the shore, embers float up off it, the moon's lit rim glows, its
 // stars twinkle and a shooting star crosses the sky once in a while. Drawn on a canvas over the picture, in the
 // picture's own coordinates, so it all stays put wherever the picture is placed.
 function drawBackdropFx(t, dt) {
@@ -1044,33 +1130,73 @@ function drawBackdropFx(t, dt) {
   ctx.shadowColor = 'rgba(210, 220, 255, 0.9)'; ctx.shadowBlur = ih * 0.025;
   ctx.beginPath(); ctx.arc(x0 + mx * iw, y0 + my * ih, mr * ih, -2.05, 0.22); ctx.stroke();
   ctx.shadowBlur = 0;
-  // the stars twinkle
-  ctx.fillStyle = '#fff';
-  const ss = Math.max(1, ih * 0.0028);
-  BG_STARS.forEach(([u, v, b], i) => {
-    const k = 0.5 + 0.5 * Math.sin(t * (0.7 + (i % 7) * 0.37) + i * 2.1);
-    ctx.globalAlpha = b * k * k * 0.9;
-    const px = x0 + u * iw, py = y0 + v * ih;
-    ctx.fillRect(px - ss, py - ss, ss * 2, ss * 2);
-    if (b > 0.85) { ctx.globalAlpha *= 0.5; ctx.fillRect(px - ss * 4, py - 0.5, ss * 8, 1); ctx.fillRect(px - 0.5, py - ss * 4, 1, ss * 8); }
-  });
-  // a shooting star once in a while
-  if (!moon.shoot && t > moon.nextShoot) {
-    moon.shoot = { u: 0.1 + Math.random() * 0.8, v: 0.03 + Math.random() * 0.2, dir: Math.random() < 0.5 ? 1 : -1, life: 0 };
+  // the stars: soft points of light that twinkle at their own uneven pace (the picture's bright ones with a glint of
+  // diffraction spikes), and a fine dust of faint ones between them
+  const SP = bgSprites(), su = ih / 724;                  // (sizes are in the picture's own pixels)
+  const tw = (i, sp) => {                                  // an uneven twinkle, 0..1
+    const a1 = Math.sin(t * sp + i * 2.39), a2 = Math.sin(t * sp * 2.71 + i * 1.13), a3 = Math.sin(t * sp * 0.43 + i * 0.7);
+    return clamp(0.55 + 0.25 * a1 + 0.15 * a2 + 0.15 * a3, 0, 1);
+  };
+  for (const st of SP.field) {
+    const k = tw(st.i, st.sp);
+    ctx.globalAlpha = st.b * (0.25 + 0.75 * k);
+    const r = st.r * su * (0.8 + 0.35 * k);
+    ctx.drawImage(SP.dot[st.c], x0 + st.u * iw - r, y0 + st.v * ih - r, r * 2, r * 2);
   }
-  if (moon.shoot) {
-    const S = moon.shoot; S.life += dt / 0.9;
-    if (S.life >= 1) { moon.shoot = null; moon.nextShoot = t + 7 + Math.random() * 9; }
-    else {
-      const len = 0.16 * ih, hx = x0 + S.u * iw + S.dir * S.life * 0.5 * ih, hy = y0 + S.v * ih + S.life * 0.18 * ih;
-      const tx = hx - S.dir * len * 0.94, ty = hy - len * 0.34;
-      const g = ctx.createLinearGradient(hx, hy, tx, ty);
-      g.addColorStop(0, 'rgba(255, 255, 255, 0.95)'); g.addColorStop(1, 'rgba(180, 150, 255, 0)');
-      ctx.globalAlpha = Math.sin(Math.PI * S.life);
-      ctx.strokeStyle = g; ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke();
+  BG_STARS.forEach(([u, v, b], i) => {
+    const k = tw(i + 100, 0.6 + (i % 5) * 0.23), px = x0 + u * iw, py = y0 + v * ih;
+    ctx.globalAlpha = b * (0.15 + 0.85 * k * k);
+    const r = (3.2 + 2.5 * b) * su * (0.75 + 0.5 * k);
+    ctx.drawImage(SP.dot[i % 3], px - r, py - r, r * 2, r * 2);
+    if (b > 0.8) {
+      const L = 16 * su * b * (0.55 + 0.6 * k);
+      ctx.globalAlpha = b * k * k * 0.75;
+      ctx.drawImage(SP.spike, px - L, py - L, L * 2, L * 2);
+    }
+  });
+  // embers: tiny sparks of the neon drifting up off the glowing veins and fading out
+  if (SP.hot.length) {
+    while (moon.embers.length < 42) {
+      const h = SP.hot[(Math.random() * SP.hot.length) | 0];
+      moon.embers.push({ u: h[0], v: h[1], age: -Math.random() * 3, life: 3 + Math.random() * 4, vu: (Math.random() - 0.5) * 0.004,
+        vv: 0.012 + Math.random() * 0.02, r: 1.2 + Math.random() * 1.8, ph: Math.random() * 6.28 });
+    }
+    for (const e of moon.embers) {
+      e.age += dt;
+      if (e.age < 0) continue;
+      e.u += (e.vu + Math.sin(t * 0.9 + e.ph) * 0.0015) * dt; e.v -= e.vv * dt;
+      const f = e.age / e.life, a = Math.sin(Math.PI * Math.min(1, f)) * (0.6 + 0.4 * Math.sin(t * 5 + e.ph));
+      ctx.globalAlpha = Math.min(1, Math.max(0, a) * 1.1);
+      const r = e.r * su * 2.6;
+      ctx.drawImage(SP.ember, x0 + e.u * iw - r, y0 + e.v * ih - r, r * 2, r * 2);
+    }
+    moon.embers = moon.embers.filter((e) => e.age < e.life);
+  }
+  // a shooting star once in a while (now and then two together): a bright head with a tapering tail, burning out
+  if (!moon.shoots.length && t > moon.nextShoot) {
+    const n = Math.random() < 0.2 ? 2 : 1, dir = Math.random() < 0.5 ? 1 : -1, ang = (14 + Math.random() * 22) * Math.PI / 180;
+    for (let k = 0; k < n; k++) {
+      moon.shoots.push({ u: 0.08 + Math.random() * 0.84, v: 0.03 + Math.random() * 0.22 + k * 0.05, dir, ang: ang + k * 0.04,
+        speed: (0.5 + Math.random() * 0.35) * ih, len: (0.12 + Math.random() * 0.1) * ih, dur: 0.7 + Math.random() * 0.5, life: -k * 0.15 });
     }
   }
+  for (const S of moon.shoots) {
+    S.life += dt / S.dur;
+    if (S.life <= 0 || S.life >= 1) continue;
+    const dx = Math.cos(S.ang) * S.dir, dy = Math.sin(S.ang), d = S.life * S.speed * S.dur;
+    const hx = x0 + S.u * iw + dx * d, hy = y0 + S.v * ih + dy * d;
+    const len = S.len * Math.min(1, S.life * 3), tx = hx - dx * len, ty = hy - dy * len;
+    const fade = Math.sin(Math.PI * S.life);
+    for (const [w, al] of [[3.2 * su + 1, 0.12], [1.6 * su + 0.6, 0.35], [0.8, 0.9]]) {
+      const g = ctx.createLinearGradient(hx, hy, tx, ty);
+      g.addColorStop(0, `rgba(255, 255, 255, ${al})`); g.addColorStop(0.3, `rgba(205, 190, 255, ${al * 0.6})`); g.addColorStop(1, 'rgba(160, 120, 255, 0)');
+      ctx.globalAlpha = fade; ctx.strokeStyle = g; ctx.lineWidth = w; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke();
+    }
+    const r = 6 * su + 3;
+    ctx.globalAlpha = fade; ctx.drawImage(SP.dot[0], hx - r, hy - r, r * 2, r * 2);
+  }
+  if (moon.shoots.length && moon.shoots.every((S) => S.life >= 1)) { moon.shoots = []; moon.nextShoot = t + 6 + Math.random() * 9; }
   ctx.globalAlpha = 1;
   if (!B.wide) {
     // (on a portrait screen the picture fades out top and bottom: so does all this)
