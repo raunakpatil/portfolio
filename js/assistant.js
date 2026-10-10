@@ -59,8 +59,9 @@ export function open() {
 }
 
 /* ======================= 3D: Ronie in a neon room ======================= */
-// where he stands: by default night on a black sea under a giant planet; ?room=tubes is the earlier neon-tube room
-const ROOM = new URLSearchParams(location.search).get('room') === 'tubes' ? 'tubes' : 'space';
+// where he stands: by default a picture (neon mountains under a colossal moon) behind the 3D scene; ?room=space is the
+// same idea built in 3D, ?room=tubes the earlier neon-tube room
+const ROOM = (({ tubes: 'tubes', space: 'space' })[new URLSearchParams(location.search).get('room')]) || 'moon';
 root.dataset.room = ROOM;
 let renderer, composer, bloomComposer, scene, camera, mixer, model, head, neck, spine, dust, idleAction, jumpAction;
 let talkK = 0, talkBeat = 0;             // how much he's talking (0..1, eased) and the smoothed beat of his voice
@@ -132,7 +133,7 @@ const hovers = (e) => e.pointerType === 'mouse' && !TOUCH.matches;
 
 function init3D() {
   try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
   } catch (e) {
     loading.textContent = "My 3D body didn't load on this device — but I can still talk.";
     return false;
@@ -144,6 +145,7 @@ function init3D() {
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x000000); // pitch black while he's asleep, rises to BG with the room light
+  if (ROOM === 'moon') { scene.background = null; renderer.setClearColor(0x000000, 0); }   // (the picture shows through)
   camera = new THREE.PerspectiveCamera(30, 1, 0.05, 60);
 
   // Reflections: a cube camera photographs the room from Ronie's chest a few times a second,
@@ -231,7 +233,8 @@ function init3D() {
   const mix = new ShaderPass(new THREE.ShaderMaterial({
     uniforms: { baseTexture: { value: null }, bloomTexture: { value: bloomComposer.renderTarget2.texture } },
     vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: 'uniform sampler2D baseTexture; uniform sampler2D bloomTexture; varying vec2 vUv; void main() { gl_FragColor = texture2D(baseTexture, vUv) + vec4(1.0) * texture2D(bloomTexture, vUv); }',
+    // (the glow only adds light: where the canvas is see-through it stays so, and the glow lands on the picture behind)
+    fragmentShader: 'uniform sampler2D baseTexture; uniform sampler2D bloomTexture; varying vec2 vUv; void main() { vec4 b = texture2D(baseTexture, vUv); gl_FragColor = vec4(b.rgb + texture2D(bloomTexture, vUv).rgb, b.a); }',
   }), 'baseTexture');
   mix.needsSwap = true;
   composer.addPass(mix);
@@ -351,7 +354,7 @@ function onModel(gltf) {
   buildCard();
   placeForLeap(performance.now());
 
-  if (ROOM === 'tubes') buildTubes(); else buildSpace();
+  if (ROOM === 'tubes') buildTubes(); else if (ROOM === 'space') buildSpace(); else buildMoon();
   buildAtmosphere();
   // the canvas stays hidden (black) while a few frames render, so nothing pops in; then it all fades in at once
   warmup = 3;
@@ -925,6 +928,200 @@ function updateSpace(now, dt) {
   if (dust) dust.material.opacity = 0.025 + 0.4 * power;
 }
 
+/* ======================= the picture backdrop ======================= */
+// The default: a wide picture (img/ronie-bg.webp, 3:1, the moon's centre at 62.5% across, the waterline at 82% down)
+// behind the transparent 3D canvas. It's placed for the window every time it changes: on a landscape screen it covers
+// the frame, slid so the moon sits just right of him, with the waterline 87% down (as in the design); on a portrait
+// one the moon is centred behind his head and shoulders, the picture fading into black above and below.
+const moon = {
+  built: false, img: $('#rai-bg'), fx: $('#rai-bgfx'), ctx: null, glow: null, mist: null, tex: null, lights: [], k: -1,
+  box: null, at: '', par: { x: 0, y: 0 }, tick: 0, surge: 0, flick: 0, shoot: null, nextShoot: 4,
+};
+const BG_ASPECT = 2172 / 724, BG_MOON_X = 0.625, BG_WATER_Y = 0.822;
+const BG_MOON = [0.6245, 0.6402, 0.4991];             // the moon's outline: centre (fractions across / down), radius / height
+const BG_PAR = 10;                                    // px the picture drifts against the mouse (a hint of depth)
+// the picture's own brightest stars (fractions across, down; brightness), found in it; they twinkle
+const BG_STARS = [[0.3297, 0.0912, 1.00], [0.8877, 0.1312, 1.00], [0.5101, 0.1823, 1.00], [0.2541, 0.3122, 1.00], [0.0451, 0.3384, 1.00],
+  [0.3393, 0.2638, 1.00], [0.8886, 0.3025, 1.00], [0.8541, 0.4268, 0.99], [0.0124, 0.0635, 0.99], [0.4052, 0.4503, 0.96],
+  [0.1483, 0.4144, 0.94], [0.5599, 0.0870, 0.94], [0.9162, 0.3895, 0.90], [0.9498, 0.2099, 0.89], [0.1662, 0.0290, 0.88],
+  [0.1008, 0.3135, 0.84], [0.7426, 0.0373, 0.82], [0.5695, 0.1229, 0.80], [0.1644, 0.4586, 0.79], [0.4167, 0.3260, 0.78],
+  [0.0801, 0.1312, 0.75], [0.2684, 0.1547, 0.75], [0.1501, 0.1602, 0.70], [0.4222, 0.4227, 0.70], [0.1137, 0.2652, 0.69],
+  [0.9208, 0.2735, 0.68], [0.8720, 0.2293, 0.68], [0.0994, 0.2831, 0.64], [0.1013, 0.2072, 0.64], [0.9167, 0.3522, 0.62],
+  [0.0958, 0.1906, 0.61], [0.4006, 0.2983, 0.61], [0.0272, 0.0539, 0.61], [0.9448, 0.4406, 0.59], [0.0262, 0.1892, 0.57],
+  [0.1179, 0.3412, 0.56], [0.1561, 0.3522, 0.55], [0.0304, 0.2528, 0.54], [0.4434, 0.3633, 0.50], [0.3025, 0.0387, 0.47]];
+function buildMoon() {
+  if (!moon.img || !moon.fx) return;
+  moon.ctx = moon.fx.getContext('2d');
+  moon.glow = new Image(); moon.glow.src = `img/ronie-bg-glow.webp${new URL(import.meta.url).search}`;
+  new THREE.TextureLoader().load(moon.img.currentSrc || moon.img.src, (t) => {
+    t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; moon.tex = t;
+  });
+  const Rt = new THREE.Vector3().crossVectors(UP, facing);
+  // purple from the mountains on his back and sides, a cool white from the moon's side
+  const LIGHTS = [
+    [0x7a3cff, new THREE.Vector3().addScaledVector(Rt, -1.6).addScaledVector(facing, -1.5).setY(1.2), 5, 6],
+    [0x8a4dff, new THREE.Vector3().addScaledVector(Rt, 1.8).addScaledVector(facing, -1.4).setY(1.0), 5, 6],
+    [0x9a5cff, new THREE.Vector3().addScaledVector(Rt, -1.3).addScaledVector(facing, -1.4).setY(2.3), 4, 5],
+    [0xdfe6ff, new THREE.Vector3().addScaledVector(Rt, 1.5).addScaledVector(facing, -1.6).setY(2.6), 3, 5],
+  ];
+  LIGHTS.forEach(([col, p, pow, dist], k) => {
+    const l = tubeLights[k];
+    if (!l) return;
+    l.color.set(col); l.position.copy(p); l.distance = dist;
+    moon.lights.push([l, pow]);
+  });
+  softbox.position.copy(facing).multiplyScalar(1.8).add(new THREE.Vector3(0, 3.8, 0));
+  softbox.lookAt(0, 1.2, 0);
+  moon.built = true;
+}
+const _bp = new THREE.Vector3();
+function placeBackdrop() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+  camera.updateMatrixWorld();
+  const rx = ((_bp.copy(headHome).project(camera).x + 1) / 2) * w;                     // his centre line on screen
+  const hy = ((1 - _bp.copy(headHome).project(camera).y) / 2) * h;                    // his head
+  const wide = w >= h * 1.1, m = TOUCH.matches ? 0 : BG_PAR;
+  let iw, ih, x, y;
+  if (wide) {
+    // (a little over the frame's height, so the moon is as big as in the design: waterline 87% down; plus room to drift)
+    ih = Math.max(h * 1.1, w / BG_ASPECT) + 2 * m; iw = ih * BG_ASPECT;
+    x = clamp(rx + 0.03 * w - BG_MOON_X * iw, w - iw + m, -m);
+    y = clamp(0.87 * h - BG_WATER_Y * ih, h - ih + m, -m);
+  } else {
+    // portrait: the moon behind his head and shoulders, a little wider than the screen, like a halo
+    iw = w * 3.2; ih = iw / BG_ASPECT;
+    x = rx - BG_MOON[0] * iw;
+    y = hy + 0.14 * ih - BG_MOON[1] * ih;
+  }
+  moon.box = { x, y, iw, ih, w, h, wide };
+}
+
+// The picture comes alive: the water ripples, the neon in the mountains breathes (with a surge of light running along
+// the range every few seconds, and a flicker now and then), mist drifts along the shore, the moon's lit rim glows, its
+// stars twinkle and a shooting star crosses the sky once in a while. Drawn on a canvas over the picture, in the
+// picture's own coordinates, so it all stays put wherever the picture is placed.
+function drawBackdropFx(t, dt) {
+  const B = moon.box, c = moon.fx, ctx = moon.ctx;
+  if (!B || !ctx) return;
+  const ratio = Math.min(window.devicePixelRatio || 1, 1.25), cw = Math.round(B.w * ratio), ch = Math.round(B.h * ratio);
+  if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch; }
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  ctx.clearRect(0, 0, B.w, B.h);
+  const x0 = B.x + moon.par.x, y0 = B.y + moon.par.y, iw = B.iw, ih = B.ih;
+  const img = moon.img, NW = img.naturalWidth, NH = img.naturalHeight;
+  if (!NW || !MOTION) return;
+  // the water: each band of it redrawn a little to the side, more the nearer it is
+  const top = Math.max(0, y0 + BG_WATER_Y * ih + 2), bot = Math.min(B.h, y0 + ih), band = 2;
+  ctx.globalCompositeOperation = 'source-over';
+  for (let y = top; y < bot; y += band) {
+    const v = (y - y0) / ih, d = (v - BG_WATER_Y) / (1 - BG_WATER_Y), sy = v * NH;
+    const dx = (Math.sin(sy * 0.23 + t * 1.6) * 0.6 + Math.sin(sy * 0.061 - t * 0.9) * 0.4) * (0.6 + 4.5 * d);
+    ctx.drawImage(img, 0, sy, NW, (band / ih) * NH, x0 + dx, y, iw, band);
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  // the neon breathing, with a flicker now and then
+  if (moon.flick <= 0 && Math.random() < dt * 0.12) moon.flick = 0.35;
+  moon.flick -= dt;
+  const flick = moon.flick > 0 ? (Math.sin(moon.flick * 60) > 0 ? 0.35 : -0.1) : 0;
+  if (moon.glow && moon.glow.complete && moon.glow.naturalWidth) {
+    ctx.globalAlpha = clamp(0.16 + 0.12 * Math.sin(t * 1.25) + 0.05 * Math.sin(t * 3.1) + flick, 0, 1);
+    ctx.drawImage(moon.glow, x0, y0, iw, ih);
+    // a surge of light running along the range
+    moon.surge = (moon.surge + dt / 5.5) % 1;
+    const sx = x0 + (moon.surge * 1.3 - 0.15) * iw, sy = y0 + 0.7 * ih, sr = 0.16 * ih;
+    ctx.save(); ctx.beginPath(); ctx.ellipse(sx, sy, sr * 1.6, sr, 0, 0, Math.PI * 2); ctx.clip();
+    ctx.globalAlpha = 0.45 * Math.sin(Math.PI * moon.surge);
+    ctx.drawImage(moon.glow, x0, y0, iw, ih);
+    ctx.restore();
+  }
+  // mist drifting along the foot of the mountains
+  if (!moon.mist) {
+    const m = document.createElement('canvas'); m.width = m.height = 128;
+    const g = m.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gr.addColorStop(0, 'rgba(140, 70, 255, 0.55)'); gr.addColorStop(1, 'rgba(140, 70, 255, 0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 128, 128); moon.mist = m;
+  }
+  for (let i = 0; i < 4; i++) {
+    const u = ((i * 0.29 + t * (0.006 + i * 0.002)) % 1.3) - 0.15, v = 0.73 + 0.04 * Math.sin(t * 0.2 + i);
+    ctx.globalAlpha = 0.12 + 0.05 * Math.sin(t * 0.5 + i * 2);
+    ctx.drawImage(moon.mist, x0 + u * iw - 0.18 * ih, y0 + v * ih - 0.06 * ih, 0.36 * ih, 0.12 * ih);
+  }
+  // the moon's lit rim, slowly breathing (only the part above the mountains)
+  const [mx, my, mr] = BG_MOON;
+  ctx.globalAlpha = 0.5 + 0.35 * Math.sin(t * 0.55);
+  ctx.strokeStyle = 'rgba(225, 230, 255, 0.5)'; ctx.lineWidth = Math.max(1.2, ih * 0.0025);
+  ctx.shadowColor = 'rgba(210, 220, 255, 0.9)'; ctx.shadowBlur = ih * 0.025;
+  ctx.beginPath(); ctx.arc(x0 + mx * iw, y0 + my * ih, mr * ih, -2.05, 0.22); ctx.stroke();
+  ctx.shadowBlur = 0;
+  // the stars twinkle
+  ctx.fillStyle = '#fff';
+  const ss = Math.max(1, ih * 0.0028);
+  BG_STARS.forEach(([u, v, b], i) => {
+    const k = 0.5 + 0.5 * Math.sin(t * (0.7 + (i % 7) * 0.37) + i * 2.1);
+    ctx.globalAlpha = b * k * k * 0.9;
+    const px = x0 + u * iw, py = y0 + v * ih;
+    ctx.fillRect(px - ss, py - ss, ss * 2, ss * 2);
+    if (b > 0.85) { ctx.globalAlpha *= 0.5; ctx.fillRect(px - ss * 4, py - 0.5, ss * 8, 1); ctx.fillRect(px - 0.5, py - ss * 4, 1, ss * 8); }
+  });
+  // a shooting star once in a while
+  if (!moon.shoot && t > moon.nextShoot) {
+    moon.shoot = { u: 0.1 + Math.random() * 0.8, v: 0.03 + Math.random() * 0.2, dir: Math.random() < 0.5 ? 1 : -1, life: 0 };
+  }
+  if (moon.shoot) {
+    const S = moon.shoot; S.life += dt / 0.9;
+    if (S.life >= 1) { moon.shoot = null; moon.nextShoot = t + 7 + Math.random() * 9; }
+    else {
+      const len = 0.16 * ih, hx = x0 + S.u * iw + S.dir * S.life * 0.5 * ih, hy = y0 + S.v * ih + S.life * 0.18 * ih;
+      const tx = hx - S.dir * len * 0.94, ty = hy - len * 0.34;
+      const g = ctx.createLinearGradient(hx, hy, tx, ty);
+      g.addColorStop(0, 'rgba(255, 255, 255, 0.95)'); g.addColorStop(1, 'rgba(180, 150, 255, 0)');
+      ctx.globalAlpha = Math.sin(Math.PI * S.life);
+      ctx.strokeStyle = g; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke();
+    }
+  }
+  ctx.globalAlpha = 1;
+  if (!B.wide) {
+    // (on a portrait screen the picture fades out top and bottom: so does all this)
+    const g = ctx.createLinearGradient(0, y0, 0, y0 + ih);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.1, '#000'); g.addColorStop(0.86, '#000'); g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalCompositeOperation = 'destination-in'; ctx.fillStyle = g; ctx.fillRect(0, 0, B.w, B.h);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function updateMoon(dt) {
+  const since = awake ? (performance.now() - wakeAt) / 1000 : -1;
+  const roomGoal = awake && since > 0.55 ? 1 : 0;
+  power += (roomGoal - power) * Math.min(1, dt * (MOTION ? 1.6 : 60));
+  // asleep the picture is barely there; it comes up with the room light
+  const k = Math.round((0.22 + 0.78 * power) * 100) / 100;
+  if (k !== moon.k) { moon.k = k; moon.img.style.filter = moon.fx.style.filter = k < 1 ? `brightness(${k})` : ''; }
+  // the picture drifts a touch against the mouse
+  const m = !TOUCH.matches && MOTION ? BG_PAR : 0;
+  moon.par.x += (-ptr.x * m - moon.par.x) * Math.min(1, dt * 2.5);
+  moon.par.y += (-ptr.y * m * 0.6 - moon.par.y) * Math.min(1, dt * 2.5);
+  const B = moon.box;
+  if (B) {
+    const at = `${Math.round(B.iw)},${(B.x + moon.par.x).toFixed(1)},${(B.y + moon.par.y).toFixed(1)},${B.wide}`;
+    if (at !== moon.at) {
+      moon.at = at;
+      Object.assign(moon.img.style, { width: `${B.iw}px`, height: `${B.ih}px`, transform: `translate(${B.x + moon.par.x}px, ${B.y + moon.par.y}px)` });
+      moon.img.classList.toggle('tall', !B.wide);
+    }
+    // ~30 fps is plenty for this
+    moon.tick += dt;
+    if (moon.tick >= 1 / 32) { drawBackdropFx(performance.now() / 1000, moon.tick); moon.tick = 0; }
+  }
+  for (const [l, p] of moon.lights) l.intensity = p * power;
+  lights.key.intensity = 1.25 * power;
+  lights.hemi.intensity = 0.16 * power;
+  lights.moon.intensity = 0.55 - 0.2 * power;
+  softbox.material.color.setScalar(0.05 + 1.2 * power);
+  if (dust) dust.material.opacity = 0.025 + 0.4 * power;
+}
+
 // re-photograph the surroundings for reflections (every few frames is plenty)
 function updateReflections() {
   if (!cubeCam || !model) return;
@@ -935,7 +1132,9 @@ function updateReflections() {
   // would read from the very image being written (a feedback loop that made every 3rd frame flash)
   scene.environment = null;
   cubeCam.position.set(headHome.x, headHome.y - 0.5, headHome.z);
+  if (moon.tex) { scene.background = moon.tex; scene.backgroundIntensity = 0.2 + 0.8 * power; }   // his armour reflects the picture
   cubeCam.update(renderer, scene);
+  if (moon.tex) scene.background = null;
   envRT = pmremGen.fromCubemap(cubeRT.texture, envRT);
   scene.environment = envRT.texture;
   model.visible = true;
@@ -1640,11 +1839,13 @@ function loop(now) {
   resize();
   if (tubes.length) updateTubes(now, dt);
   else if (space.built) updateSpace(now, dt);
+  else if (moon.built) updateMoon(dt);
 
   // fixed camera framing the idle pose — it doesn't chase him when he moves
   const dist = 2.7 * Math.max(1, 1.05 / Math.max(camera.aspect, 0.3));
   camera.position.copy(target).addScaledVector(facing, dist).add(new THREE.Vector3(0, 0.14, 0));
   camera.lookAt(target);
+  if (moon.built) placeBackdrop();
   if (shake > 0.002) {
     // a short, decaying jolt when he lands
     const a = shake * shake * 0.05;

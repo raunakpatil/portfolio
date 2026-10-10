@@ -17,7 +17,7 @@
   <link rel="icon" href="favicon.ico?v=2" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
   <link rel="preload" href="fonts/gobitta.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="css/style.css?v=20261013150000">
+  <link rel="stylesheet" href="css/style.css?v=20261013210000">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -209,6 +209,8 @@
     <!-- ============ R.O.N.I.E. ("Ronie") — ASSISTANT ============ -->
     <section class="view" data-view="assistant" hidden>
       <div class="rai" id="rai">
+        <img class="rai-bg" id="rai-bg" src="img/ronie-bg.webp" alt="" aria-hidden="true" decoding="async">
+        <canvas class="rai-bgfx" id="rai-bgfx" aria-hidden="true"></canvas>
         <canvas class="rai-canvas" id="rai-canvas" aria-hidden="true"></canvas>
         <div class="rai-loading" id="rai-loading" aria-live="polite">
           <!-- while he loads: his spec sheet. The boot % is live (#rai-load-pct), the rest animates in main.js -->
@@ -319,8 +321,8 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261013150000"></script>
+  <script src="js/data.js?v=20261013210000"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js" defer></script>
-  <script src="js/main.js?v=20261013150000" defer></script>
+  <script src="js/main.js?v=20261013210000" defer></script>
 </body>
 </html>
