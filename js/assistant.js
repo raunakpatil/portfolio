@@ -342,7 +342,7 @@ function onModel(gltf) {
   buildEmblem();
   buildFace();
   rHand = findBone(/CC_Base_R_Hand(_|$)/);
-  rPinch = [findBone(/CC_Base_R_Thumb3/), findBone(/CC_Base_R_Index2/)];   // a card is pinched between these
+  rThumb = findBone(/CC_Base_R_Thumb3/);    // a project card is pinched under his thumb
   buildCard();
   placeForLeap(performance.now());
 
@@ -1146,7 +1146,7 @@ function updateGestures(now, dt) {
   if (gesture) {
     // a finished move holds its last frame (which is the idle pose) while its weight fades out
     // (except 'pickup': he keeps the photo up, on its last frame, until one of the throws takes over)
-    if (playing && gesture.time >= gesture.getClip().duration - 0.001 && !(gesture === gestures.pickup && card.state === 'held')) playing = false;
+    if (playing && gesture.time >= gesture.getClip().duration - 0.001 && !(gesture === pickMove() && card.state === 'held')) playing = false;
     gestureW += ((playing ? 1 : 0) - gestureW) * Math.min(1, dt * (playing ? 9 : 5));
     gesture.setEffectiveWeight(gestureW);
     if (!playing && gestureW < 0.005) { gesture.stop(); gesture = null; gestureW = 0; }
@@ -2049,8 +2049,9 @@ const card = {
   mode: 'photo', project: null, faces: null, pCanvas: null, pTex: null, pFront: null, heldTimer: 0, dev: 1, picPending: false,
   vel: new THREE.Vector3(), spin: new THREE.Vector3(), prev: new THREE.Vector3(), handVel: new THREE.Vector3(),
 };
-let rHand = null, rPinch = [], busyUntil = 0;
-const _pa2 = new THREE.Vector3(), _pb2 = new THREE.Vector3();
+let rHand = null, rThumb = null, busyUntil = 0;
+// the move that brought the card up: 'pickup' (a photo, held by his face) or 'pickup_show' (a project card, held out)
+const pickMove = () => gestures[card.move] || gestures.pickup;
 const _cv = new THREE.Vector3(), _cv2 = new THREE.Vector3(), _cq = new THREE.Quaternion(), _cq2 = new THREE.Quaternion();
 const _ce = new THREE.Euler(), _cz = new THREE.Vector3(0, 0, 1);
 const FLAT = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));   // lying face-up
@@ -2094,8 +2095,8 @@ function setCardMode(mode) {
 }
 
 // a project's card: its picture whole (16:9), its name underneath and a small "tap to open"
-// laid out for his grip: the name in a bold band at the top, the picture whole below it, and the bottom-right corner
-// (where his fist goes) left clear
+// laid out for his grip: the name in a bold band at the top, the picture whole below it, and the bottom-left corner
+// (where his thumb goes) left clear
 function drawProjectCard() {
   const c = card.pCanvas, x = c.getContext('2d'), W = c.width, H = c.height, m = 44;
   const p = card.project || {}, img = card.img;
@@ -2111,8 +2112,8 @@ function drawProjectCard() {
   const top = 190, ih = H - 120 - top, iw = Math.round(ih * 16 / 9), ix = Math.round((W - iw) / 2);
   if (img) x.drawImage(img, ix, top, iw, ih);
   x.strokeStyle = 'rgba(0, 0, 0, .12)'; x.lineWidth = 2; x.strokeRect(ix, top, iw, ih);
-  x.fillStyle = '#ff7a1a'; x.font = '600 30px "JetBrains Mono", monospace';
-  x.fillText('TAP TO OPEN ↗', m, H - 50);
+  x.fillStyle = '#ff7a1a'; x.font = '600 30px "JetBrains Mono", monospace'; x.textAlign = 'right';
+  x.fillText('TAP TO OPEN ↗', W - m, H - 50);
   card.pTex.needsUpdate = true;
 }
 
@@ -2400,9 +2401,10 @@ function ouch() {
 
 // talking about a project: down he goes for its card, and holds it up while he answers (false if he can't move now)
 function pickUpProject(p) {
-  if (!card.group || !rHand || !gestures.pickup || !playGesture('pickup')) return false;
+  const move = gestures.pickup_show ? 'pickup_show' : 'pickup';   // (an older cached anims file has no pickup_show)
+  if (!card.group || !rHand || !gestures[move] || !playGesture(move)) return false;
   const my = ++card.token;
-  Object.assign(card, { state: 'wait', toss: null, scale: 0, name: '', img: null, project: p });
+  Object.assign(card, { state: 'wait', toss: null, scale: 0, name: '', img: null, project: p, move });
   setCardMode('project');
   card.group.visible = false;
   drawProjectCard();
@@ -2410,7 +2412,7 @@ function pickUpProject(p) {
   const img = new Image();
   img.onload = () => { if (my === card.token) { card.img = img; drawProjectCard(); } };
   img.src = p.image;
-  busyUntil = performance.now() + gestures.pickup.getClip().duration * 1000;
+  busyUntil = performance.now() + gestures[move].getClip().duration * 1000;
   // he doesn't hold it forever: after a while it goes over his shoulder
   clearTimeout(card.heldTimer);
   card.heldTimer = setTimeout(() => { if (my === card.token && card.mode === 'project') throwPhoto('toss'); }, 30000);
@@ -2473,7 +2475,7 @@ function drawCard() {
 function pickUpPhoto(name, pic = preparePicture(name)) {
   if (!card.group || !rHand || !gestures.pickup || !playGesture('pickup')) return false;
   const my = ++card.token;
-  Object.assign(card, { state: 'wait', toss: null, scale: 0, name: name || '', img: null, project: null, dev: 1, picPending: !!name });
+  Object.assign(card, { state: 'wait', toss: null, scale: 0, name: name || '', img: null, project: null, dev: 1, picPending: !!name, move: 'pickup' });
   setCardMode('photo');
   clearTimeout(card.heldTimer);
   card.group.visible = false;
@@ -2509,7 +2511,7 @@ function letGo(push, spin = 6) {
 
 function updateCard(now, dt) {
   if (!card.group || card.state === 'off') return;
-  const g = card.group, pick = gestures.pickup;
+  const g = card.group, pick = pickMove();
   if (card.state === 'flying') {
     card.flyT += dt;
     card.vel.y -= 9.8 * dt;
@@ -2542,19 +2544,14 @@ function updateCard(now, dt) {
   card.scale = Math.min(1, card.scale + dt * 7);
   const sway = MOTION ? Math.sin(now / 650) * 0.025 : 0;
   if (card.mode === 'project') {
-    // a project card is held up by its inner bottom corner, pinched in his fist with the fingers over the front, and
-    // hangs out to the side of his face, tipped a little
-    // pinched between his thumb and index finger, the card's inner bottom corner sits right in the pinch (the plane
-    // runs through it, so the thumb shows on one side of the card and the finger on the other)
-    if (rPinch[0] && rPinch[1]) {
-      rPinch[0].getWorldPosition(_pa2); rPinch[1].getWorldPosition(_pb2);
-      g.position.addVectors(_pa2, _pb2).add(_cv).multiplyScalar(1 / 3);   // the middle of his fist
-    } else g.position.copy(_cv).addScaledVector(UP, 0.07).addScaledVector(facing, 0.035);
+    // a project card is held out to the viewer at arm's length, pinched by its bottom-left corner: the thumb over
+    // the front, the fingers behind (the card's plane runs through his thumb's last joint, between the two)
+    if (rThumb) rThumb.getWorldPosition(g.position); else g.position.copy(_cv);
     if (k < 1) g.position.lerp(_cv2.copy(_cv).addScaledVector(UP, 0.04).addScaledVector(facing, 0.1), 1 - k);
     g.lookAt(camera.position);
-    _cq.copy(g.quaternion).multiply(_cq2.setFromAxisAngle(_cz, 0.07 + sway));
+    _cq.copy(g.quaternion).multiply(_cq2.setFromAxisAngle(_cz, -0.04 + sway));   // the far side dips a touch
     g.quaternion.copy(FLAT).slerp(_cq, k);
-    _cv2.set(-(PROJ_W / 2 - 0.07), PROJ_H / 2 - 0.06, 0).applyQuaternion(g.quaternion);   // from the grip (well inside the corner) to the middle
+    _cv2.set(PROJ_W / 2 - 0.03, PROJ_H / 2 - 0.02, 0).applyQuaternion(g.quaternion);   // from the pinch to the middle
     g.position.addScaledVector(_cv2, k);
   } else {
     g.position.copy(_cv).addScaledVector(UP, lerp(0.04, 0.2, k)).addScaledVector(facing, lerp(0.1, 0.05, k));
