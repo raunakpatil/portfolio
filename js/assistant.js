@@ -52,6 +52,7 @@ export function open() {
 
 /* ======================= 3D: Ronie in a neon room ======================= */
 let renderer, composer, bloomComposer, scene, camera, mixer, model, head, neck, spine, dust, idleAction, jumpAction;
+let talkK = 0, talkBeat = 0;             // how much he's talking (0..1, eased) and the smoothed beat of his voice
 const rest = new Map();                 // head/neck/spine: their animated pose, before the look/breathing offsets
 const facing = new THREE.Vector3(0, 0, 1);
 const target = new THREE.Vector3();
@@ -1345,9 +1346,17 @@ function loop(now) {
     look.x += (ptr.x * k - look.x) * Math.min(1, dt * 4);
     look.y += (ptr.y * k - look.y) * Math.min(1, dt * 4);
     const breathe = MOTION ? Math.sin(t * 1.7) * 0.016 : 0;
-    const sway = MOTION ? Math.sin(t * 0.45) * 0.035 + Math.sin(t * 0.23 + 1) * 0.02 : 0;
+    // talking: his head moves with what he says — small nods that dip on the louder syllables, slow glances to the
+    // side and a slight conversational tilt — and the idle sway settles down while he does
+    const speaking = MOTION && (voiceSrc || ('speechSynthesis' in window && speechSynthesis.speaking) || now < face.talkUntil);
+    talkK += ((speaking ? 1 : 0) - talkK) * Math.min(1, dt * (speaking ? 5 : 2.5));
+    const beat = voiceSrc ? voiceLevel : 0.5 + 0.5 * Math.sin(t * 8.3) * Math.sin(t * 2.9 + 1);   // no voice: a made-up rhythm
+    talkBeat += (beat - talkBeat) * Math.min(1, dt * 9);
+    const talkNod = talkK * (Math.sin(t * 4.6 + Math.sin(t * 1.3) * 2) * 0.03 + talkBeat * 0.05);
+    const talkYaw = talkK * (Math.sin(t * 1.15 + Math.sin(t * 0.41) * 3) * 0.06);
+    const sway = MOTION ? (Math.sin(t * 0.45) * 0.035 + Math.sin(t * 0.23 + 1) * 0.02) * (1 - 0.7 * talkK) : 0;
     // +yaw turns towards the viewer's right, +pitch looks down
-    const yaw = look.x * 0.75, pitch = look.y * 0.35;
+    const yaw = look.x * 0.75 + talkYaw, pitch = look.y * 0.35 + talkNod;
     listen += ((now < listenUntil ? 1 : 0) - listen) * Math.min(1, dt * 3.5);
     turn(spine, yaw * 0.25 + sway * 0.6, pitch * 0.15 + breathe + slump * 0.18 + listen * 0.06);
     // the neck carries most of the turn: the helmet is skinned to both neck and head, so turning the head
@@ -1355,6 +1364,7 @@ function loop(now) {
     turn(neck, yaw * 0.5 + sway * 0.45, pitch * 0.5 + breathe * 0.5 + slump * 0.4);
     turn(head, yaw * 0.25 + sway * 0.25, pitch * 0.35 + slump * 0.35 + listen * 0.05);
     if (listen > 0.002) addWorldRotation(head, _q.setFromAxisAngle(facing, -0.17 * listen));   // a curious head tilt
+    if (talkK > 0.002) addWorldRotation(head, _q.setFromAxisAngle(facing, talkK * Math.sin(t * 0.7 + 2) * 0.06));
     updateCard(now, dt);
     updateReflections();
   }
