@@ -963,6 +963,9 @@ main { padding: 0 var(--gap) var(--gap); }
   .rai-chip { flex: none; white-space: nowrap; padding: 6px 12px; font-size: 12px; }
   /* his link buttons: one row you swipe along (not three wrapped rows pushing his answer off the top), and smaller */
   .rai-links { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin-right: -18px; padding-right: 18px; }
+  /* a swipe along a row scrolls just that row — never the panel or the page */
+  .rai-panel, .rai-panel.chatting .rai-thread { overflow-x: hidden; }
+  .rai-links, .rai-suggest { overscroll-behavior-x: contain; touch-action: pan-x pan-y; align-self: stretch; min-width: 0; }   /* (the panel's width, so they scroll inside it) */
   .rai-links::-webkit-scrollbar { display: none; }
   .rai-link { flex: none; white-space: nowrap; padding: 6px 12px; font-size: 12px; gap: 5px; }
   .rai-link span { font-size: 10px; }
