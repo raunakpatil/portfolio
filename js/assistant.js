@@ -1547,10 +1547,42 @@ const lastLine = {};
 // what the visitor just said, in a white bubble above Ronie's answer (the same bubble as the dashboard's tunnel)
 const prevEl = document.createElement('p');
 prevEl.className = 'rai-prev';
-panel.insertBefore(prevEl, sayEl);
+// the conversation: earlier exchanges (kept as plain copies), then the visitor's latest message and Ronie's answer.
+// In a chat it sits on the input box and grows upwards, scrolling once it's taller than the room
+const thread = document.createElement('div');
+thread.className = 'rai-thread';
+const threadLog = document.createElement('div');
+threadLog.className = 'rai-log';
+panel.insertBefore(thread, sayEl);
+thread.append(threadLog, prevEl, sayEl);
+const THREAD_KEEP = 16;                          // bubbles kept above the latest exchange
+function archiveExchange() {
+  // what's on screen now (the visitor's last message, Ronie's answer) moves up into the history
+  if (prevEl.classList.contains('show') && prevEl.textContent) {
+    const b = document.createElement('p'); b.className = 'rai-prev show old'; b.textContent = prevEl.textContent; threadLog.appendChild(b);
+  }
+  const said = sayEl.textContent.trim();
+  if (said && said !== '…') {
+    const b = document.createElement('p'); b.className = 'rai-say old'; b.textContent = said; threadLog.appendChild(b);
+  }
+  while (threadLog.children.length > THREAD_KEEP) threadLog.firstChild.remove();
+}
+const toBottom = () => { thread.scrollTop = thread.scrollHeight; };
 function showYou(text) {
   prevEl.textContent = text || '';
   prevEl.classList.toggle('show', !!text);
+  toBottom();
+}
+// "my name is Asha", "call me Sam" → the name; "that's not my name", "change my name" → '' (ask again); else null
+const NAME_OK = ["Got it — {name} it is. Nice to meet you, properly this time.", "{name}! Noted, and saved to my memory banks.", "Okay, {name}. My circuits have updated your file.", "{name} it is. I'll try not to forget. I never forget. Usually."];
+function nameIn(q) {
+  const t = q.trim().replace(/[.!]+$/, '');
+  const m = t.match(/^(?:hi,?\s+|hey,?\s+)?(?:my name is|my name's|call me|you can call me|i am|i'm|im|this is|it's)\s+([a-z][a-z'\- ]{0,28})$/i);
+  if (m && t.split(/\s+/).length <= 6 && !/^(?:a|an|the|not|just|here|looking|interested|hiring|from|good|fine|ok|okay|back|new|curious|bored|recruiting|a recruiter)\b/i.test(m[1])) {
+    return m[1].trim().replace(/\s+(?:from|at|and|with|here|by)\b.*$/i, '').replace(/\b\w/g, (c) => c.toUpperCase()).slice(0, 30);
+  }
+  if (/\b(change|update|wrong|fix)\b[^?]*\bname\b|\bnot my name\b|\b(that'?s|thats|it'?s) not me\b|\bi'?m not \w+$/i.test(t)) return '';
+  return null;
 }
 // the label at the top of the panel: "R.O.N.I.E online / thinking… / mind reader · Q 07/30"
 const statusEl = $('#rai-status');
@@ -1591,6 +1623,7 @@ function typeLine(text) {
       if (i >= text.length) return finish();
       const tail = Array.from({ length: Math.min(3, text.length - i) }, () => GLYPHS[(Math.random() * GLYPHS.length) | 0]).join('');
       sayEl.innerHTML = `${esc(text.slice(0, i))}<span class="rai-scr">${esc(tail)}</span>`;
+      if (i % 12 === 0) toBottom();
       if (i % 2 === 0) blip();
       face.talkUntil = performance.now() + 140;
       setTimeout(tick, text[i - 1] === ',' || text[i - 1] === '.' ? 90 : 22);
@@ -1865,24 +1898,6 @@ function showChat(id, step, offerEmail = false, links = []) {
     t.addEventListener('click', startGame);
     actions.appendChild(t);
   }
-  // someone else at this computer? let them give their own name
-  if (answers.name) {
-    const who = document.createElement('p');
-    who.className = 'rai-who';
-    who.style.animationDelay = '280ms';
-    who.append(`// talking to ${answers.name} · `);
-    const not = document.createElement('button');
-    not.type = 'button';
-    not.textContent = 'not you?';
-    not.addEventListener('click', () => {
-      delete answers.name;
-      store.set('rai-name', '');
-      chatLog.length = 0;
-      go('your-name');
-    });
-    who.appendChild(not);
-    actions.appendChild(who);
-  }
   actions.onsubmit = async (e) => {
     e.preventDefault();
     if (recognizer) recognizer.abort();
@@ -1890,8 +1905,25 @@ function showChat(id, step, offerEmail = false, links = []) {
     if (!q) { err.textContent = 'Type a question first.'; el.focus(); confused(); return; }
     el.disabled = send.disabled = true;
     suggested.add(q);
-    panel.classList.add('chatting');   // from the first message on: the chat at the top, the box at the bottom
+    // from the first message on it's a chat: the thread sits on the box and grows upwards
+    archiveExchange();
+    panel.classList.add('chatting');
     el.value = '';   // the question moves up into the bubble
+    // telling him their name (or that it's wrong) — handled here, no need to ask the model
+    const named = nameIn(q);
+    if (named !== null) {
+      showYou(q); toBottom();
+      el.disabled = send.disabled = false;
+      if (named) {
+        answers.name = named; store.set('rai-name', named); chatLog.length = 0;
+        setFace('happy'); playGesture('nod');
+        await typeLine(fill(pick(NAME_OK)));
+        return showChat(id, step);
+      }
+      delete answers.name; store.set('rai-name', ''); chatLog.length = 0;
+      archiveExchange(); showYou(null);
+      return go('your-name');
+    }
     // while he thinks, only the question stays: the suggestions and the game step aside
     actions.querySelectorAll('.rai-links, .rai-suggest, .rai-play, .rai-who, .rai-choice').forEach((n) => n.remove());
     setStatus('thinking…', 'busy');
