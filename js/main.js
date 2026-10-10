@@ -572,14 +572,19 @@
       });
     };
     const none = () => setHot(new Set());
-    items.forEach((li, i) => {
-      li.addEventListener('pointerenter', () => setHot(new Set([i])));
-      li.addEventListener('pointerleave', none);
-    });
+    // mouse: hover. touch: tap to pick (it stays until you tap something else) — no hover on touch, as a finger
+    // landing on the card to scroll fires enter/leave and made the list flash
+    let lastType = 'mouse';
+    document.addEventListener('pointerdown', (e) => { lastType = e.pointerType; }, true);
+    const hover = (el, on) => {
+      el.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') on(); });
+      el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') none(); });
+      el.addEventListener('click', () => { if (lastType !== 'mouse') on(); });
+    };
+    items.forEach((li, i) => hover(li, () => setHot(new Set([i]))));
     toolEls.forEach((li) => {
       const tool = li.dataset.tool;
-      li.addEventListener('pointerenter', () => setHot(new Set(S.items.map((_, i) => i).filter((i) => usesTool(i, tool))), new Set([tool])));
-      li.addEventListener('pointerleave', none);
+      hover(li, () => setHot(new Set(S.items.map((_, i) => i).filter((i) => usesTool(i, tool))), new Set([tool])));
     });
 
     const GAP = 4, STEP = 3;
@@ -590,23 +595,34 @@
       if (s) setHot(new Set([s.i]));
       else if (e.pointerType === 'mouse') none();
     };
-    // mouse: hover a bar. touch: tap a bar, slide sideways to run along them; the pick stays until you tap elsewhere
-    // (touch-action: pan-y keeps vertical swipes scrolling the page)
-    canvas.addEventListener('pointerdown', (e) => {
-      pick(e);
-      if (e.pointerType !== 'mouse') try { canvas.setPointerCapture(e.pointerId); } catch {}
+    // mouse: hover a bar. touch: tap a bar, or slide sideways to run along them (touch-action: pan-y leaves vertical
+    // swipes to scroll the page, so starting a scroll on the bars picks nothing)
+    let down = null;
+    canvas.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') down = { x: e.clientX, y: e.clientY, sliding: false }; });
+    canvas.addEventListener('pointermove', (e) => {
+      if (e.pointerType === 'mouse') return pick(e);
+      if (!down) return;
+      if (!down.sliding) down.sliding = Math.abs(e.clientX - down.x) > 6 && Math.abs(e.clientX - down.x) > Math.abs(e.clientY - down.y);
+      if (down.sliding) pick(e);
     });
-    canvas.addEventListener('pointermove', pick);
+    const lift = () => { down = null; };
+    canvas.addEventListener('pointerup', lift);
+    canvas.addEventListener('pointercancel', lift);
+    canvas.addEventListener('click', (e) => { if (lastType !== 'mouse') pick(e); });
     canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') none(); });
-    document.addEventListener('pointerdown', (e) => {
-      if (e.pointerType !== 'mouse' && e.target !== canvas && !e.target.closest('#card-skills li') && hot.size) none();
+    // a tap anywhere else clears the pick (scrolling doesn't)
+    document.addEventListener('click', (e) => {
+      if (lastType !== 'mouse' && hot.size && e.target !== canvas && !e.target.closest?.('#card-skills li')) none();
     });
 
-    let start = null, t = 0;
+    let start = null, t = 0, counted = false;
     onFrame(card, (now, dt) => {
       if (start === null) start = now;
       const k = MOTION ? easeOut(clamp((now - start) / 1800, 0, 1)) : 1;
-      badges.forEach((b, i) => { b.textContent = Math.round(S.items[i].score * k); });
+      if (k < 1 || !counted) {   // count the badges up, then leave them be (rewriting them every frame is wasted paint)
+        badges.forEach((b, i) => { const v = String(Math.round(S.items[i].score * k)); if (b.textContent !== v) b.textContent = v; });
+        counted = k >= 1;
+      }
       t += dt * MOTION;
 
       const { ctx, w, h } = fit(canvas);
