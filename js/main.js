@@ -280,7 +280,7 @@
       let h = location.hash.slice(1);
       if (RENAMED[h]) { h = RENAMED[h]; history.replaceState(null, '', `#${h}`); }
       const r = routes.includes(h) ? h : !h && onRonie() ? 'assistant' : 'dashboard';
-      if (r === 'assistant' && (h || !onRonie())) history.replaceState(null, '', '/ronie');
+      if (r === 'assistant' && (h || !onRonie())) history.replaceState(null, '', `/ronie${location.search}`);   // (keeps ?room=…)
       else if (r !== 'assistant' && onRonie()) history.replaceState(null, '', `/#${r}`);
       $$('.view').forEach((v) => { v.hidden = v.dataset.view !== r; });
       links.forEach((a) => {

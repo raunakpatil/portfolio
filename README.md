@@ -40,6 +40,11 @@ window shows `photo` (a picture in `img/certs/`) or, failing that, `logo` (an is
 and NIELIT's emblems, used to identify who issued a certificate). Opening a book shows `brief`, the skills, the
 credential `id` and a link to `url`.
 
+## Ronie's surroundings
+By default Ronie stands on a black, glassy sea under a giant planet with a purple orbit ring, beams of light, stars
+and a crystal-rock shore (`buildSpace` in `js/assistant.js`; everything is placed from where it sits in the design
+frame). The earlier neon-tube room is kept: open `raunakpatil.com/ronie?room=tubes` to see it.
+
 ## Ronie's extra moves (Blender)
 `models/ronie-anims.glb` holds Ronie's idle variations, the chat moves, and the guessing game's photo moves
 (`pickup`, `toss_happy`, `toss_angry`, `toss`) and the project card's `pickup_show` (held out to the viewer by its bottom-left corner), authored in Blender 5.2 by

@@ -59,6 +59,9 @@ export function open() {
 }
 
 /* ======================= 3D: Ronie in a neon room ======================= */
+// where he stands: by default night on a black sea under a giant planet; ?room=tubes is the earlier neon-tube room
+const ROOM = new URLSearchParams(location.search).get('room') === 'tubes' ? 'tubes' : 'space';
+root.dataset.room = ROOM;
 let renderer, composer, bloomComposer, scene, camera, mixer, model, head, neck, spine, dust, idleAction, jumpAction;
 let talkK = 0, talkBeat = 0;             // how much he's talking (0..1, eased) and the smoothed beat of his voice
 const rest = new Map();                 // head/neck/spine: their animated pose, before the look/breathing offsets
@@ -195,15 +198,17 @@ function init3D() {
 
   // an unlit black floor (no coloured pools or reflections on it), plus a soft contact shadow under his feet
   // (it fades out towards its edge, so there's no horizon line where it meets the background)
-  const fade = document.createElement('canvas'); fade.width = fade.height = 256;
-  const fx = fade.getContext('2d'), fg = fx.createRadialGradient(128, 128, 0, 128, 128, 128);
-  fg.addColorStop(0, '#fff'); fg.addColorStop(0.35, '#fff'); fg.addColorStop(1, '#000');
-  fx.fillStyle = fg; fx.fillRect(0, 0, 256, 256);
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 72), floorMat = new THREE.MeshBasicMaterial({
-    color: 0x000000, transparent: true, alphaMap: new THREE.CanvasTexture(fade), depthWrite: false }));
-  floor.renderOrder = -1;
-  floor.rotation.x = -Math.PI / 2;
-  scene.add(floor);
+  if (ROOM === 'tubes') {
+    const fade = document.createElement('canvas'); fade.width = fade.height = 256;
+    const fx = fade.getContext('2d'), fg = fx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    fg.addColorStop(0, '#fff'); fg.addColorStop(0.35, '#fff'); fg.addColorStop(1, '#000');
+    fx.fillStyle = fg; fx.fillRect(0, 0, 256, 256);
+    const floor = new THREE.Mesh(new THREE.CircleGeometry(12, 72), floorMat = new THREE.MeshBasicMaterial({
+      color: 0x000000, transparent: true, alphaMap: new THREE.CanvasTexture(fade), depthWrite: false }));
+    floor.renderOrder = -1;
+    floor.rotation.x = -Math.PI / 2;
+    scene.add(floor);
+  }
   const blob = document.createElement('canvas'); blob.width = blob.height = 128;
   const bx = blob.getContext('2d'); const bg = bx.createRadialGradient(64, 64, 4, 64, 64, 64);
   bg.addColorStop(0, 'rgba(0,0,0,.75)'); bg.addColorStop(1, 'rgba(0,0,0,0)');
@@ -346,7 +351,7 @@ function onModel(gltf) {
   buildCard();
   placeForLeap(performance.now());
 
-  buildTubes();
+  if (ROOM === 'tubes') buildTubes(); else buildSpace();
   buildAtmosphere();
   // the canvas stays hidden (black) while a few frames render, so nothing pops in; then it all fades in at once
   warmup = 3;
@@ -533,6 +538,391 @@ function updateTubes(now, dt) {
   }
   if (tubeMetal) { tubeMetal.color.setScalar(0.035 + 0.135 * power); tubeMetal.envMapIntensity = 0.05 + 0.95 * power; }
   if (dust) dust.material.opacity = 0.025 + 0.475 * power;
+}
+
+/* ======================= the space backdrop ======================= */
+// His default surroundings (?room=tubes brings back the neon-tube room): night on a black, glassy sea. A giant dark
+// planet with a lit rim hangs behind him inside a purple orbit ring, thin beams of light hang down from the sky with
+// sparks running along them, square stars, crystal rocks with purple edges along the shore, and the water mirrors
+// the beams and rocks. Everything is placed from where it sits on screen in the design (a 1867×842 frame, Ronie's
+// centre line at x 1230), at a chosen distance behind him, so the composition holds whatever the window shape.
+const space = { built: false, beams: [], mats: [], ring: null, planet: null, halo: null, stars: null, lights: [], glints: [] };
+const SPACE_PX = 28;                                  // design pixels per degree (842 px = the camera's 30°)
+const CAM_D = 2.85, CAM_Y = 1.74, CAM_PITCH = 3;      // the desktop camera: in front of him, eye height, looking down
+function buildSpace() {
+  const F = facing.clone(), Rt = new THREE.Vector3().crossVectors(UP, F);
+  const deg = Math.PI / 180;
+  // a point that shows at design pixel (px, py), `behind` metres behind him (so camera distance CAM_D + behind)
+  const spot = (px, py, behind) => {
+    const L = CAM_D + behind;
+    const side = L * Math.tan(((px - 1230) / SPACE_PX) * deg);
+    const y = CAM_Y + L * Math.tan(((421 - py) / SPACE_PX - CAM_PITCH) * deg);
+    return new THREE.Vector3().addScaledVector(Rt, side).addScaledVector(F, -behind).setY(y);
+  };
+  const pxSize = (px, behind) => (CAM_D + behind) * Math.tan((px / SPACE_PX) * deg);   // design pixels → metres there
+  const faceCam = (o) => o.lookAt(_d.copy(o.position).add(F));
+
+  // ---- stars: square points on a far dome, a few bigger ones that twinkle
+  {
+    const N = 900, pos = [], size = [], phase = [], tw = [];
+    for (let i = 0; i < N; i++) {
+      const az = (rand(i * 3 + 1) - 0.5) * 150 * deg, el = (-6 + rand(i * 3 + 2) * 62) * deg, r = 48;
+      const v = new THREE.Vector3().addScaledVector(F, -Math.cos(el) * Math.cos(az) * r)
+        .addScaledVector(Rt, Math.cos(el) * Math.sin(az) * r).setY(CAM_Y + Math.sin(el) * r);
+      pos.push(v.x, v.y, v.z);
+      const big = rand(i * 7 + 5);
+      size.push(big > 0.985 ? 5 : big > 0.93 ? 3 : big > 0.6 ? 2 : 1.4);
+      phase.push(rand(i * 11 + 3) * 6.28);
+      tw.push(big > 0.93 ? 1 : 0.25);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('aSize', new THREE.Float32BufferAttribute(size, 1));
+    g.setAttribute('aPhase', new THREE.Float32BufferAttribute(phase, 1));
+    g.setAttribute('aTw', new THREE.Float32BufferAttribute(tw, 1));
+    const m = new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 }, uLevel: { value: 0.4 }, uScale: { value: 1 } },
+      vertexShader: `attribute float aSize; attribute float aPhase; attribute float aTw; uniform float uTime; uniform float uScale;
+        varying float vB;
+        void main() {
+          vB = 1.0 - aTw * (0.5 + 0.5 * sin(uTime * (0.6 + fract(aPhase) * 1.8) + aPhase));
+          gl_PointSize = aSize * uScale;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: `uniform float uLevel; varying float vB;
+        void main() { gl_FragColor = vec4(vec3(0.92, 0.93, 1.0) * vB * uLevel, 1.0); }`,
+      depthWrite: false, fog: false,
+    });
+    space.stars = new THREE.Points(g, m);
+    space.stars.renderOrder = -4; space.stars.frustumCulled = false;
+    scene.add(space.stars);
+  }
+
+  // ---- the planet: dark, faintly cratered, its rim lit from behind on the right; and a soft halo round the rim
+  const PB = 27;                                              // metres behind him
+  const pc = spot(1290, 560, PB), pr = (CAM_D + PB) * Math.sin((470 / SPACE_PX) * deg);
+  const lightDir = new THREE.Vector3().addScaledVector(Rt, 0.75).addScaledVector(F, -0.55).setY(0.55).normalize();
+  {
+    const m = new THREE.ShaderMaterial({
+      uniforms: { uLight: { value: lightDir }, uLevel: { value: 0.4 } },
+      vertexShader: `varying vec3 vN; varying vec3 vW; varying vec3 vP;
+        void main() { vP = position; vN = normalize(mat3(modelMatrix) * normal); vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz;
+          gl_Position = projectionMatrix * viewMatrix * w; }`,
+      fragmentShader: `uniform vec3 uLight; uniform float uLevel; varying vec3 vN; varying vec3 vW; varying vec3 vP;
+        float h(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+        float n3(vec3 p) { vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(mix(h(i), h(i + vec3(1,0,0)), f.x), mix(h(i + vec3(0,1,0)), h(i + vec3(1,1,0)), f.x), f.y),
+                     mix(mix(h(i + vec3(0,0,1)), h(i + vec3(1,0,1)), f.x), mix(h(i + vec3(0,1,1)), h(i + vec3(1,1,1)), f.x), f.y), f.z); }
+        void main() {
+          vec3 N = normalize(vN), V = normalize(cameraPosition - vW), p = normalize(vP);
+          float n = n3(p * 6.0) * 0.5 + n3(p * 17.0) * 0.3 + n3(p * 46.0) * 0.2;
+          float crater = smoothstep(0.62, 0.7, n3(p * 9.0 + 3.1)) * 0.15;
+          float grid = (1.0 - smoothstep(0.0, 0.035, abs(fract(atan(p.z, p.x) * 9.55) - 0.5))) * 0.05
+                     + (1.0 - smoothstep(0.0, 0.035, abs(fract(asin(p.y) * 9.55) - 0.5))) * 0.05;
+          float ndv = clamp(dot(N, V), 0.0, 1.0), fres = pow(1.0 - ndv, 3.5);
+          float lam = max(dot(N, uLight), 0.0);
+          vec3 base = vec3(0.0045, 0.0047, 0.0055) * (0.6 + 0.9 * n - crater) + grid * 0.006;
+          vec3 lit = vec3(0.55, 0.57, 0.62) * lam * (0.006 + 0.012 * n);
+          float side = clamp(dot(N, uLight) + 0.3, 0.0, 1.0);
+          vec3 rim = vec3(0.86, 0.88, 0.95) * pow(1.0 - ndv, 7.0) * (0.004 + 1.2 * side * side * side);
+          gl_FragColor = vec4((base + lit + rim) * uLevel, 1.0);
+        }`,
+      depthWrite: false, fog: false,
+    });
+    space.planet = new THREE.Mesh(new THREE.SphereGeometry(pr, 128, 96), m);
+    space.planet.position.copy(pc);
+    space.planet.renderOrder = -3;
+    scene.add(space.planet);
+    // the halo: a flat disc behind it, bright just outside the rim (most on the lit side), fading out
+    const hm = new THREE.ShaderMaterial({
+      uniforms: { uLevel: { value: 0.4 }, uDir: { value: new THREE.Vector2(0.8, 0.6).normalize() } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform float uLevel; uniform vec2 uDir; varying vec2 vUv;
+        void main() {
+          vec2 q = (vUv - 0.5) * 2.0 * 1.3; float r = length(q);
+          if (r < 0.96) discard;
+          float w = 0.06 + 0.94 * pow(max(dot(normalize(q), uDir), 0.0), 2.5);
+          float e = abs(r - 0.995); float g = exp(-e * 80.0) * 0.35 + exp(-max(r - 0.995, 0.0) * 14.0) * 0.035 * step(0.995, r);
+          gl_FragColor = vec4(vec3(0.8, 0.83, 0.95) * g * w * uLevel, 1.0);
+        }`,
+      blending: THREE.AdditiveBlending, depthWrite: false, fog: false,   // (drawn in the opaque pass, before the water hides its foot)
+    });
+    const Lp = CAM_D + PB, sil = Lp * Math.tan(Math.asin(pr / Lp));   // the outline's radius in a plane through its centre
+    space.halo = new THREE.Mesh(new THREE.PlaneGeometry(sil * 2.6, sil * 2.6), hm);
+    space.halo.position.copy(pc);
+    faceCam(space.halo);
+    space.halo.renderOrder = -2.9;
+    scene.add(space.halo);
+  }
+
+  // ---- the orbit ring: a thin purple circle round the planet, seen from a little above; brighter on its near side,
+  // with sparks running round it
+  {
+    const rc = spot(1210, 402, PB), rr = (CAM_D + PB) * Math.tan((548 / SPACE_PX) * deg);
+    const m = new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 }, uLevel: { value: 0 }, uDraw: { value: 0 }, uNear: { value: 0.25 } },
+      vertexShader: 'varying float vA; void main() { vA = atan(position.y, position.x); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform float uTime; uniform float uLevel; uniform float uDraw; uniform float uNear; varying float vA;
+        void main() {
+          float a = vA / 6.2831853 + 0.5;                       // 0..1 round the ring (the side nearest the camera: uNear)
+          if (a > uDraw) discard;                               // it draws itself in when he wakes
+          float nearK = 0.45 + 0.55 * (0.5 + 0.5 * cos((a - uNear) * 6.2831853));
+          float s1 = fract(uTime * 0.035), s2 = fract(uTime * 0.035 + 0.47);
+          float sp = exp(-pow(min(abs(a - s1), 1.0 - abs(a - s1)) * 90.0, 2.0)) + exp(-pow(min(abs(a - s2), 1.0 - abs(a - s2)) * 120.0, 2.0)) * 0.7;
+          vec3 c = vec3(0.5, 0.28, 1.0) * (0.5 * nearK) + vec3(0.85, 0.75, 1.0) * sp * 1.6;
+          gl_FragColor = vec4(c * uLevel, 1.0);
+        }`,
+      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+    });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(rr, pxSize(0.6, PB), 6, 360), m);
+    ring.position.copy(rc);
+    // lay it flat facing up, tip it 9° towards the camera (seen from a little above) and roll it so its right dips
+    ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), UP);
+    ring.quaternion.premultiply(_q.setFromAxisAngle(Rt, 9 * deg));
+    ring.quaternion.premultiply(_q.setFromAxisAngle(F, -2.9 * deg));
+    const near = F.clone().applyQuaternion(ring.quaternion.clone().invert());   // the side facing the camera, in its own frame
+    m.uniforms.uNear.value = Math.atan2(near.y, near.x) / (Math.PI * 2) + 0.5;
+    ring.layers.enable(GLOW);
+    scene.add(ring);
+    space.ring = ring;
+  }
+
+  // ---- beams of light hanging from the sky: [x, top y (-1: from above the frame), bottom y, colour, metres behind,
+  // width px, node (0..1 up the beam, -1 none), spark speed]
+  const PURPLE = new THREE.Color(0.55, 0.28, 1.0), WHITE = new THREE.Color(0.9, 0.9, 1.0);
+  const BEAMS = [
+    [684, -1, 336, PURPLE, 13, 2.2, 0.0, 0.16], [762, -1, 452, WHITE, 15, 1.4, -1, 0.1], [808, 72, 398, PURPLE, 12, 1.8, 0.62, 0.22],
+    [1238, -1, 724, WHITE, 6.5, 1.2, -1, 0.09], [1296, -1, 442, WHITE, 11, 2.4, 0.6, 0.14], [1392, -1, 690, WHITE, 9, 0.9, -1, 0.07],
+    [1455, -1, 640, WHITE, 10, 0.9, -1, 0.11], [1577, 352, 706, PURPLE, 5.2, 2.6, 0.62, 0.25], [1818, 372, 472, WHITE, 8, 1.6, 0.5, 0.2],
+    [1780, 420, 710, WHITE, 6, 0.8, -1, 0.12],
+  ];
+  const beamMat = (col, len, node, speed, phase, refl) => {
+    const m = new THREE.ShaderMaterial({
+      uniforms: { uCol: { value: col.clone() }, uLevel: { value: 0 }, uTime: { value: 0 }, uLen: { value: len },
+        uNode: { value: node }, uSpeed: { value: speed }, uPhase: { value: phase }, uRefl: { value: refl } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+      fragmentShader: `uniform vec3 uCol; uniform float uLevel; uniform float uTime; uniform float uLen; uniform float uNode;
+        uniform float uSpeed; uniform float uPhase; uniform float uRefl; varying vec2 vUv;
+        void main() {
+          float x = abs(vUv.x - 0.5) * 2.0;
+          float core = exp(-x * x * 9.0) + exp(-x * 3.0) * 0.25;
+          float y = vUv.y * uLen;                                  // metres up from the bottom end
+          float body = mix(1.0, 0.35, smoothstep(0.0, min(uLen, 9.0), y));
+          float tip = exp(-pow(y / 0.07, 2.0)) * 1.6;
+          float p = fract(uTime * uSpeed + uPhase);
+          float spark = exp(-pow((vUv.y - (1.0 - p)) * uLen / 0.22, 2.0)) * 2.2;
+          float node = uNode < 0.0 ? 0.0 : exp(-pow((vUv.y - uNode) * uLen / 0.05, 2.0)) * 3.0 + exp(-pow((vUv.y - uNode) * uLen / 0.25, 2.0)) * 0.5;
+          float k = (body * 0.55 + tip + spark + node) * core;
+          if (uRefl > 0.5) {                                       // in the water: dimmer, rippling, fading with depth
+            float d = (1.0 - vUv.y) * uLen;
+            k = (body * 0.5 + spark * 0.6) * (0.55 + 0.45 * sin(d * 34.0 - uTime * 2.3 + uPhase * 6.0)) * exp(-d * 0.9) * (exp(-x * x * 3.0));
+          }
+          gl_FragColor = vec4(uCol * k * uLevel, 1.0);
+        }`,
+      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false,
+    });
+    return m;
+  };
+  BEAMS.forEach(([px, top, bot, col, behind, wpx, node, speed], i) => {
+    const b = spot(px, bot, behind), yb = Math.max(0, b.y);
+    const yt = top < 0 ? 26 : spot(px, top, behind).y;
+    const len = yt - yb, w = pxSize(wpx * 3.5, behind);       // (the quad is wider than the line: soft edges)
+    const mat = beamMat(col, len, node, speed, rand(i + 7), 0);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, len), mat);
+    mesh.position.copy(b).setY(yb + len / 2);
+    faceCam(mesh);
+    mesh.layers.enable(GLOW);
+    scene.add(mesh);
+    const beam = { mesh, mats: [mat], start: 0.25 + i * 0.09 + rand(i + 31) * 0.3, level: 0, lit: false, flicks: [] };
+    // the ones that come down to the water show in it
+    if (yb < 0.05) {
+      const rl = Math.min(3.2, len), rm = beamMat(col, rl, -1, speed, rand(i + 7), 1);
+      const r = new THREE.Mesh(new THREE.PlaneGeometry(w * 2.2, rl), rm);
+      r.position.copy(b).setY(-rl / 2);
+      faceCam(r);
+      r.renderOrder = -1;
+      scene.add(r);
+      beam.mats.push(rm);
+    }
+    let tt = 0;
+    const n = 2 + Math.floor(rand(i + 50) * 3);
+    for (let k = 0; k < n; k++) {
+      tt += 0.04 + rand(i * 7 + k) * 0.1; beam.flicks.push([tt, k % 2 === 0 ? 1 : 0.08]);
+      tt += 0.03 + rand(i * 11 + k) * 0.09; beam.flicks.push([tt, k % 2 === 0 ? 0.08 : 1]);
+    }
+    beam.flicks.push([tt + 0.08, 1]);
+    space.beams.push(beam);
+  });
+  // a line of light across the top left that turns down into the first beam (a circuit trace in the sky)
+  {
+    const a = spot(380, 32, 13), c = spot(684, 58, 13);
+    const len = a.distanceTo(c), mat = beamMat(PURPLE, len, -1, 0.18, 0.3, 0);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(pxSize(1.8 * 3.5, 13), len), mat);
+    mesh.position.copy(a).add(c).multiplyScalar(0.5);
+    faceCam(mesh);
+    mesh.rotateZ(Math.atan2(c.y - a.y, Rt.dot(_d.subVectors(c, a))) - Math.PI / 2);
+    mesh.layers.enable(GLOW);
+    scene.add(mesh);
+    space.beams[0].mats.push(mat);
+  }
+
+  // ---- the shore: crystal rocks along the horizon, dark and glossy, with purple light on their edges, a few
+  // glowing crystal facets, and their dark shapes mirrored in the water
+  // black facets: the ones turned up and back catch the purple light behind the shore (sharply, like cut glass), and the
+  // edges facing the planet catch a little white
+  const rockMat = new THREE.ShaderMaterial({
+    uniforms: { uLevel: { value: 0 }, uP: { value: new THREE.Vector3().addScaledVector(F, 0.25).addScaledVector(Rt, 0.45).setY(0.85).normalize() },
+      uW: { value: new THREE.Vector3().addScaledVector(Rt, 0.8).addScaledVector(F, -0.3).setY(0.5).normalize() } },
+    vertexShader: 'varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+    fragmentShader: `uniform float uLevel; uniform vec3 uP; uniform vec3 uW; varying vec3 vW;
+      void main() {
+        vec3 N = normalize(cross(dFdx(vW), dFdy(vW))), V = normalize(cameraPosition - vW);
+        if (dot(N, V) < 0.0) N = -N;
+        float p = max(dot(N, uP), 0.0), w = max(dot(N, uW), 0.0);
+        float edge = pow(1.0 - max(dot(N, V), 0.0), 3.0);
+        vec3 c = vec3(0.004, 0.0035, 0.007)
+               + vec3(0.36, 0.14, 1.0) * (pow(p, 26.0) * 1.3 + pow(p, 4.0) * 0.01 + edge * pow(p, 3.0) * 0.1)
+               + vec3(0.8, 0.82, 0.95) * pow(w, 10.0) * 0.12;
+        gl_FragColor = vec4(c * (0.25 + 0.75 * uLevel), 1.0);
+      }`,
+  });
+  space.rockMat = rockMat;
+  const mirrorMat = new THREE.MeshBasicMaterial({ color: 0x020206 });
+  const glowMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.65, 0.4, 1.0).multiplyScalar(2.2) });
+  const rockGeo = (seed) => {
+    const g = new THREE.IcosahedronGeometry(1, 2), p = g.attributes.position, v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      const k = 0.72 + 0.5 * rand(seed * 97 + Math.round((v.x * 3 + 7) * 13 + (v.y * 3 + 7) * 131 + (v.z * 3 + 7) * 1031));
+      v.multiplyScalar(k);
+      if (v.y < 0) v.y *= 0.4;
+      p.setXYZ(i, v.x, v.y, v.z);
+    }
+    g.computeVertexNormals();
+    return g;
+  };
+  // [x from, x to, height px, metres behind, rocks]
+  const SHORE = [[-40, 380, 135, 3.8, 6], [330, 560, 70, 4.6, 4], [585, 880, 120, 4.2, 5], [860, 1060, 16, 5.2, 3],
+    [1180, 1460, 14, 5.4, 4], [1470, 1640, 70, 4.8, 3], [1620, 1900, 210, 3.6, 4]];
+  let seed = 1;
+  for (const [x0, x1, hpx, behind, n] of SHORE) {
+    for (let k = 0; k < n; k++) {
+      seed++;
+      const t = (k + 0.5 + (rand(seed) - 0.5) * 0.6) / n, px = x0 + (x1 - x0) * t;
+      const base = spot(px, 760, behind + (rand(seed + 3) - 0.5) * 1.2);
+      const peak = k === Math.floor(n / 2) || rand(seed + 5) > 0.6 ? 1 : 0.35 + rand(seed + 9) * 0.45;
+      const h = pxSize(hpx, behind) * peak * 0.85, wdt = pxSize(((x1 - x0) / n) * (0.8 + rand(seed + 4) * 0.7), behind);
+      const geo = rockGeo(seed);
+      const rock = new THREE.Mesh(geo, rockMat);
+      rock.scale.set(wdt * 0.7, h, wdt * 0.45);
+      rock.position.copy(base).setY(-h * 0.12);
+      rock.rotation.set((rand(seed + 1) - 0.5) * 0.3, rand(seed + 2) * 6.28, (rand(seed + 8) - 0.5) * 0.25);
+      scene.add(rock);
+      const m = new THREE.Mesh(geo, mirrorMat);
+      m.scale.copy(rock.scale).multiply(new THREE.Vector3(1, -1, 1));
+      m.position.copy(rock.position).setY(-rock.position.y);
+      m.rotation.copy(rock.rotation); m.rotation.x *= -1; m.rotation.z *= -1;
+      scene.add(m);
+    }
+  }
+  // glowing crystal facets on a few of the rocks, and tiny lights along the waterline
+  const FACETS = [[618, 668, 4.2, 22, 6], [836, 735, 4.2, 14, 5], [1745, 690, 3.6, 18, 7]];
+  for (const [px, py, behind, wpx, hpx] of FACETS) {
+    const f = new THREE.Mesh(new THREE.CircleGeometry(1, 7), glowMat);
+    f.position.copy(spot(px, py, behind - 0.35));
+    f.scale.set(pxSize(wpx, behind) / 3, pxSize(hpx, behind) / 3, 1);
+    faceCam(f); f.rotateZ(0.3);
+    f.layers.enable(GLOW);
+    scene.add(f);
+    space.glints.push(f);
+  }
+  {
+    const pos = [], N = 46;
+    for (let i = 0; i < N; i++) {
+      const px = -20 + rand(i * 5 + 400) * 1900, b = spot(px, 735, 4 + rand(i + 900) * 1.8);
+      pos.push(b.x, 0.03 + rand(i + 77) * 0.06, b.z);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    const lightsAt = new THREE.Points(g, new THREE.PointsMaterial({ color: new THREE.Color(1.0, 0.9, 0.72).multiplyScalar(0.9), size: 1.5, sizeAttenuation: false, depthWrite: false }));
+    lightsAt.layers.enable(GLOW);
+    scene.add(lightsAt);
+    space.glints.push(lightsAt);
+  }
+
+  // ---- the water: black glass from his feet to the shore. Drawn early and without depth, so what's mirrored
+  // "under" it still shows; faint ripples circle out from him
+  {
+    const m = new THREE.ShaderMaterial({
+      uniforms: { uTime: { value: 0 }, uLevel: { value: 0 }, uC: { value: new THREE.Vector2(homePos.x, homePos.z) } },
+      vertexShader: 'varying vec3 vW; void main() { vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }',
+      fragmentShader: `uniform float uTime; uniform float uLevel; uniform vec2 uC; varying vec3 vW;
+        void main() {
+          float d = length(vW.xz - uC);
+          float ring = (1.0 - smoothstep(0.0, 0.012, abs(fract(d * 0.42 - uTime * 0.02) - 0.5) - 0.488)) * exp(-d * 0.12);
+          vec3 c = vec3(0.0006, 0.0006, 0.0012) + vec3(0.35, 0.28, 0.6) * ring * 0.012;
+          gl_FragColor = vec4(c * (0.3 + 0.7 * uLevel), 1.0);
+        }`,
+      depthWrite: false, fog: false,
+    });
+    const back = 4.6, front = 12, wide = 90;
+    const water = new THREE.Mesh(new THREE.PlaneGeometry(wide, back + front), m);
+    water.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(Rt, F.clone().negate(), UP));   // flat, long side across
+    water.position.copy(homePos).addScaledVector(F, (front - back) / 2).setY(0);
+    water.renderOrder = -2;
+    scene.add(water);
+    space.water = water;
+  }
+
+  // ---- lights: purple rims on the rocks and on his back, a cool one from the planet's side
+  const LIGHTS = [
+    [new THREE.Color(0x6a2cff), spot(420, 560, 7.5), 9, 6], [new THREE.Color(0x7a3cff), spot(1660, 520, 7.0), 10, 6],
+    [new THREE.Color(0x9a5cff), new THREE.Vector3().addScaledVector(Rt, -1.3).addScaledVector(F, -1.4).setY(2.3), 4, 5],
+    [new THREE.Color(0xdfe6ff), new THREE.Vector3().addScaledVector(Rt, 1.5).addScaledVector(F, -1.6).setY(2.6), 3, 5],
+  ];
+  LIGHTS.forEach(([col, p, power, dist], k) => {
+    const l = tubeLights[k];
+    if (!l) return;
+    l.color.copy(col); l.position.copy(p); l.distance = dist;
+    space.lights.push([l, power]);
+  });
+  softbox.position.copy(facing).multiplyScalar(1.8).add(new THREE.Vector3(0, 3.8, 0));
+  softbox.lookAt(0, 1.2, 0);
+  space.built = true;
+}
+
+function updateSpace(now, dt) {
+  const t = now / 1000;
+  const since = awake ? (now - wakeAt) / 1000 : -1;
+  // the beams flicker on one by one, like the tubes did; the ring draws itself round once they're up
+  for (const b of space.beams) {
+    const goal = MOTION ? tubeState(b, since) : (awake ? 1 : 0);
+    b.level += (goal - b.level) * Math.min(1, dt * 40);
+    if (goal > 0.5 && !b.lit) { b.lit = true; buzz(); }
+    const breathe = 0.88 + 0.12 * Math.sin(t * 0.9 + b.start * 9);
+    for (const m of b.mats) { m.uniforms.uLevel.value = b.level * (b.level > 0.9 ? breathe : 1); m.uniforms.uTime.value = t; }
+  }
+  const roomGoal = awake && since > 0.55 ? 1 : 0;
+  power += (roomGoal - power) * Math.min(1, dt * (MOTION ? 1.6 : 60));
+  const draw = awake ? (MOTION ? clamp((since - 0.9) / 1.6, 0, 1) : 1) : 0;
+  const ru = space.ring.material.uniforms;
+  ru.uTime.value = t; ru.uDraw.value = draw < 1 ? smooth(draw) * 1.001 : 1.001; ru.uLevel.value = 0.15 + 0.85 * power;
+  const lvl = 0.38 + 0.62 * power;
+  space.planet.material.uniforms.uLevel.value = lvl;
+  space.halo.material.uniforms.uLevel.value = lvl;
+  space.stars.material.uniforms.uLevel.value = 0.45 + 0.55 * power;
+  space.stars.material.uniforms.uTime.value = t;
+  space.stars.material.uniforms.uScale.value = renderer.getPixelRatio();
+  space.water.material.uniforms.uLevel.value = power;
+  space.rockMat.uniforms.uLevel.value = power;
+  space.water.material.uniforms.uTime.value = t;
+  for (const g of space.glints) g.visible = power > 0.02;
+  for (const [l, p] of space.lights) l.intensity = p * power;
+  lights.key.intensity = 1.25 * power;
+  lights.hemi.intensity = 0.16 * power;
+  lights.moon.intensity = 0.55 - 0.2 * power;
+  softbox.material.color.setScalar(0.05 + 1.2 * power);
+  scene.background.setScalar(0);
+  if (dust) dust.material.opacity = 0.025 + 0.4 * power;
 }
 
 // re-photograph the surroundings for reflections (every few frames is plenty)
@@ -1249,6 +1639,7 @@ function loop(now) {
   adaptQuality(dt);
   resize();
   if (tubes.length) updateTubes(now, dt);
+  else if (space.built) updateSpace(now, dt);
 
   // fixed camera framing the idle pose — it doesn't chase him when he moves
   const dist = 2.7 * Math.max(1, 1.05 / Math.max(camera.aspect, 0.3));
