@@ -804,24 +804,35 @@
       ctx.globalAlpha = 1;
     }
 
-    pill.addEventListener('pointerenter', () => {
-      // new answer on every hover: the cloud re-forms into the next line, then the text sharpens
+    const reveal = () => {
+      // the cloud re-forms into the next line, then the text sharpens
       ans.textContent = nextAnswer();
       if (!MOTION) return;
       buildParticles();
       hovered = true;
       clearTimeout(revealTimer);
       revealTimer = setTimeout(() => { if (hovered) pill.classList.add('on'); }, 280);
-    });
-    pill.addEventListener('pointerleave', () => {
+    };
+    const conceal = () => {
       hovered = false;
       clearTimeout(revealTimer);
       if (MOTION) pill.classList.remove('on');
-    });
+    };
+    // a new answer on every hover; phones can't hover, so there the answers cycle on their own every few seconds
+    const AUTO = matchMedia('(hover: none), (max-width: 760px)');
+    const CYCLE = 3000, SHOWN = 2300;
+    let cyc = CYCLE - 400;
+    pill.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse' && !AUTO.matches) reveal(); });
+    pill.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !AUTO.matches) conceal(); });
+    AUTO.addEventListener?.('change', () => { conceal(); cyc = CYCLE - 400; });
     new ResizeObserver(() => { built = false; }).observe(pill);
     document.fonts?.ready.then(() => { built = false; });
 
     function chat(now, dt) {
+      if (AUTO.matches) {
+        cyc += dt;
+        if (cyc >= CYCLE) { cyc = 0; reveal(); } else if (cyc >= SHOWN && hovered) conceal();
+      }
       if (!MOTION) return;
       if (!built) buildParticles();
       updateParticles(dt / 1000);
