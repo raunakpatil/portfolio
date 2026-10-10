@@ -278,7 +278,8 @@ export default {
       reply = reply.replace(/\[\s*[a-z]+\s*:[^\]]*\]/gi, '').replace(/\s+([.,!?])/g, '$1').trim();
       // any "the links are below" line goes: the page adds its own when it shows buttons
       reply = reply.split(/(?<=[.!?…])\s+/).filter((x) => !BELOW.test(x)).join(' ') || reply;
-      if (/chatgpt|openai|system prompt|my instructions/i.test(reply)) { reply = nope(); face = 'smug'; icon = 'shield'; move = 'shake'; }
+      // the model forgetting it's Ronie (or quoting its setup) — not a mention of OpenAI as one of his tools
+      if (/(i am|i'm|as) (chatgpt|gemini|qwen|an? (ai|large language model|language model) (made|built|trained|developed|created) by)|system prompt|my instructions/i.test(reply)) { reply = nope(); face = 'smug'; icon = 'shield'; move = 'shake'; }
       // a portfolio robot, not a coding assistant
       if (/```|\bdef |function\s*\w*\s*\(|=>\s*\{/.test(reply)) { reply = OFFTOPIC[Math.floor(Math.random() * OFFTOPIC.length)]; face = 'nervous'; icon = 'sweat'; move = 'scratch'; }
       reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s*\n+\s*/g, ' ').trim();
