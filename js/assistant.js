@@ -1155,9 +1155,19 @@ function drawBackdropFx(t, dt) {
   // the moon's lit rim, slowly breathing (only the part above the mountains) — the one light left on while he sleeps
   const [mx, my, mr] = BG_MOON;
   ctx.globalAlpha = Math.min(1, (0.5 + 0.35 * Math.sin(t * 0.55)) * (1 + 0.35 * (1 - dim)));
-  ctx.strokeStyle = 'rgba(225, 230, 255, 0.5)'; ctx.lineWidth = Math.max(1.2, ih * 0.0025);
+  // (the light catches the edge most on the right and fades away round the top towards the left, like the rim in the
+  // picture, rather than stopping short)
+  const mcx = x0 + mx * iw, mcy = y0 + my * ih, A0 = -2.75, A1 = 0.24;
+  if (ctx.createConicGradient) {
+    const cg = ctx.createConicGradient(A0, mcx, mcy), span = (A1 - A0) / (Math.PI * 2);
+    const stop = (f, a) => cg.addColorStop(f * span, `rgba(225, 230, 255, ${a})`);
+    stop(0, 0); stop(0.18, 0.05); stop(0.42, 0.28); stop(0.65, 0.5); stop(0.85, 0.55); stop(0.95, 0.35); stop(1, 0);
+    cg.addColorStop(Math.min(1, span + 0.001), 'rgba(225, 230, 255, 0)'); cg.addColorStop(1, 'rgba(225, 230, 255, 0)');
+    ctx.strokeStyle = cg;
+  } else ctx.strokeStyle = 'rgba(225, 230, 255, 0.45)';
+  ctx.lineWidth = Math.max(1.2, ih * 0.0025);
   ctx.shadowColor = 'rgba(210, 220, 255, 0.9)'; ctx.shadowBlur = ih * 0.025;
-  ctx.beginPath(); ctx.arc(x0 + mx * iw, y0 + my * ih, mr * ih, -2.05, 0.22); ctx.stroke();
+  ctx.beginPath(); ctx.arc(mcx, mcy, mr * ih, A0, A1); ctx.stroke();
   ctx.shadowBlur = 0;
   // the stars: soft points of light that twinkle at their own uneven pace (the picture's bright ones with a glint of
   // diffraction spikes), and a fine dust of faint ones between them
@@ -1242,7 +1252,7 @@ function updateMoon(dt) {
   power += (roomGoal - power) * Math.min(1, dt * (MOTION ? 1.6 : 60));
   // asleep the picture is all but dark (only the moon's rim light, drawn in drawBackdropFx, stays on); it comes up with
   // the room light as he wakes
-  const k = Math.round((0.04 + 0.96 * power) * 100) / 100;
+  const k = Math.round((0.012 + 0.988 * power) * 200) / 200;
   if (k !== moon.k) { moon.k = k; moon.wrap.style.filter = k < 1 ? `brightness(${k})` : ''; }
   // the neon: the lit picture fades in and out over the subdued one, in one slow, smooth breath (about 6 s)
   const lk = MOTION ? Math.round((0.12 + 0.88 * (0.5 - 0.5 * Math.cos((performance.now() / 1000) * Math.PI * 2 / 6))) * 200) / 200 : 1;
