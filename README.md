@@ -48,8 +48,14 @@ moon sits behind his head like a halo. A canvas over it brings it to life (`draw
 - the water ripples;
 - the neon glows up and down in a slow, smooth breath, using `img/ronie-bg-glow.webp`, the picture's purple parts;
 - mist drifts along the mountains;
-- the moon's rim glows, its stars twinkle, and a shooting star crosses now and then;
+- embers float up off the glowing veins;
+- the moon's rim glows;
+- the stars (soft glowing points, the brightest with diffraction spikes, plus a faint field between them) twinkle
+  unevenly;
+- a shooting star, sometimes two, crosses now and then;
 - the picture drifts slightly against the mouse.
+
+In the 3D scene, soft lavender motes of light drift around him.
 
 Other rooms are kept: `/ronie?room=space` builds the same idea in 3D, and `/ronie?room=tubes` is the earlier
 neon-tube room.
