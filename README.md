@@ -32,12 +32,13 @@ DNS for raunakpatil.com (at GoDaddy):
 - `A` records for `@` → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
 - `CNAME` record `www` → `raunakpatil.github.io`
 
-## Library: the certificates folder
-Each certificate (`certifications` in `js/data.js`) has a sticky note in the folder and opens as a different page of an
-agent's dossier, chosen by `doc`: `briefing`, `profile`, `confidential`, `pass`, `telegram`, `card` or `report`
-(templates: `DOCS` in `js/main.js`). `art` picks a small illustration for the photo spot and `brief` is a one-line
-summary. `logo` puts an issuer's emblem there instead: `img/logos/helsinki.svg` (University of Helsinki, public
-domain, Wikimedia Commons) and `img/logos/drdo.webp` / `img/logos/nielit.webp` (DRDO's and NIELIT's emblems, used to identify who issued a certificate).
+## Library: the certificate shelf
+Certificates (`certifications` in `js/data.js`) are books on their own shelf, in the same style as the case studies:
+`spine`, `ink`, `coverInk` and `colors` set a book's colours, `short` is the title on its cover and spine, and the cover
+window shows `photo` (a picture in `img/certs/`) or, failing that, `logo` (an issuer's emblem): `img/logos/helsinki.svg`
+(University of Helsinki, public domain, Wikimedia Commons) and `img/logos/drdo.webp` / `img/logos/nielit.webp` (DRDO's
+and NIELIT's emblems, used to identify who issued a certificate). Opening a book shows `brief`, the skills, the
+credential `id` and a link to `url`.
 
 ## Ronie's extra moves (Blender)
 `models/ronie-anims.glb` holds Ronie's idle variations, the chat moves, and the guessing game's photo moves

@@ -141,6 +141,7 @@
     const has = item.link && item.link !== '#';
     link.hidden = !has;
     if (has) link.href = item.link;
+    link.textContent = item.linkText || 'Visit project ↗';
     modal.showModal();
   }
   $('.modal-close').addEventListener('click', () => modal.close());
@@ -1322,174 +1323,46 @@
     });
   }
 
-  /* ---------- certificates: a file folder with a sticky note poking out for each ---------- */
-  // Closed, it's a kraft folder with a label and a printed seal. Click a note (or the folder) and the cover swings
-  // open like a book: its inside lists every certificate, and the page on the right shows the one you picked.
+  /* ---------- certificates: a second shelf of books, like the case studies ---------- */
+  // Each certificate is a slimmer volume in the same riso style: its name on the cover over a window with its
+  // picture (or the issuer's emblem), the issuer at the foot. Open one for the details and the credential.
+  const issuerShort = (s) => { const m = String(s).match(/\(([^)]+)\)/); return m ? m[1] : String(s).split(',')[0]; };
+  const yearOf = (c) => String(c.date || '').slice(-4);
+  function certCoverHTML(c, i) {
+    const [c1, c2] = c.colors || ['#eee', '#222'];
+    const art = c.photo ? `<img class="cert-photo" src="${esc(c.photo)}" alt="">`
+      : c.logo ? `<span class="cert-logo"><img src="${esc(c.logo)}" alt=""></span>` : '';
+    return `<div class="cover cert-cover" style="--c1:${esc(c1)};--c2:${esc(c2)};--spine:${esc(c.spine)};--ink:${esc(c.ink)};--title:${esc(c.coverInk || c.spine)}">
+      <p class="cover-kicker">Certificate ${String(i + 1).padStart(2, '0')} · ${esc(yearOf(c))}</p>
+      <h3 class="cover-title">${esc(c.short || c.title)}</h3>
+      <div class="cert-art">${art}</div>
+      <p class="cover-by">${esc(issuerShort(c.issuer))}</p>
+      <span class="grain"></span>
+    </div>`;
+  }
   function initCerts() {
     const C = D.certifications || [];
-    const fd = $('#folder');
-    if (!fd || !C.length) return;
-    const NOTE = ['#f6dd5f', '#ff9fc2', '#8fc3ff', '#a8e39f', '#ffb366', '#c8b4ff', '#8fe0cd'];
-    const years = C.map((c) => +String(c.date).slice(-4)).filter(Boolean);
-    const span = years.length ? `${Math.min(...years)}–${Math.max(...years)}` : '';
-    const no = (i) => String(i + 1).padStart(2, '0');
-    const tilt = (i) => (seeded(`note${i}`)() - 0.5) * 4;
-    fd.innerHTML = `
-      <span class="fd-side" aria-hidden="true"></span>
-      <div class="fd-body">
-        <span class="fd-tab" aria-hidden="true"></span>
-        <span class="fd-sheets" aria-hidden="true"></span>
-        <div class="fd-page" id="fd-page" aria-live="polite"></div>
-        <div class="fd-notes">${C.map((c, i) => `<button class="fd-note" type="button" data-i="${i}" aria-label="Open certificate: ${esc(c.title)}"
-          style="--note:${NOTE[i % NOTE.length]};--tilt:${tilt(i).toFixed(2)}deg;top:${(6 + i * (86 / C.length)).toFixed(2)}%;animation-delay:${200 + i * 60}ms"><span>${esc(c.short || c.title)}</span></button>`).join('')}</div>
-        <span class="grain"></span>
+    const el = $('#certs');
+    if (!el || !C.length) return;
+    el.innerHTML = C.map((c, i) => `<button class="book" type="button" data-i="${i}" aria-label="Certificate: ${esc(c.title)}" style="--spine:${esc(c.spine)};--ink:${esc(c.ink)};animation-delay:${i * 70}ms">
+      <div class="book-3d">
+        <div class="book-face book-front">${certCoverHTML(c, i)}</div>
+        <div class="book-face book-spine"><span class="spine-no">${String(i + 1).padStart(2, '0')}</span><span class="spine-title">${esc(c.short || c.title)}</span><span class="spine-year">${esc(yearOf(c))}</span><span class="grain"></span></div>
+        <div class="book-face book-pages"></div>
+        <div class="book-face book-back"><span class="grain"></span></div>
       </div>
-      <div class="fd-cover">
-        <button class="fd-front" type="button" aria-label="Open the certificates folder">
-          <span class="fd-secret" aria-hidden="true">Not secret</span>
-          <span class="fd-label">
-            <span class="fd-kicker">No. 01–${no(C.length - 1)} · ${esc(span)}</span>
-            <span class="fd-title">Certificates &amp; courses</span>
-            <span class="fd-by">${esc(D.name)}</span>
-          </span>
-          <span class="grain"></span>
-        </button>
-        <div class="fd-inside">
-          <p class="fd-kicker">Contents</p>
-          <ol>${C.map((c, i) => `<li><button type="button" data-i="${i}"><span>${no(i)}</span>${esc(c.short || c.title)}</button></li>`).join('')}</ol>
-          <span class="grain"></span>
-        </div>
-      </div>`;
-    const page = $('#fd-page', fd);
-    // ---- each certificate is a different page of an agent's dossier (c.doc), in the books' riso style ----
-    const INK = '#1d1a16', RED = '#e8553b', BLUE = '#2f6fd6', CREAM = '#f6f1e4';
-    // small flat illustrations for the "photo" spots (an issuer's logo, c.logo, takes their place)
-    const ART = {
-      llm: (n) => `<rect width="100" height="100" fill="${n}"/><path d="M18 26h56a9 9 0 0 1 9 9v24a9 9 0 0 1-9 9H46L30 81V68H18a9 9 0 0 1-9-9V35a9 9 0 0 1 9-9Z" fill="${CREAM}"/><circle cx="31" cy="47" r="4.5" fill="${INK}"/><circle cx="46" cy="47" r="4.5" fill="${INK}"/><circle cx="61" cy="47" r="4.5" fill="${INK}"/><path d="M81 8l3.5 9 9 3.5-9 3.5L81 33l-3.5-9-9-3.5 9-3.5Z" fill="${RED}"/>`,
-      agent: (n) => `<rect width="100" height="100" fill="${n}"/><path d="M50 12v12" stroke="${INK}" stroke-width="4"/><circle cx="50" cy="10" r="6" fill="${RED}"/><rect x="20" y="24" width="60" height="48" rx="12" fill="${INK}"/><circle cx="38" cy="46" r="8" fill="${CREAM}"/><circle cx="62" cy="46" r="8" fill="${CREAM}"/><circle cx="40" cy="47" r="3.5" fill="${BLUE}"/><circle cx="64" cy="47" r="3.5" fill="${BLUE}"/><rect x="38" y="60" width="24" height="4" rx="2" fill="${CREAM}"/><rect x="28" y="76" width="44" height="18" rx="5" fill="${BLUE}"/>`,
-      board: (n) => `<rect width="100" height="100" fill="${n}"/><rect x="10" y="14" width="80" height="72" rx="5" fill="${CREAM}"/>${[16, 40, 64].map((x, k) => `<rect x="${x}" y="22" width="20" height="5" rx="2" fill="${INK}"/>` + [0, 1, 2].slice(0, 3 - k).map((j) => `<rect x="${x}" y="${32 + j * 16}" width="20" height="12" rx="2" fill="${[RED, BLUE, INK][(k + j) % 3]}" opacity="${j ? .85 : 1}"/>`).join('')).join('')}`,
-      shield: (n) => `<rect width="100" height="100" fill="${n}"/><path d="M50 12 80 24v22c0 20-13 34-30 42C33 80 20 66 20 46V24Z" fill="${BLUE}"/><path d="M50 30l5 11 12 1-9 8 3 12-11-7-11 7 3-12-9-8 12-1Z" fill="${CREAM}"/>`,
-      terminal: (n) => `<rect width="100" height="100" fill="${n}"/><rect x="10" y="18" width="80" height="64" rx="6" fill="${INK}"/><circle cx="20" cy="27" r="3" fill="${RED}"/><circle cx="29" cy="27" r="3" fill="#f6dd5f"/><circle cx="38" cy="27" r="3" fill="#a8e39f"/><path d="M20 44l10 7-10 7" fill="none" stroke="${CREAM}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><rect x="36" y="56" width="22" height="4" rx="2" fill="${CREAM}"/>`,
-      laptop: (n) => `<rect width="100" height="100" fill="${n}"/><rect x="18" y="20" width="64" height="44" rx="4" fill="${INK}"/><path d="M8 72h84l-6 10H14Z" fill="${INK}"/><path d="M42 34l-8 8 8 8M58 34l8 8-8 8" fill="none" stroke="${CREAM}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`,
-      bulb: (n) => `<rect width="100" height="100" fill="${n}"/><circle cx="50" cy="42" r="22" fill="#f6dd5f"/><rect x="40" y="62" width="20" height="14" rx="3" fill="${INK}"/><path d="M50 8v8M22 18l6 6M78 18l-6 6M12 42h8M80 42h8" stroke="${RED}" stroke-width="4" stroke-linecap="round"/><path d="M42 44l8-8 8 8-8 8Z" fill="${RED}"/>`,
-    };
-    const pic = (c, note) => c.photo
-      ? `<img class="fd-shot" src="${esc(c.photo)}" alt="">`
-      : c.logo
-        ? `<img class="fd-logo" src="${esc(c.logo)}" alt="${esc(c.issuer)} logo">`
-        : `<svg class="fd-art" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${(ART[c.art] || ART.llm)(note)}</svg>`;
-    const CLIP = '<svg class="fd-clip" viewBox="0 0 22 56" aria-hidden="true"><path d="M7 50V12a6 6 0 0 1 12 0v32a3.5 3.5 0 0 1-7 0V16" fill="none" stroke="#8e8e8e" stroke-width="2.4" stroke-linecap="round"/></svg>';
-    const PRINT = `<svg class="fd-print" viewBox="0 0 60 76" aria-hidden="true">${Array.from({ length: 9 }, (_, k) => {
-      const r = 5 + k * 3.2; return `<path d="M${30 - r} ${44} a${r} ${r * 1.25} 0 1 1 ${2 * r} 0" fill="none" stroke="${INK}" stroke-width="1.6" stroke-dasharray="${8 + k * 3} ${2 + (k % 3)}" opacity=".75"/>`;
-    }).join('')}</svg>`;
-    const year = (c) => String(c.date).slice(-4);
-    const skills = (c) => (c.skills || []).join(', ');
-    const link = (c) => (c.url ? `<a class="cert-link" href="${esc(c.url)}" target="_blank" rel="noopener">Show credential ↗</a>` : '');
-    const title = (c) => `<h3 class="fd-t${c.title.length > 48 ? ' long' : ''}">${esc(c.title)}</h3>`;
-    const DOCS = {
-      // the certificate's picture filling the middle of the page, between its brief and three stat boxes
-      briefing: (c, i, n) => `
-        ${title(c)}
-        <p class="fdk">${esc(c.issuer)} · ${esc(c.date)}</p>
-        <p class="fd-brief">${esc(c.brief || '')}</p>
-        <div class="fd-brief-pic">${pic(c, n)}</div>
-        <div class="fd-stats"><span><b>${String((c.skills || []).length).padStart(2, '0')}</b>skills</span><span><b>${esc(year(c))}</b>year</span><span><b>✓</b>done</span></div>
-        ${link(c)}`,
-      // a ruled form with a taped-in photo
-      profile: (c, i, n) => `
-        ${title(c)}
-        <div class="fd-form">
-          <dl>
-            <div><dt>Issued by</dt><dd>${esc(c.issuer)}</dd></div>
-            <div><dt>Date</dt><dd>${esc(c.date)}</dd></div>
-          </dl>
-          <div class="fd-photo taped">${pic(c, n)}</div>
-        </div>
-        <div class="fd-row"><dt>Skills</dt><dd>${esc(skills(c))}</dd></div>
-        <div class="fd-row fd-grow"><dt>About</dt><dd class="fd-hand">${esc(c.brief || '')}</dd></div>
-        ${link(c)}`,
-      // a paper-clipped polaroid over a typed sheet
-      confidential: (c, i, n) => `
-        <div class="fd-polaroid">${CLIP}${pic(c, n)}</div>
-        <div class="fd-sheet">
-          ${title(c)}
-          <div class="fd-table">
-            <span>Issued by</span><b>${esc(c.issuer)}</b>
-            <span>Date</span><b>${esc(c.date)}</b>
-            <span>Skills</span><b>${esc(skills(c))}</b>
-          </div>
-        </div>
-        ${link(c)}`,
-      // an ID pass: lanyard slot, issuer band, photo, barcode
-      pass: (c, i, n) => `
-        <div class="fd-pass">
-          <i class="fd-slot"></i>
-          <p class="fd-band">${esc(c.issuer)}</p>
-          <div class="fd-pass-body">
-            <div class="fd-pass-photo">${pic(c, n)}</div>
-            <div>${title(c)}<p class="fd-holder">${esc(D.name)}</p></div>
-          </div>
-          <p class="fd-pass-meta">${esc(c.date)}${c.id ? ` · ID ${esc(c.id)}` : ''}</p>
-          <i class="fd-barcode"></i>
-        </div>
-        ${link(c)}`,
-      // typed strips pasted onto a yellow form
-      telegram: (c, i, n) => `
-        ${title(c)}
-        <div class="fd-strips">
-          <span>Issued by ${esc(c.issuer)} stop</span>
-          <span>${esc(c.date)} stop</span>
-          <span>Skills ${esc(skills(c))} stop</span>
-          ${c.id ? `<span>Ref ${esc(c.id.slice(0, 16))}… stop</span>` : ''}
-        </div>
-        <div class="fd-tele-art">${pic(c, n)}</div>
-        ${link(c)}`,
-      // an index card: blue lines, handwritten entries, a "verified" stamp
-      card: (c, i, n) => `
-        ${title(c)}
-        <p class="fd-card-row"><span>By</span><i>${esc(c.issuer)}</i></p>
-        <p class="fd-card-row"><span>Date</span><i>${esc(c.date)}</i></p>
-        ${c.id ? `<p class="fd-card-row"><span>ID</span><i>${esc(c.id)}</i></p>` : ''}
-        <p class="fd-card-row"><span>Note</span><i>${esc(c.brief || '')}</i></p>
-        <div class="fd-card-pic">${pic(c, n)}</div>
-        <span class="fd-verified" aria-hidden="true">Verified</span>
-        ${link(c)}`,
-      // the issuer's emblem beside a fingerprint, then the details
-      report: (c, i, n) => `
-        ${title(c)}
-        <div class="fd-rep-top">
-          <div class="fd-rep-photo">${pic(c, n)}</div>
-          <div class="fd-rep-print">${PRINT}</div>
-        </div>
-        <div class="fd-row"><dt>Issued by</dt><dd>${esc(c.issuer)} · ${esc(c.date)}</dd></div>
-        <div class="fd-row fd-grow"><dt>About</dt><dd>${esc(c.brief || '')}</dd></div>
-        ${link(c)}`,
-    };
-    const ORDER = Object.keys(DOCS);
-    const show = (i) => {
-      const c = C[i], note = NOTE[i % NOTE.length];
-      const kind = DOCS[c.doc] ? c.doc : ORDER[i % ORDER.length];
-      // opening the folder: the page fades in once the cover has swung clear; switching while open: at once
-      const delay = fd.dataset.open === 'true' ? 0 : 0.45;
-      page.innerHTML = `<article class="fd-doc fd-doc--${kind}" style="--note:${note};--doc-delay:${delay}s">${DOCS[kind](c, i, note)}
-        <button class="fd-back" type="button">← close</button></article>`;
-      $$('.fd-note', fd).forEach((n) => n.classList.toggle('on', +n.dataset.i === i));
-      fd.dataset.open = 'true';
-    };
-    const close = () => {
-      if (fd.dataset.open !== 'true') return;
-      fd.dataset.open = 'false';
-      $$('.fd-note', fd).forEach((n) => n.classList.remove('on'));
-    };
-    fd.addEventListener('click', (e) => {
-      const pick = e.target.closest('[data-i]');
-      if (pick) return show(+pick.dataset.i);
-      if (e.target.closest('.fd-back')) return close();
-      if (e.target.closest('.fd-front')) show(0);
+    </button>${i === 3 ? '<i class="shelf-break" aria-hidden="true"></i>' : ''}`).join('');   // two shelves: four, then the rest
+    el.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-i]');
+      if (!b) return;
+      const i = +b.dataset.i, c = C[i];
+      openDetail({
+        title: c.title, year: c.date, category: `Certificate · ${issuerShort(c.issuer)}`,
+        description: `${c.brief || ''}${c.id ? ` Credential ID: ${c.id}.` : ''} Issued by ${c.issuer}.`,
+        tags: c.skills, link: c.url, linkText: 'Show credential ↗',
+        mediaHTML: `<div class="modal-cover" style="--spine:${esc(c.spine)}">${certCoverHTML(c, i)}</div>`,
+      });
     });
-    // a click anywhere outside the folder, or Esc, closes it
-    document.addEventListener('click', (e) => { if (!fd.contains(e.target)) close(); });
-    addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
   }
 
   /* ---------- my profile page ---------- */
