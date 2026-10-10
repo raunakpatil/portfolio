@@ -398,10 +398,11 @@ make('pickup', 2.6, [(0, Z), (0.3, peek), (0.85, squat), (1.1, {**squat, HEAD: {
                      (1.9, HOLD), (2.2, {**HOLD, UA_R: {'right': 58, 'fwd': 26}, SP2: {'up': 6, 'right': 5}}), (2.6, HOLD)],
      [*LEGS_IK, WAIST, SP1, SP2, NK2, HEAD, *ARM_R, *ARM_L], step=1, reach_to={'R': 'floor', 'L': 'knee'})
 
-# pickup_show: the same pickup, but he comes up holding the card out to the viewer at arm's length, pinched by its
-# bottom-left corner: hand up behind the card, the thumb over its front (a project card, shown while he talks about it)
+# pickup_show: the same pickup, but he comes up holding the card out to the viewer at arm's length, gripping it by its
+# bottom-left corner the way you'd show someone a card: fingers curled round the corner, thumb over the front, the card
+# standing up and away from the hand (a project card, shown while he talks about it)
 SHOW = {SP2: {'up': 4}, HEAD: {'fwd': 4, 'up': 5}, NK2: {'up': 3}, 'RS': {'w': 1},
-        'FR': {'palm': 1, 'f': (-30, -20, -5), 't': (0, 30, 30), 'tilt': 55, 'opp': 60}}
+        'FR': {'palm': 0.4, 'f': (55, 55, 40), 't': (0, 10, 10), 'opp': 30}}
 make('pickup_show', 2.6, [(0, Z), (0.3, peek), (0.85, squat), (1.1, {**squat, HEAD: {'right': -10}}),
                           (1.9, SHOW), (2.2, {**SHOW, SP2: {'up': 6, 'right': 2}, HEAD: {'fwd': 5, 'up': 7}}), (2.6, SHOW)],
      [*LEGS_IK, WAIST, SP1, SP2, NK2, HEAD, *ARM_R, *ARM_L], step=1, reach_to={'R': 'floor', 'L': 'knee'}, fingers=True)
