@@ -1331,6 +1331,7 @@ main { padding: 0 var(--gap) var(--gap); }
 .trait-tags span { box-shadow: var(--neu-in-sm); }
 .trait:hover .trait-tags span { box-shadow: var(--dneu-in); }
 .id-card { box-shadow: var(--neu-in); }
+.id-photo { box-shadow: var(--neu-out); }                                         /* his photo stands up off the ID card */
 
 /* header tabs: a plain white bar; only the open page is raised (the black key) */
 .tabs-indicator { box-shadow: var(--key); }
