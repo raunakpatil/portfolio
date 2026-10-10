@@ -454,11 +454,11 @@ window.PORTFOLIO = {
         ],
         fallback: "Sorry {name}, my chat brain is taking a nap right now (free-tier robots need sleep too). Try again in a bit — or email Raunak at {email}.",
         quota: "Okay, confession, {name}: I've talked so much today that I've used up my free brain juice. I recharge overnight — or email Raunak at {email}.",
-        // tap-to-ask questions under the box, for anyone who'd rather not type (shown a few at a time, best first)
+        // tap-to-ask questions under the box, for anyone who'd rather not type (shown two at a time, best first)
         suggest: [
-          'What does Raunak do?',
           'What has he built?',
           'Is he open to new roles?',
+          'What does Raunak do?',
           "What's his tech stack?",
           'Where has he worked?',
           'Why should I hire him?',

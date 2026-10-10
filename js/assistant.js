@@ -2548,7 +2548,7 @@ function linkRow(links) {
 
 // tap-to-ask suggestions: the ones not asked yet, best first
 const suggested = new Set();
-const nextSuggestions = (step, n = 3) => (step.suggest || []).filter((q) => !suggested.has(q)).slice(0, n);
+const nextSuggestions = (step, n = 2) => (step.suggest || []).filter((q) => !suggested.has(q)).slice(0, n);
 
 function sendButton() {
   const send = document.createElement('button');
