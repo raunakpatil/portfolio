@@ -1890,6 +1890,7 @@ function showChat(id, step, offerEmail = false, links = []) {
     if (!q) { err.textContent = 'Type a question first.'; el.focus(); confused(); return; }
     el.disabled = send.disabled = true;
     suggested.add(q);
+    panel.classList.add('chatting');   // from the first message on: the chat at the top, the box at the bottom
     el.value = '';   // the question moves up into the bubble
     // while he thinks, only the question stays: the suggestions and the game step aside
     actions.querySelectorAll('.rai-links, .rai-suggest, .rai-play, .rai-who, .rai-choice').forEach((n) => n.remove());

@@ -674,6 +674,8 @@ main { padding: 0 var(--gap) var(--gap); }
   padding: 12px; margin-left: -12px; /* room for the bubble's shadow inside the scrolling panel */
 }
 .rai-panel::-webkit-scrollbar { display: none; }
+.rai-panel.chatting { top: 24px; bottom: 24px; transform: none; max-height: none; display: flex; flex-direction: column; }
+.rai-panel.chatting .rai-actions { margin-top: auto; padding-top: 18px; }
 .rai-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 22px; }
 .rai-tag {
   display: flex; align-items: center; gap: 7px;
@@ -691,21 +693,24 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai-tag[data-mode="off"] i { background: #6f6f6f; box-shadow: none; }
 .rai-back { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; color: #8a8a8a; }
 .rai-back:hover { color: #fff; }
-/* what the visitor said: the white bubble from the dashboard's tunnel */
+/* a chat: what the visitor said in a white bubble on the right, Ronie's answer in an orange one on the left */
 .rai-prev {
-  display: none; width: fit-content; max-width: 88%; margin-bottom: 14px; padding: 8px 15px;
-  border-radius: 16px 16px 16px 4px; background: #fff; color: #111; font-size: 13px; line-height: 1.4;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, .45);
+  display: none; width: fit-content; max-width: 82%; margin: 0 0 12px auto; padding: 9px 15px;
+  border-radius: 18px 18px 4px 18px; background: #fff; color: #111; font-size: 13.5px; line-height: 1.4;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .45); transform-origin: right bottom;
 }
 .rai-prev.show { display: block; animation: rai-pop .4s var(--ease); }
 @keyframes rai-pop { from { opacity: 0; transform: translateY(6px) scale(.96); } }
-.rai-say { /* Ronie speaks in Gobitta; the few characters it lacks (— – …) come from the mono */
-  min-height: 3.9em; cursor: default;
-  font-family: "Gobitta", var(--mono); font-size: clamp(18px, 1.75vw, 25px); font-weight: 400; line-height: 1.38; letter-spacing: 0;
+.rai-say { /* Ronie speaks in Gobitta (the few characters it lacks — – … come from the mono), in his orange bubble */
+  width: fit-content; max-width: 92%; padding: 13px 18px 14px; cursor: default;
+  border-radius: 20px 20px 20px 4px; background: #ff7a1a; color: #1a1006;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .45); transform-origin: left bottom;
+  font-family: "Gobitta", var(--mono); font-size: clamp(17px, 1.45vw, 21px); font-weight: 400; line-height: 1.36; letter-spacing: 0;
 }
-.rai-say.long { font-size: clamp(16px, 1.4vw, 20px); line-height: 1.42; }
-.rai-say.xlong { font-size: clamp(14px, 1.15vw, 17px); line-height: 1.46; }
-.rai-scr { color: #38ffb3; }
+.rai-say:empty { display: none; }
+.rai-say.long { font-size: clamp(15px, 1.2vw, 18px); line-height: 1.4; }
+.rai-say.xlong { font-size: clamp(13.5px, 1.05vw, 16px); line-height: 1.44; }
+.rai-scr { color: #7a2f00; }   /* the scrambled letters still to settle, dark on the orange */
 /* "Ouch!" when he's poked again and again: pops up by his head, floats off */
 .rai-ouch {
   position: absolute; z-index: 4; pointer-events: none; opacity: 0; white-space: nowrap;
@@ -828,9 +833,11 @@ main { padding: 0 var(--gap) var(--gap); }
     left: 0; right: 0; top: auto; bottom: 34px; width: auto; transform: none;
     padding: 60px 18px 8px; background: linear-gradient(rgba(14, 14, 14, 0), rgba(14, 14, 14, .92) 38%);
   }
-  .rai-say { min-height: 3.2em; font-size: 17px; }
-  .rai-say.long { font-size: 15px; }
-  .rai-say.xlong { font-size: 13.5px; }
+  .rai-say { font-size: 16px; padding: 11px 15px 12px; }
+  .rai-say.long { font-size: 14.5px; }
+  .rai-say.xlong { font-size: 13px; }
+  .rai-panel.chatting { top: auto; bottom: 34px; max-height: 72%; display: block; }   /* (a phone's panel already sits at the bottom) */
+  .rai-panel.chatting .rai-actions { margin-top: 14px; padding-top: 0; }
   .rai-panel { max-height: 72%; margin-left: 0; }
   .rai-actions { margin-top: 14px; }
   .rai-head { margin-bottom: 12px; }
