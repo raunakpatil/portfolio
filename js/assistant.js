@@ -2076,6 +2076,60 @@ const _shv = new THREE.Vector3();
 // what he says when he's poked again and again
 const OUCH = ['Ouch!', 'Oww!', 'Oof!', 'Ow, ow, ow!', 'Ouchie.', 'Hey! Ow!', 'Owie!', 'Okay — ow.', 'Ow! Rude.', 'Yowch!'];
 let lastOuch = -1, ouchEl = null;
+// poked in the crotch: both hands come down to cover it (two-bone IK on each arm, blended in over his pose) while he
+// shakes his head — "no" — then everything eases back
+const cover = { w: 0, until: 0, noAt: 0 };
+const _ikS = new THREE.Vector3(), _ikE = new THREE.Vector3(), _ikH = new THREE.Vector3(), _ikT = new THREE.Vector3(), _ikD = new THREE.Vector3();
+const _ikP = new THREE.Vector3(), _ikE2 = new THREE.Vector3(), _ikV1 = new THREE.Vector3(), _ikV2 = new THREE.Vector3();
+const _ikQ = new THREE.Quaternion(), _ikI = new THREE.Quaternion();
+// turn one arm (upper arm, forearm, hand) so the hand reaches target, the elbow bending towards pole; w blends it in
+function armTo(up, fore, hand, target, pole, w) {
+  up.getWorldPosition(_ikS); fore.getWorldPosition(_ikE); hand.getWorldPosition(_ikH);
+  const a = _ikS.distanceTo(_ikE), b = _ikE.distanceTo(_ikH);
+  _ikD.subVectors(target, _ikS);
+  const d = Math.min(Math.max(_ikD.length(), Math.abs(a - b) + 1e-3), (a + b) * 0.995);
+  _ikD.normalize();
+  const cosA = Math.min(1, Math.max(-1, (a * a + d * d - b * b) / (2 * a * d))), sinA = Math.sqrt(1 - cosA * cosA);
+  _ikP.subVectors(pole, _ikS);
+  _ikP.addScaledVector(_ikD, -_ikP.dot(_ikD));                                             // the bend, square to the reach
+  if (_ikP.lengthSq() < 1e-8) return;
+  _ikP.normalize();
+  _ikE2.copy(_ikS).addScaledVector(_ikD, a * cosA).addScaledVector(_ikP, a * sinA);       // where the elbow goes
+  _ikQ.setFromUnitVectors(_ikV1.subVectors(_ikE, _ikS).normalize(), _ikV2.subVectors(_ikE2, _ikS).normalize());
+  addWorldRotation(up, _ikI.identity().slerp(_ikQ, w));
+  up.updateMatrixWorld(true);
+  fore.getWorldPosition(_ikE); hand.getWorldPosition(_ikH);
+  _ikT.copy(_ikS).addScaledVector(_ikD, d);                                                // the reachable target
+  _ikQ.setFromUnitVectors(_ikV1.subVectors(_ikH, _ikE).normalize(), _ikV2.subVectors(_ikT, _ikE).normalize());
+  addWorldRotation(fore, _ikI.identity().slerp(_ikQ, w));
+  fore.updateMatrixWorld(true);
+}
+function updateCover(now, dt) {
+  const B = pokeParts.B;
+  if (!B || !B.pelvis || !B.lUp || !B.rUp || !B.lFore || !B.rFore || !B.lHand || !B.rHand) return;
+  const goal = now < cover.until && card.state === 'off' ? 1 : 0;
+  cover.w += (goal - cover.w) * Math.min(1, dt * (goal ? 9 : 3.6));
+  if (cover.w > 0.002) {
+    model.updateMatrixWorld(true);
+    const w = smooth(Math.min(1, cover.w));
+    B.pelvis.getWorldPosition(_pa);
+    _pa.addScaledVector(facing, 0.17).addScaledVector(UP, -0.08);                         // just in front of his hips
+    for (const side of [1, -1]) {
+      const up = side > 0 ? B.lUp : B.rUp;
+      up.getWorldPosition(_pb);
+      _pc.copy(_pa).addScaledVector(_right, side * 0.055);                                   // the hands side by side
+      _pm.copy(_pb).addScaledVector(_right, side * 0.45).addScaledVector(facing, -0.2).addScaledVector(UP, -0.25);   // elbows out
+      armTo(up, side > 0 ? B.lFore : B.rFore, side > 0 ? B.lHand : B.rHand, _pc, _pm, w);
+    }
+  }
+  // the "no": a quick head shake that fades
+  const t = (now - cover.noAt) / 1000;
+  if (cover.noAt && t >= 0 && t < 1.1) {
+    const yaw = Math.sin(t * Math.PI * 2 * 2.4) * 0.26 * (1 - t / 1.1) * Math.min(1, t * 8);
+    addWorldRotation(neck, _q.setFromAxisAngle(UP, yaw * 0.45));
+    addWorldRotation(head, _q.setFromAxisAngle(UP, yaw * 0.55));
+  }
+}
 let pokeParts = [], pokeFaceTimer = 0;
 const _pa = new THREE.Vector3(), _pb = new THREE.Vector3(), _pc = new THREE.Vector3(), _pm = new THREE.Vector3(), _ps = new THREE.Vector3(), _pdir = new THREE.Vector3();
 
@@ -2167,6 +2221,7 @@ function updatePokes(now, dt) {
     model.position.add(_shv);
     if (contact) contact.position.add(_shv);
   }
+  if (MOTION) updateCover(now, dt);
   // a glance at the spot: eases there, holds, eases back
   if (now > glance.until) glance.toYaw = glance.toPitch = 0;
   const k = Math.min(1, dt * 7);
@@ -2182,7 +2237,7 @@ const POKE = {
   head: { first: ['surprised', 'dizzy', 'squint', 'confused', 'nervous'], again: ['dizzy', 'squint', 'sad', 'nervous', 'bored'], icons: ['sweat', 'star', 'exclamation', 'question'], move: 'scratch' },
   chest: { first: ['laugh', 'surprised', 'proud', 'wink', 'happy'], again: ['smug', 'squint', 'nervous', 'determined', 'proud'], icons: ['exclamation', 'heart', 'sparkle', 'shield'], move: 'chest' },
   belly: { first: ['laugh', 'happy', 'wink', 'excited', 'love'], again: ['laugh', 'nervous', 'squint', 'dizzy'], icons: ['music', 'sparkle', 'heart', 'sweat'], move: 'laugh' },
-  crotch: { first: ['shy', 'surprised', 'nervous', 'squint'], again: ['squint', 'angry', 'sad', 'determined', 'shy'], icons: ['blush', 'exclamation', 'sweat', 'shield'], move: 'facepalm' },
+  crotch: { first: ['shy', 'surprised', 'nervous', 'squint'], again: ['squint', 'angry', 'sad', 'determined', 'shy'], icons: ['blush', 'exclamation', 'sweat', 'shield'], move: null },
   shoulder: { first: ['curious', 'surprised', 'happy', 'wink', 'thinking'], again: ['confused', 'bored', 'smug', 'squint', 'curious'], icons: ['question', 'wave', 'speech', 'exclamation'], move: null },
   arm: { first: ['surprised', 'curious', 'happy', 'wink'], again: ['confused', 'bored', 'squint', 'nervous'], icons: [null, 'question', 'exclamation', 'sweat'], move: null },
   hand: { first: ['happy', 'excited', 'love', 'wink', 'surprised'], again: ['confused', 'smug', 'bored', 'happy'], icons: ['wave', 'heart', 'sparkle', 'star'], move: 'wave' },
@@ -2226,6 +2281,7 @@ function poke(hit, e) {
     case 'crotch':
       flinch(B.pelvis, _pdir, 2.4 * f); flinch(spine, _pdir, -1.6 * f);   // hips back, chest forward: a jolt
       glanceAt(0, 0.45, 900);
+      cover.until = now + 1500; cover.noAt = now + 180;                  // both hands down to cover, and a "no"
       break;
     case 'shoulder': {
       const clav = side > 0 ? B.lClav : B.rClav, up = side > 0 ? B.lUp : B.rUp;
@@ -2259,7 +2315,7 @@ function poke(hit, e) {
   pokeFaceTimer = setTimeout(() => { if (face.name === mood) setFace('neutral'); }, 2400);
   const free = card.state === 'off' && !skipTyping;          // not holding a card, not mid-sentence
   if (free && MOTION) {
-    const move = n >= 6 ? 'shake' : n >= 4 && hit.part !== 'hand' ? 'confused' : R.move;
+    const move = hit.part === 'crotch' ? null : n >= 6 ? 'shake' : n >= 4 && hit.part !== 'hand' ? 'confused' : R.move;
     if (move && (n === 1 || n >= 4 || Math.random() < 0.5)) setTimeout(() => playGesture(move), 260);   // after the flinch
   }
 }
