@@ -48,13 +48,18 @@
     new IntersectionObserver((es) => { entry.visible = es[es.length - 1].isIntersecting; }).observe(el);
     loops.push(entry);
   }
-  let prevT = performance.now();
+  let prevT = performance.now(), held = 0;
+  const HTML = document.documentElement;
   function frame(now) {
     // schedule the next frame first, so nothing below can ever stop the loop
     requestAnimationFrame(frame);
-    const dt = Math.min(50, now - prevT);
+    let dt = Math.min(50, now - prevT);
     prevT = now;
     if (document.hidden || modal.open) return;   // (a popup is open: the page behind it rests)
+    // during the arrival screen everything draws its first frame (so it's all ready), but its clock stands still —
+    // count-ups and entrances begin as the page is revealed, not behind the screen
+    if (HTML.classList.contains('intro-on')) { held += dt; dt = 0; }
+    now -= held;
     for (const l of loops) {
       // IntersectionObserver reports a frame late when a page is hidden; skip
       // anything with no size (its view is display:none) instead of drawing at 0×0
@@ -128,6 +133,60 @@
     }
     return `<div class="thumb t-${k}" style="--c1:${esc(c1)};--c2:${esc(c2)}">${m}</div>`;
   }
+
+  /* ---------- the arrival ---------- */
+  // The name rises once its typeface is in; the line fills as the page loads (eased, never faster than the real load,
+  // at least ~1.4 s, at most ~4 s); then the name glides into the header's logo — scaled from exactly where it is to
+  // exactly where the logo sits (on a phone, where the logo is just the initials, it fades into them on the way) —
+  // while the screen clears and the dashboard makes its entrance.
+  (function arrival() {
+    const intro = document.getElementById('intro');
+    if (!intro || !HTML.classList.contains('intro-on')) { intro?.remove(); return; }
+    const name = intro.querySelector('.intro-name'), bar = intro.querySelector('.intro-bar b'), num = intro.querySelector('.intro-num');
+    const font = document.fonts?.load ? document.fonts.load('500 64px "Inter Tight"') : Promise.resolve();
+    Promise.race([font, new Promise((r) => setTimeout(r, 700))]).then(() => intro.classList.add('ready'));
+    const loaded = new Promise((r) => (document.readyState === 'complete' ? r() : addEventListener('load', r, { once: true })));
+    let isReady = false;
+    Promise.all([font.catch(() => {}), loaded]).then(() => { isReady = true; });
+    const t0 = performance.now(), MIN = 1400, MAX = 4000;
+    let shown = 0, last = t0, leaving = false;
+    function tick(now) {
+      if (leaving) return;
+      const dt = now - last, t = now - t0;
+      last = now;
+      const target = isReady || t > MAX ? 100 : 88 * (1 - Math.exp(-t / 900));
+      shown += (target - shown) * (1 - Math.exp(-dt / 160));
+      if (target === 100 && shown > 99.4) shown = 100;
+      bar.style.transform = `scaleX(${(shown / 100).toFixed(4)})`;
+      num.textContent = String(Math.round(shown)).padStart(3, '0');
+      if (shown === 100 && t >= MIN) { leaving = true; setTimeout(leave, 180); return; }
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+
+    function leave() {
+      intro.classList.add('out');
+      scrollTo(0, 0);
+      const full = $('.brand-full'), short = $('.brand-short');
+      const brand = full && full.offsetWidth ? full : short;
+      const a = name.getBoundingClientRect(), b = brand.getBoundingClientRect();
+      const s = parseFloat(getComputedStyle(brand).fontSize) / parseFloat(getComputedStyle(name).fontSize);
+      const tx = b.left - a.left, ty = b.top + b.height / 2 - (a.top + (a.height * s) / 2);
+      const same = brand === full;
+      HTML.classList.add('intro-morph');
+      const T = 1000, ease = 'cubic-bezier(.76, 0, .24, 1)';
+      const glide = name.animate([
+        { transform: 'none', opacity: 1 },
+        ...(same ? [] : [{ opacity: 1, offset: 0.55 }]),
+        { transform: `translate(${tx}px, ${ty}px) scale(${s})`, opacity: same ? 1 : 0 },
+      ], { duration: T, delay: 220, easing: ease, fill: 'forwards' });
+      if (!same) setTimeout(() => { HTML.classList.remove('intro-morph'); brand.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 420, easing: 'ease' }); }, 220 + T * 0.6);
+      // the screen clears and the page comes in underneath
+      setTimeout(() => { intro.classList.add('reveal'); HTML.classList.remove('intro-on'); }, 420);
+      const end = () => { HTML.classList.remove('intro-morph'); intro.remove(); };
+      glide.finished.then(end, end);
+    }
+  })();
 
   /* ---------- detail modal ---------- */
   const modal = $('#detail');

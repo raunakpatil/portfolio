@@ -1,3 +1,39 @@
+/* ===================== Arrival ===================== */
+/* Landing: the name rises letter by letter over the page's own grey, a fine line under it fills with the real load
+   (and a small count at its end); then the line goes, and the name glides up into the header as its logo while the
+   page comes in underneath (main.js: the arrival). */
+.intro {
+  position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 0 24px;
+  background: var(--bg); transition: background-color .75s ease;
+  animation: intro-failsafe 0s 7s forwards;   /* (should the script never come, it steps aside anyway) */
+}
+.no-intro .intro { display: none; }
+@keyframes intro-failsafe { to { opacity: 0; visibility: hidden; } }
+.intro.reveal { background-color: transparent; pointer-events: none; }
+.intro-box { position: relative; }
+.intro-name {
+  display: block; font-size: clamp(38px, 8.6vw, 132px); font-weight: 500; line-height: 1; letter-spacing: .01em;
+  text-transform: uppercase; white-space: nowrap; color: var(--ink); overflow: hidden; padding-bottom: .04em;
+  transform-origin: 0 0; visibility: hidden;   /* (until its typeface is in: no swap mid-rise) */
+}
+.intro.ready .intro-name { visibility: visible; }
+.intro-name span { display: inline-block; transform: translateY(108%); }
+.intro.ready .intro-name span { animation: intro-up 1s cubic-bezier(.2, .85, .2, 1) forwards; animation-delay: calc(var(--i) * 42ms); }
+@keyframes intro-up { to { transform: none; } }
+.intro-meta { display: flex; align-items: center; gap: 14px; margin-top: 20px; opacity: 0; }
+.intro.ready .intro-meta { animation: intro-fade .7s ease .45s forwards; }
+@keyframes intro-fade { to { opacity: 1; } }
+.intro-bar { flex: 1; height: 1px; overflow: hidden; background: rgba(17, 17, 17, .12); }
+.intro-bar b { display: block; height: 100%; background: var(--ink); transform: scaleX(0); transform-origin: 0 50%; }
+.intro-num { font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.intro.out .intro-meta { animation: intro-meta-out .35s ease forwards; }
+@keyframes intro-meta-out { from { opacity: 1; } to { opacity: 0; transform: translateY(6px); } }
+.intro.out .intro-bar b { transition: transform .35s cubic-bezier(.7, 0, .2, 1); transform-origin: 100% 50%; transform: scaleX(0) !important; }
+/* meanwhile the page waits, still, underneath: no scrolling, every entrance held at its first frame */
+html.intro-on body { overflow: hidden; }
+html.intro-on .view, html.intro-on .view * { animation-play-state: paused !important; }
+html.intro-morph .brand { visibility: hidden; }
+
 /* ===================== Tokens ===================== */
 :root {
   --bg: #f2f2f2;

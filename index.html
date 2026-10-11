@@ -16,7 +16,17 @@
   <link rel="icon" href="favicon.svg?v=2" type="image/svg+xml">
   <link rel="icon" href="favicon.ico?v=2" sizes="32x32">
   <link rel="apple-touch-icon" href="apple-touch-icon.png?v=2">
-  <link rel="stylesheet" href="css/style.css?v=20261014600000">
+  <script>
+    // The arrival screen (#intro) plays on landing — not on Ronie's page (he has his own), and not for anyone who
+    // prefers reduced motion. Decided here, before the first paint, so it never flashes.
+    (function () {
+      var d = document.documentElement;
+      var ronie = /^\/ronie\/?$/.test(location.pathname) || location.hash === '#assistant';
+      var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      d.classList.add(ronie || calm ? 'no-intro' : 'intro-on');
+    })();
+  </script>
+  <link rel="stylesheet" href="css/style.css?v=20261014610000">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -25,6 +35,12 @@
   </script>
 </head>
 <body>
+  <div class="intro" id="intro" aria-hidden="true">
+    <div class="intro-box">
+      <div class="intro-name"><span style="--i:0">R</span><span style="--i:1">a</span><span style="--i:2">u</span><span style="--i:3">n</span><span style="--i:4">a</span><span style="--i:5">k</span><span style="--i:6">&nbsp;</span><span style="--i:7">P</span><span style="--i:8">a</span><span style="--i:9">t</span><span style="--i:10">i</span><span style="--i:11">l</span></div>
+      <div class="intro-meta"><i class="intro-bar"><b></b></i><span class="intro-num">000</span></div>
+    </div>
+  </div>
   <header class="topbar">
     <a class="brand" href="#dashboard"><span class="brand-full"></span><span class="brand-short"></span></a>
     <nav class="tabs" aria-label="Main">
@@ -321,7 +337,7 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261014600000"></script>
-  <script src="js/main.js?v=20261014600000" defer></script>
+  <script src="js/data.js?v=20261014610000"></script>
+  <script src="js/main.js?v=20261014610000" defer></script>
 </body>
 </html>
