@@ -1301,6 +1301,8 @@ main { padding: 0 var(--gap) var(--gap); }
 .modal-body p { margin-top: 12px; max-width: 65ch; font-size: 16px; line-height: 1.55; color: #444; }
 .modal-link { display: inline-block; margin-top: 20px; padding: 10px 18px; border-radius: 999px; background: #111; color: #fff; font-size: 13px; }
 .modal-link[hidden] { display: none; }
+.modal-link + .modal-link { margin-left: 8px; }
+.modal-link.alt { background: #ff7a1a; color: #1a0c00; }   /* (a live demo: Ronie's own orange) */
 
 /* ===================== Generated thumbnails ===================== */
 .thumb {

@@ -209,6 +209,15 @@
     link.hidden = !has;
     if (has) link.href = item.link;
     link.textContent = item.linkText || 'Visit project ↗';
+    // a second button for a live demo (demo / demoText in data.js): a page on this site opens here, anything else in a tab
+    const demo = $('#detail-demo');
+    demo.hidden = !item.demo;
+    if (item.demo) {
+      const inside = item.demo.startsWith('#');
+      demo.href = item.demo;
+      demo.textContent = item.demoText || 'Try it ↗';
+      if (inside) { demo.removeAttribute('target'); demo.removeAttribute('rel'); } else { demo.target = '_blank'; demo.rel = 'noopener'; }
+    }
     modal.classList.remove('closing');
     modal.classList.toggle('fly', fly);
     modal.showModal();
@@ -221,6 +230,7 @@
     setTimeout(() => { modal.close(); modal.classList.remove('closing', 'fly'); }, 220);
   }
   $('.modal-close').addEventListener('click', closeDetail);
+  $('#detail-demo').addEventListener('click', (e) => { if (e.currentTarget.getAttribute('href').startsWith('#')) closeDetail(); });
   modal.addEventListener('click', (e) => { if (e.target === modal) closeDetail(); });
   modal.addEventListener('cancel', (e) => { e.preventDefault(); closeDetail(); });
 

@@ -113,6 +113,7 @@ window.PORTFOLIO = {
       tags: ['three.js', 'WebGPU', 'Kokoro TTS', 'Cloudflare Workers', 'Gemini', 'Blender'],
       description: "The 3D AI agent who lives on this website: he answers visitors' questions from real facts only, speaks in a neural voice that runs on their own GPU, reacts with 23 expressions and 23 moves I authored in Blender with Python, and plays a mind-reading game — free to run. Works with any 3D character; the code is an open template.",
       link: 'https://github.com/raunakpatil/ronie-3d-ai-website-agent', linkText: 'See the case study ↗',
+      demo: '#assistant', demoText: 'Meet Ronie →',
     },
     {
       title: 'YouTube Agentic AI Studio', category: 'AI Agents', year: 2026, image: 'img/projects/youtube-agentic-ai-studio.webp', imageMobile: 'img/projects/youtube-agentic-ai-studio-mobile.webp', tunnelImage: 'img/tunnel/youtube-agentic-ai-studio.webp', tunnelImageMobile: 'img/tunnel/youtube-agentic-ai-studio-mobile.webp', colors: ['#c6f432', '#7c5cff'],
