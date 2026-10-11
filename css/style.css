@@ -256,6 +256,10 @@ main { padding: 0 var(--gap) var(--gap); }
 /* ---- Tunnel ---- */
 .tunnel-stage { position: absolute; inset: 0; perspective: 430px; perspective-origin: 50% 50%; }
 .tunnel { position: absolute; inset: 0; transform-style: preserve-3d; }
+/* the tunnel box (and its walls) sits flat at the screen's surface, in front of everything floating behind it in 3D:
+   it lets the pointer through, so the cards themselves are what the mouse finds */
+.tunnel, .wall { pointer-events: none; }
+.tcard { pointer-events: auto; }
 .wall {
   position: absolute;
   background-image:

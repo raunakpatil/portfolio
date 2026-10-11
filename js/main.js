@@ -776,23 +776,49 @@
     const TOUCH_ONLY = matchMedia('(hover: none)');
     $('#tunnel-hint').textContent = `${TOUCH_ONLY.matches ? 'Tap' : 'Click'} a floating project · anywhere else for all projects`;
     // the card being looked at (hovered, focused or touched): it slows right down and gets its name tag
-    let slowdown = 1, held = 0, tagged = null;
+    // Which card that is is worked out every frame (see pick() in the frame loop): the one under the mouse — the cards
+    // glide under a resting pointer, which never fires a hover, so it's a hit test, not pointerenter — else the one
+    // focused from the keyboard, else, with no pointer on the card, a showcase: every few seconds one nearby card is
+    // picked out by itself
+    let held = 0, tagged = null, focused = null, shown = null, shownFor = 0, px = -1, py = -1;
     const tag = $('#tunnel-tag');
-    const look = (it) => {
+    const byEl = new Map();
+    function setTagged(it) {
+      if (it === tagged) return;
       tagged?.el.classList.remove('looked');
       tagged = it;
+      if (!it) { tag.classList.remove('on'); return; }
       it.el.classList.add('looked');
-      slowdown = 0.12;
       tag.innerHTML = `${esc(it.p.title)} <span>· ${esc([it.p.category, it.p.year].filter(Boolean).join(' · '))}</span>`;
       tag.style.setProperty('--cat', catColor(it.p.category));
       tag.classList.add('on');
-    };
-    const unlook = (it) => {
-      if (tagged !== it) return;
-      it.el.classList.remove('looked');
-      tagged = null; slowdown = 1;
-      tag.classList.remove('on');
-    };
+    }
+    card.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { px = e.clientX; py = e.clientY; } });
+    card.addEventListener('pointerleave', () => { px = py = -1; });
+    // the showcase: one of the biggest cards in view (well inside the frame, still on its way in)
+    function showcase() {
+      const c = card.getBoundingClientRect();
+      const ok = [];
+      for (const it of items) {
+        if (it.d < 120 || it === shown) continue;
+        const r = it.el.getBoundingClientRect();
+        if (r.left > c.left + 24 && r.right < c.right - 24 && r.top > c.top + 50 && r.bottom < c.bottom - 40) ok.push([r.width * r.height, it]);
+      }
+      ok.sort((x, y) => y[0] - x[0]);
+      const top = ok.slice(0, 3);
+      return top.length ? top[(Math.random() * top.length) | 0][1] : null;
+    }
+    function pick(dt) {
+      if (px >= 0) {
+        shown = null; shownFor = 2600;                 // (the showcase comes back soon after the mouse leaves)
+        const t = document.elementFromPoint(px, py)?.closest('.tcard');
+        return (t && byEl.get(t)) || focused;
+      }
+      if (focused) return focused;
+      shownFor += dt;
+      if (!shown || shownFor > 3800 || shown.d < 60) { shownFor = 0; shown = showcase(); }
+      return shown;
+    }
     // a click flies the card out of the tunnel towards you, then its popup opens
     function flyOpen(it) {
       if (!MOTION) return openDetail(it.p);
@@ -826,10 +852,9 @@
       else { seen.add(p); el.setAttribute('aria-label', `Open ${p.title}`); }
       const it = { el, p, side, shade: el.lastChild, across: 0, along: 0, off: rnd(), d: (i / N) * L };
       el.addEventListener('click', () => flyOpen(it));
-      el.addEventListener('pointerenter', () => look(it));
-      el.addEventListener('pointerleave', () => unlook(it));
-      el.addEventListener('focus', () => look(it));
-      el.addEventListener('blur', () => unlook(it));
+      el.addEventListener('focus', () => { focused = it; });
+      el.addEventListener('blur', () => { if (focused === it) focused = null; });
+      byEl.set(el, it);
       walls[side].appendChild(el);
       items.push(it);
     }
@@ -1058,8 +1083,9 @@
 
     let ox = 50, oy = 50, travelled = 0, spd = 1;
     onFrame(card, (now, dt) => {
+      setTagged(pick(dt));
       const mid = ptr.inside && !tagged && !overChat && (ptr.nx / 0.42) ** 2 + (ptr.ny / 0.5) ** 2 < 1;
-      const want = held ? 0.1 : tagged ? slowdown : mid ? 2.8 : TOUCH_ONLY.matches ? 0.65 : 1;
+      const want = held ? 0.1 : tagged ? (tagged === shown ? 0.3 : 0.12) : mid ? 2.8 : TOUCH_ONLY.matches ? 0.65 : 1;
       spd = lerp(spd, want, want > spd ? 0.04 : 0.08);
       if (tagged) placeTag();
       const step = dt * SPEED * MOTION * spd;
