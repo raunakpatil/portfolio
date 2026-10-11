@@ -279,17 +279,33 @@ main { padding: 0 var(--gap) var(--gap); }
 .wall-floor .tcard-in, .wall-ceil .tcard-in { transform: scaleY(-1); }
 .wall-left .tcard-in, .wall-right .tcard-in { transform: scaleX(-1); }
 .tcard:hover .tcard-in, .tcard:focus-visible .tcard-in { filter: brightness(1.25); }
-.tcard:hover, .tcard:focus-visible, .tcard.looked { outline: none; box-shadow: 0 0 0 2px var(--cat, #fff), 0 0 24px -4px var(--cat, #fff); }
+.tcard { transition: box-shadow .35s var(--ease); }
+.tcard:hover, .tcard:focus-visible, .tcard.looked { outline: none; box-shadow: 0 0 0 1px rgba(255, 255, 255, .9), 0 0 0 5px rgba(255, 255, 255, .07); }
+.tcard.looked .tcard-in { filter: brightness(1.12); }
 .tcard-shade { position: absolute; inset: 0; background: #000; pointer-events: none; }   /* (js: dim far off, lit up close) */
-/* a project's name tag, over the card being looked at */
+/* a project's name tag: a small frosted label beside the card being looked at, joined to it by a fine line */
 .tunnel-tag {
   position: absolute; left: 0; top: 0; z-index: 3; pointer-events: none; white-space: nowrap;
-  padding: 5px 11px; border-radius: 999px; background: #fff; color: #111; font-size: 12px;
-  box-shadow: 0 0 0 1.5px var(--cat, #fff), 0 8px 24px rgba(0, 0, 0, .45);
-  opacity: 0; transition: opacity .2s;
+  padding: 8px 12px 9px; border-radius: 10px; color: #fff;
+  background: rgba(16, 16, 16, .66); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .1), 0 14px 34px rgba(0, 0, 0, .5);
+  opacity: 0; transition: opacity .22s ease;
 }
-.tunnel-tag span { color: #777; }
-.tunnel-tag.on { opacity: 1; }
+.tunnel-tag.on { opacity: 1; transition: opacity .4s var(--ease); }
+.tunnel-tag .tg { display: block; }
+.tunnel-tag.on .tg { animation: tag-in .55s var(--ease) both; }
+@keyframes tag-in { from { opacity: 0; transform: translateY(4px); filter: blur(3px); } }
+.tunnel-tag small {
+  display: flex; align-items: center; gap: 7px; margin-bottom: 4px;
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .1em; text-transform: uppercase; color: #8d8d8d;
+}
+.tunnel-tag small i { width: 5px; height: 5px; border-radius: 50%; background: var(--cat, #fff); box-shadow: 0 0 8px var(--cat, #fff); }
+.tunnel-tag b { display: block; font-size: 13px; font-weight: 500; letter-spacing: -.005em; }
+.tunnel-tag::after { content: ""; position: absolute; background: rgba(255, 255, 255, .4); }
+.tunnel-tag[data-side="above"]::after { left: var(--lx); top: 100%; width: 1px; height: 14px; background: linear-gradient(rgba(255, 255, 255, .45), rgba(255, 255, 255, .08)); }
+.tunnel-tag[data-side="below"]::after { left: var(--lx); bottom: 100%; width: 1px; height: 14px; background: linear-gradient(rgba(255, 255, 255, .08), rgba(255, 255, 255, .45)); }
+.tunnel-tag[data-side="right"]::after { top: var(--ly); right: 100%; width: 14px; height: 1px; background: linear-gradient(90deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .45)); }
+.tunnel-tag[data-side="left"]::after { top: var(--ly); left: 100%; width: 14px; height: 1px; background: linear-gradient(90deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, .08)); }
 /* a project's card flying out of the tunnel to its popup */
 .tcard-fly { position: fixed; z-index: 1000; overflow: hidden; border-radius: 6px; pointer-events: none; transform-origin: 0 0; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
 .tcard-fly .thumb, .tcard-fly picture, .tcard-fly img { width: 100%; height: 100%; }

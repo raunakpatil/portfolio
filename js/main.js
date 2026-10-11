@@ -766,8 +766,7 @@
     const N = Math.max(20, P.length);
     const rnd = seeded('tunnel');
     const items = [];
-    // each kind of project has a colour (the experience map's palette): its card's outline and name tag, and the
-    // coloured streaks flying past
+    // each kind of project has a colour (the experience map's palette): the dot on its name tag
     const CAT_COLORS = ['#c6f432', '#b18cff', '#ff7ab6', '#5eead4', '#ffb547', '#7cc4ff'];
     const cats = [...new Set(P.map((p) => p.category).filter(Boolean))];
     const catColor = (c) => CAT_COLORS[Math.max(0, cats.indexOf(c)) % CAT_COLORS.length];
@@ -780,26 +779,40 @@
     let held = 0, tagged = null, focused = null, shown = null, shownFor = 0, px = -1, py = -1;
     const tag = $('#tunnel-tag');
     const byEl = new Map();
+    // The tag never slides from one card to another (it would cross the chat): the old one fades out, and the new one
+    // fades in beside its own card once it's gone (tagFor is the card the tag is showing right now)
+    let tagFor = null, tagSwap = 0, tagX = 0, tagY = 0, tagHold = 0;
     function setTagged(it) {
       if (it === tagged) return;
       tagged?.el.classList.remove('looked');
       tagged = it;
-      if (!it) { tag.classList.remove('on'); return; }
-      it.el.classList.add('looked');
-      tag.innerHTML = `${esc(it.p.title)} <span>· ${esc([it.p.category, it.p.year].filter(Boolean).join(' · '))}</span>`;
-      tag.style.setProperty('--cat', catColor(it.p.category));
-      tag.classList.add('on');
+      it?.el.classList.add('looked');
+      tag.classList.remove('on');
+      clearTimeout(tagSwap);
+      tagSwap = setTimeout(() => {
+        tagFor = tagged;
+        if (!tagFor) return;
+        const p = tagFor.p;
+        tag.innerHTML = `<span class="tg"><small><i></i>${esc([p.category, p.year].filter(Boolean).join(' · '))}</small><b>${esc(p.title)}</b></span>`;
+        tag.style.setProperty('--cat', catColor(p.category));
+        tag.dataset.side = '';
+        placeTag(0, true);
+      }, tagFor ? 220 : 0);
     }
     card.addEventListener('pointermove', (e) => { if (e.pointerType === 'mouse') { px = e.clientX; py = e.clientY; } });
     card.addEventListener('pointerleave', () => { px = py = -1; });
     // the showcase: one of the biggest cards in view (well inside the frame, still on its way in)
     function showcase() {
       const c = card.getBoundingClientRect();
+      const chat = $$('.bubble, .answer', card).map((n) => n.getBoundingClientRect());
       const ok = [];
       for (const it of items) {
         if (it.d < 120 || it === shown) continue;
         const r = it.el.getBoundingClientRect();
-        if (r.left > c.left + 24 && r.right < c.right - 24 && r.top > c.top + 50 && r.bottom < c.bottom - 40) ok.push([r.width * r.height, it]);
+        if (r.left < c.left + 24 || r.right > c.right - 24 || r.top < c.top + 50 || r.bottom > c.bottom - 40) continue;
+        // (not one tucked against the chat, where its tag would have nowhere to go)
+        if (chat.some((b) => r.left < b.right + 60 && r.right > b.left - 60 && r.top < b.bottom + 40 && r.bottom > b.top - 40)) continue;
+        ok.push([r.width * r.height, it]);
       }
       ok.sort((x, y) => y[0] - x[0]);
       const top = ok.slice(0, 3);
@@ -893,13 +906,51 @@
     new ResizeObserver(layout).observe(stage);
 
     // the name tag sits just above the card it names (below it, for one near the top), kept inside the card
-    function placeTag() {
-      const c = card.getBoundingClientRect(), r = tagged.el.getBoundingClientRect();
+    // The tag's spot: above its card, else below, right or left — the first that keeps clear of the chat and inside the
+    // frame (none clear: it stays hidden). It glides after its card rather than jumping; a fine leader line joins them.
+    const chatEls = $$('.bubble, .answer', card);
+    const GAP = 14, EDGE = 12;
+    function placeTag(dt, snap) {
+      if (!tagFor) return false;
+      const c = card.getBoundingClientRect(), r = tagFor.el.getBoundingClientRect();
       const tw = tag.offsetWidth, th = tag.offsetHeight;
-      const x = clamp(r.left + r.width / 2 - c.left - tw / 2, 10, c.width - tw - 10);
-      let y = r.top - c.top - th - 8;
-      if (y < 44) y = Math.min(r.bottom - c.top + 8, c.height - th - 34);
-      tag.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+      const R = { l: r.left - c.left, t: r.top - c.top, r: r.right - c.left, b: r.bottom - c.top };
+      const blocks = chatEls.map((n) => {
+        const b = n.getBoundingClientRect();
+        return { l: b.left - c.left - 10, t: b.top - c.top - 10, r: b.right - c.left + 10, b: b.bottom - c.top + 10 };
+      });
+      const cx = (R.l + R.r) / 2, cy = (R.t + R.b) / 2;
+      const spots = [
+        ['above', cx - tw / 2, R.t - GAP - th], ['below', cx - tw / 2, R.b + GAP],
+        ['right', R.r + GAP, cy - th / 2], ['left', R.l - GAP - tw, cy - th / 2],
+      ];
+      // (the side it's on stays first choice while it's clear, so it doesn't flip about)
+      spots.sort((a, b) => (b[0] === tag.dataset.side) - (a[0] === tag.dataset.side));
+      let pick = null;
+      for (const [side, x0, y0] of spots) {
+        const x = side === 'above' || side === 'below' ? clamp(x0, EDGE, c.width - tw - EDGE) : x0;
+        if (x < EDGE || y0 < EDGE || x + tw > c.width - EDGE || y0 + th > c.height - EDGE) continue;
+        if (blocks.some((b) => x < b.r && x + tw > b.l && y0 < b.b && y0 + th > b.t)) continue;
+        pick = [side, x, y0];
+        break;
+      }
+      if (!pick) { tag.classList.remove('on'); return false; }
+      const now = performance.now();
+      if (now < tagHold) return true;                  // (fading out before it moves to another side)
+      const [side, x, y] = pick;
+      if (tag.dataset.side !== side) {
+        // to another side of the card: fade out where it is, then appear there — never sweep across the card
+        if (!snap && tag.classList.contains('on')) { tag.classList.remove('on'); tagHold = now + 220; return true; }
+        tag.dataset.side = side; snap = true;
+      }
+      const k = snap ? 1 : 1 - Math.exp(-dt / 70);
+      tagX += (x - tagX) * k; tagY += (y - tagY) * k;
+      tag.style.transform = `translate(${tagX.toFixed(1)}px, ${tagY.toFixed(1)}px)`;
+      // the leader line meets the card's middle
+      tag.style.setProperty('--lx', `${clamp(cx - tagX, 12, tw - 12).toFixed(1)}px`);
+      tag.style.setProperty('--ly', `${clamp(cy - tagY, 10, th - 10).toFixed(1)}px`);
+      if (tagged === tagFor && !tag.classList.contains('on')) tag.classList.add('on');
+      return true;
     }
 
     // chat: the answer floats as a sparkling particle cloud and snaps into crisp text on hover
@@ -1048,8 +1099,8 @@
     starC.className = 'tunnel-stars';
     starC.setAttribute('aria-hidden', 'true');
     card.insertBefore(starC, $('.chat', card));
-    // most streaks white; the rest in the colours of the kinds of project
-    const STAR_COLORS = cats.map(catColor);
+    // most streaks white, the rest soft pink, cyan and lime
+    const STAR_COLORS = ['#ff9cf0', '#9cf6ff', '#e4ff9c'];
     const newStar = (anyDepth) => {
       let x = Math.random() * 2 - 1, y = Math.random() * 2 - 1;
       if (Math.abs(x) < 0.12 && Math.abs(y) < 0.12) { x += Math.sign(x || 1) * 0.12; y += Math.sign(y || 1) * 0.12; }
@@ -1084,7 +1135,7 @@
       const mid = ptr.inside && !tagged && !overChat && (ptr.nx / 0.42) ** 2 + (ptr.ny / 0.5) ** 2 < 1;
       const want = held ? 0.1 : tagged ? (tagged === shown ? 0.3 : 0.12) : mid ? 2.8 : TOUCH_ONLY.matches ? 0.65 : 1;
       spd = lerp(spd, want, want > spd ? 0.04 : 0.08);
-      if (tagged) placeTag();
+      if (tagFor) placeTag(dt, false);
       const step = dt * SPEED * MOTION * spd;
       travelled += step;
       const g = travelled % CELL;
