@@ -766,15 +766,12 @@
     const N = Math.max(20, P.length);
     const rnd = seeded('tunnel');
     const items = [];
-    // each kind of project has a colour (the experience map's palette): its card's outline, the legend, and the
+    // each kind of project has a colour (the experience map's palette): its card's outline and name tag, and the
     // coloured streaks flying past
     const CAT_COLORS = ['#c6f432', '#b18cff', '#ff7ab6', '#5eead4', '#ffb547', '#7cc4ff'];
     const cats = [...new Set(P.map((p) => p.category).filter(Boolean))];
     const catColor = (c) => CAT_COLORS[Math.max(0, cats.indexOf(c)) % CAT_COLORS.length];
-    $('#tunnel-title').textContent = `Projects · ${P.length}`;
-    $('#tunnel-legend').innerHTML = cats.map((c) => `<span><i style="background:${catColor(c)}"></i>${esc(c)}</span>`).join('');
     const TOUCH_ONLY = matchMedia('(hover: none)');
-    $('#tunnel-hint').textContent = `${TOUCH_ONLY.matches ? 'Tap' : 'Click'} a floating project · anywhere else for all projects`;
     // the card being looked at (hovered, focused or touched): it slows right down and gets its name tag
     // Which card that is is worked out every frame (see pick() in the frame loop): the one under the mouse — the cards
     // glide under a resting pointer, which never fires a hover, so it's a hit test, not pointerenter — else the one
@@ -1051,7 +1048,7 @@
     starC.className = 'tunnel-stars';
     starC.setAttribute('aria-hidden', 'true');
     card.insertBefore(starC, $('.chat', card));
-    // most streaks white; the rest in the colours of the kinds of project (see the legend)
+    // most streaks white; the rest in the colours of the kinds of project
     const STAR_COLORS = cats.map(catColor);
     const newStar = (anyDepth) => {
       let x = Math.random() * 2 - 1, y = Math.random() * 2 - 1;
