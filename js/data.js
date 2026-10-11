@@ -17,6 +17,7 @@ window.PORTFOLIO = {
     { label: 'LinkedIn', href: 'https://www.linkedin.com/in/raunakpatil/' },
     { label: 'GitHub', href: 'https://github.com/raunakpatil' },
     { label: 'YouTube', href: 'https://www.youtube.com/@eldritchlore' },
+    { label: 'Instagram', href: 'https://www.instagram.com/raunakpatil/' },
   ],
 
   /* Card 1 — greeting + ASCII art.

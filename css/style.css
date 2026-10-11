@@ -43,12 +43,10 @@ html.intro-on .view, html.intro-on .view * { animation-play-state: paused !impor
 html.intro-morph .brand { visibility: hidden; }
 /* the dashboard arrives the way a phone's home screen does on unlock: each card settles from a touch larger, soft and
    clear, to its place — the middle first, rippling outwards (js sets each card's --d) — then the header's controls */
-html.intro-enter .dash .card { animation: dash-arrive 1.15s cubic-bezier(.16, 1, .3, 1) var(--d, 0ms) both; }
-@keyframes dash-arrive { from { opacity: 0; transform: scale(1.07); } 35% { opacity: 1; } }
-@media (hover: hover) and (min-width: 900px) {   /* (with a soft focus where there's power to spare) */
-  html.intro-enter .dash .card { animation-name: dash-arrive-soft; }
-  @keyframes dash-arrive-soft { from { opacity: 0; transform: scale(1.07); filter: blur(10px); } 35% { opacity: 1; } 70% { filter: blur(0); } }
-}
+/* (opacity and scale only — the graphics chip runs those on its own, smooth whatever the cards' insides are drawing;
+   a blur here re-rendered every card, canvases and all, on every frame) */
+html.intro-enter .dash .card { animation: dash-arrive 1.05s cubic-bezier(.16, 1, .3, 1) var(--d, 0ms) both; will-change: transform, opacity; }
+@keyframes dash-arrive { from { opacity: 0; transform: scale(1.045); } 40% { opacity: 1; } }
 html.intro-enter .tabs, html.intro-enter .social { animation: bar-arrive .9s cubic-bezier(.16, 1, .3, 1) .45s both; }
 @keyframes bar-arrive { from { opacity: 0; transform: translateY(-8px) scale(.97); } }
 
@@ -205,6 +203,8 @@ main { padding: 0 var(--gap) var(--gap); }
 .dash .card:nth-child(4) { animation-delay: .18s; }
 .dash .card:nth-child(5) { animation-delay: .24s; }
 @keyframes card-in { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+/* once it has arrived, its entrance is done (else, the arrival's class lifted, the plain entrance would play again) */
+.dash.arrived .card { animation: none; }
 /* coming back to the dashboard (it's already been seen): a quick fade, all at once — the full entrance is for arrival */
 .dash.again .card { animation: dash-back .3s ease both; animation-delay: 0s; }
 @keyframes dash-back { from { opacity: 0; } }

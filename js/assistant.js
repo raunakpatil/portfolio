@@ -2528,14 +2528,15 @@ async function askRonie() {
   } catch { return null; } finally { clearTimeout(timer); }
 }
 
-// buttons for the places an answer points to — his email, LinkedIn, GitHub, YouTube channel, or a project he names —
+// buttons for the places an answer points to — his email, LinkedIn, GitHub, YouTube channel, Instagram, or a project he names —
 // so nobody has to copy an address out of a sentence; any address the model still writes out is swapped for words
 const linkOf = (label) => (D.links.find((l) => l.label === label) || {}).href;
 const PLACES = [
   { label: 'Email Raunak', href: () => `mailto:${A.email}`, test: /e-?mail|@\w+\.\w|get in touch|reach (out|him)|contact/i },
   { label: 'LinkedIn', href: () => linkOf('LinkedIn'), test: /linked\s?in/i },
   { label: 'GitHub', href: () => linkOf('GitHub'), test: /git\s?hub/i },
-  { label: 'YouTube channel', href: () => linkOf('YouTube'), test: /youtube channel|fractured timelines/i },
+  { label: 'YouTube channel', href: () => linkOf('YouTube'), test: /youtube channel|eldritch lore/i },
+  { label: 'Instagram', href: () => linkOf('Instagram'), test: /instagram/i },
 ];
 function linksFor(reply) {
   const out = [];
