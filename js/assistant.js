@@ -2277,17 +2277,23 @@ async function speak(text) {
 }
 
 // the most natural male English voice this device offers (Edge's "Natural" voices, iOS/macOS, Google's)
-let deviceVoice;
+// The device's own voice, male: by name on computers and iPhones (Daniel, Rishi, Arthur, Microsoft's Guy / Ryan…),
+// by Google's voice codes on Android where they're listed (en-us-x-iom, en-gb-x-rjs…). Many Android phones only list one
+// voice per language (usually female) — then that one is pitched well down, so he still sounds like a low male robot.
+let deviceVoice, deviceMale = false;
 if ('speechSynthesis' in window) speechSynthesis.addEventListener?.('voiceschanged', () => { deviceVoice = undefined; });
+const MALE_VOICE = /\b(guy|ryan|eric|davis|andrew|brian|christopher|roger|steffan|thomas|william|daniel|aaron|arthur|alex|fred|oliver|george|james|david|mark|rishi|gordon|reed|rocko|eddy|ralph|grandpa|lee|male)\b|-x-(iom|iol|tpd|tpf|gbd|rjs|aud|end|ene)\b/i;
+const FEMALE_VOICE = /female|zira|susan|samantha|karen|moira|tessa|hazel|libby|sonia|aria|jenny|catherine|serena|martha|nicky|-x-(sfg|tpc|tpe|iob|ioc|gba|gbc|gbg|afh|aua|auc|ena|enc)\b/i;
 function pickDeviceVoice() {
   if (deviceVoice !== undefined) return deviceVoice;
   const all = (window.speechSynthesis && speechSynthesis.getVoices()) || [];
   if (!all.length) return null;           // not loaded yet — try again next line
   const en = all.filter((v) => /^en/i.test(v.lang));
-  const male = /\b(guy|ryan|eric|davis|andrew|brian|christopher|roger|steffan|thomas|william|daniel|aaron|arthur|alex|fred|oliver|george|james|david|mark|male)\b/i;
-  const score = (v) => (male.test(v.name) ? 4 : 0) + (/natural|neural|online|enhanced|premium/i.test(v.name) ? 3 : 0)
-    + (/en-(gb|us)/i.test(v.lang) ? 1 : 0) + (/female|zira|susan|samantha|karen|moira|tessa|hazel|libby|sonia|aria|jenny/i.test(v.name) ? -6 : 0);
+  const score = (v) => (MALE_VOICE.test(v.name) || MALE_VOICE.test(v.voiceURI || '') ? 8 : 0)
+    + (/natural|neural|online|enhanced|premium/i.test(v.name) ? 3 : 0)
+    + (/en-(gb|us)/i.test(v.lang) ? 1 : 0) + (FEMALE_VOICE.test(v.name) || FEMALE_VOICE.test(v.voiceURI || '') ? -6 : 0);
   deviceVoice = en.sort((a, b) => score(b) - score(a))[0] || null;
+  deviceMale = !!deviceVoice && (MALE_VOICE.test(deviceVoice.name) || MALE_VOICE.test(deviceVoice.voiceURI || ''));
   return deviceVoice;
 }
 function speakDevice(text, my) {
@@ -2296,7 +2302,8 @@ function speakDevice(text, my) {
     const u = new SpeechSynthesisUtterance(text);
     const v = pickDeviceVoice();
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-GB';
-    u.rate = 1.03; u.pitch = 0.95;
+    // a male voice as it is; otherwise the device's default voice, pitched down to a low robot
+    u.rate = 1.03; u.pitch = deviceMale ? 0.95 : 0.55;
     // no audio graph to measure here: his eyes bob along with each word instead
     u.onboundary = () => { face.talkUntil = performance.now() + 260; };
     const done = () => { clearTimeout(failsafe); resolve(); };
