@@ -137,10 +137,14 @@ const HANDHELD = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || (/Maci
 const hovers = (e) => e.pointerType === 'mouse' && !TOUCH.matches;
 
 function init3D() {
-  try {
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
-  } catch (e) {
+  // the best graphics first; if the browser won't give that (a busy or recovering graphics chip, an older driver), a
+  // plainer surface — and only when there's no 3D at all, words only
+  for (const opts of [{ antialias: true, powerPreference: 'high-performance' }, { antialias: false }, { antialias: false, powerPreference: 'low-power' }]) {
+    try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, ...opts }); break; } catch { renderer = null; }
+  }
+  if (!renderer) {
     loading.textContent = "My 3D body didn't load on this device — but I can still talk.";
+    root.classList.add('no3d');
     return false;
   }
   renderer.setPixelRatio(quality.ratio);
@@ -3679,7 +3683,8 @@ function init() {
     if (e.key === 'Escape') location.hash = '#dashboard';
     if (!awake && (e.key === 'Enter' || e.key === ' ') && document.activeElement === wakeBtn) { e.preventDefault(); wake(); }
   });
-  if (!init3D()) showWake();
+  // no 3D body: nothing to wake — straight to the conversation (the note stays, quietly, at the top)
+  if (!init3D()) wake();
 }
 
 
