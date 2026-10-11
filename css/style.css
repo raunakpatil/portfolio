@@ -272,7 +272,7 @@ main { padding: 0 var(--gap) var(--gap); }
 .wall-right { transform-origin: 0 50%; transform: rotateY(90deg); }
 .tcard {
   position: absolute; left: 0; top: 0; padding: 0; overflow: hidden;
-  border-radius: 6px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .08);
+  border-radius: 6px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .16);   /* (a faint edge: the dark tunnel pictures still read as cards) */
   will-change: transform, opacity;
 }
 .tcard-in { position: absolute; inset: 0; transition: filter .3s; }

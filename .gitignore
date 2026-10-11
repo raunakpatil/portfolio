@@ -5,6 +5,7 @@
 img/covers/*.png
 img/certs/*.png
 img/projects/*.png
+img/tunnel/originals/
 
 # OS clutter
 Thumbs.db

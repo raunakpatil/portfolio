@@ -836,7 +836,7 @@
       const fw = Math.min(860, innerWidth - 32), fh = fw * 8.5 / 16;
       const ghost = document.createElement('div');
       ghost.className = 'tcard-fly';
-      ghost.innerHTML = thumb(it.p);
+      ghost.innerHTML = thumb(tunnelPic(it.p));
       Object.assign(ghost.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
       document.body.appendChild(ghost);
       const dx = (innerWidth - fw) / 2 - r.left, dy = Math.max(24, (innerHeight - fh) / 2 - 90) - r.top;
@@ -848,6 +848,8 @@
       setTimeout(() => openDetail(it.p), 400);
       setTimeout(() => ghost.remove(), 560);
     }
+    // the tunnel's own pictures when a project has them (see tunnelImage in data.js)
+    const tunnelPic = (p) => (p.tunnelImage ? { ...p, image: p.tunnelImage, imageMobile: p.tunnelImageMobile || p.tunnelImage } : p);
     const seen = new Set();
     for (let i = 0; i < N; i++) {
       const p = P[i % P.length];
@@ -856,7 +858,7 @@
       el.type = 'button';
       el.className = 'tcard';
       el.style.setProperty('--cat', catColor(p.category));
-      el.innerHTML = `<div class="tcard-in">${thumb(p)}</div><span class="tcard-shade"></span>`;
+      el.innerHTML = `<div class="tcard-in">${thumb(tunnelPic(p))}</div><span class="tcard-shade"></span>`;
       // each project floats by several times; only its first copy is a stop for the keyboard and screen readers
       if (seen.has(p)) { el.tabIndex = -1; el.setAttribute('aria-hidden', 'true'); }
       else { seen.add(p); el.setAttribute('aria-label', `Open ${p.title}`); }
@@ -900,7 +902,7 @@
       else { x = L - d - it.along; y = a; }
       it.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
       it.el.style.opacity = clamp((L - d) / 700, 0, 1).toFixed(3);
-      it.shade.style.opacity = (0.55 * clamp((d - 250) / 1100, 0, 1)).toFixed(3);   // lit up close, dim far off
+      it.shade.style.opacity = (0.4 * clamp((d - 250) / 1100, 0, 1)).toFixed(3);   // lit up close, dim far off
     }
 
     new ResizeObserver(layout).observe(stage);
