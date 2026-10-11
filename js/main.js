@@ -336,6 +336,14 @@
     }
     window.warmView = warm;
     warm(document.body.dataset.route);   // (the page this visit opened on — go() ran before this was here)
+    // The Library's covers (the small shelf copies, ~470 KB in all) also come in quietly once the page has settled,
+    // so the shelf is ready whenever it's opened — unless the connection is slow or saving data
+    const settle = () => {
+      const c = navigator.connection;
+      if (c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ''))) return;
+      (window.requestIdleCallback || ((f) => setTimeout(f, 1500)))(() => warm('library'), { timeout: 4000 });
+    };
+    if (document.readyState === 'complete') settle(); else addEventListener('load', settle, { once: true });
     const routeOf = (el) => {
       const t = el && el.closest && el.closest('[data-route], [data-link^="#"], a[href^="#"]');
       if (!t) return null;
@@ -1611,7 +1619,10 @@
 
   /* ---------- library page: case studies as a shelf of 3D books ---------- */
   // Generated cover (used until the real cover image exists at c.cover).
-  function coverHTML(c, i) {
+  // a cover's picture: on the shelf a smaller copy (img/covers/shelf/, 560 px wide — sharp at any book size there),
+  // the full one in the popup
+  const coverSrc = (c, big) => (big ? c.cover : c.cover.replace('img/covers/', 'img/covers/shelf/'));
+  function coverHTML(c, i, big = false) {
     const rnd = seeded(c.title);
     const [c1, c2] = c.colors || ['#eee', '#222'];
     const v = i % 4;
@@ -1631,7 +1642,7 @@
       <p class="cover-kicker">Case study ${String(i + 1).padStart(2, '0')} · ${esc(c.year)}</p>
       <h3 class="cover-title">${esc(c.coverTitle || c.title)}</h3>
       <p class="cover-by">${esc(D.name)}</p>
-      ${c.cover ? `<img class="cover-img" src="${esc(c.cover)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+      ${c.cover ? `<img class="cover-img" src="${esc(coverSrc(c, big))}" alt="" loading="lazy" onerror="this.remove()">` : ''}
       <span class="grain"></span>
     </div>`;
   }
@@ -1653,7 +1664,7 @@
       const i = +b.dataset.i;
       const c = C[i];
       if (c.link && c.link !== '#') window.open(c.link, '_blank', 'noopener');
-      else openDetail({ ...c, category: 'Case Study', mediaHTML: `<div class="modal-cover" style="--spine:${esc(c.spine)}">${coverHTML(c, i)}</div>` });
+      else openDetail({ ...c, category: 'Case Study', mediaHTML: `<div class="modal-cover" style="--spine:${esc(c.spine)}">${coverHTML(c, i, true)}</div>` });
     });
   }
 
@@ -1662,16 +1673,17 @@
   // picture (or the issuer's emblem), the issuer at the foot. Open one for the details and the credential.
   const issuerShort = (s) => { const m = String(s).match(/\(([^)]+)\)/); return m ? m[1] : String(s).split(',')[0]; };
   const yearOf = (c) => String(c.date || '').slice(-4);
-  function certCoverHTML(c, i) {
+  function certCoverHTML(c, i, big = false) {
     const [c1, c2] = c.colors || ['#eee', '#222'];
-    const art = c.photo ? `<img class="cert-photo" src="${esc(c.photo)}" alt="" loading="lazy">`
+    // (a book with a cover picture never shows its generated art, so that isn't fetched)
+    const art = c.cover ? '' : c.photo ? `<img class="cert-photo" src="${esc(c.photo)}" alt="" loading="lazy">`
       : c.logo ? `<span class="cert-logo"><img src="${esc(c.logo)}" alt="" loading="lazy"></span>` : '';
     return `<div class="cover cert-cover" style="--c1:${esc(c1)};--c2:${esc(c2)};--spine:${esc(c.spine)};--ink:${esc(c.ink)};--title:${esc(c.coverInk || c.spine)}">
       <p class="cover-kicker">Certificate ${String(i + 1).padStart(2, '0')} · ${esc(yearOf(c))}</p>
       <h3 class="cover-title">${esc(c.short || c.title)}</h3>
       <div class="cert-art">${art}</div>
       <p class="cover-by">${esc(issuerShort(c.issuer))}</p>
-      ${c.cover ? `<img class="cover-img" src="${esc(c.cover)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
+      ${c.cover ? `<img class="cover-img" src="${esc(coverSrc(c, big))}" alt="" loading="lazy" onerror="this.remove()">` : ''}
       <span class="grain"></span>
     </div>`;
   }
@@ -1697,7 +1709,7 @@
         tags: c.skills, link: c.url, linkText: 'Show credential ↗',
         // the real certificate when there's a scan of it, else the book's cover
         mediaHTML: `<div class="modal-cover" style="--spine:${esc(c.spine)}">${c.scan
-          ? `<img class="modal-scan" src="${esc(c.scan)}" alt="${esc(c.title)} certificate">` : certCoverHTML(c, i)}</div>`,
+          ? `<img class="modal-scan" src="${esc(c.scan)}" alt="${esc(c.title)} certificate">` : certCoverHTML(c, i, true)}</div>`,
       });
     });
   }
