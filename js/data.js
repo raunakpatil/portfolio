@@ -6,6 +6,7 @@
 window.PORTFOLIO = {
   name: 'Raunak Patil',
   shortName: 'RP',
+  tagline: 'AI Engineer & Designer',   // under the name on the arrival screen
   timezone: 'Asia/Kolkata', // used for the live clock in the menu
   // what Ronie leads with: newer than anything else in this file, so it wins wherever they disagree
   status: "Open to work — looking for his next role. Living in Nagpur, India right now. He's no longer at Sigma AI (he was an AI Quality Engineer there from Apr 2024).",

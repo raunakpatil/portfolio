@@ -143,6 +143,7 @@
     const intro = document.getElementById('intro');
     if (!intro || !HTML.classList.contains('intro-on')) { intro?.remove(); return; }
     const name = intro.querySelector('.intro-name'), bar = intro.querySelector('.intro-bar b'), num = intro.querySelector('.intro-num');
+    if (D.tagline) intro.querySelector('.intro-sub').textContent = D.tagline;
     const font = document.fonts?.load ? document.fonts.load('500 64px "Inter Tight"') : Promise.resolve();
     Promise.race([font, new Promise((r) => setTimeout(r, 700))]).then(() => intro.classList.add('ready'));
     const loaded = new Promise((r) => (document.readyState === 'complete' ? r() : addEventListener('load', r, { once: true })));
@@ -181,8 +182,20 @@
         { transform: `translate(${tx}px, ${ty}px) scale(${s})`, opacity: same ? 1 : 0 },
       ], { duration: T, delay: 220, easing: ease, fill: 'forwards' });
       if (!same) setTimeout(() => { HTML.classList.remove('intro-morph'); brand.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 420, easing: 'ease' }); }, 220 + T * 0.6);
-      // the screen clears and the page comes in underneath
-      setTimeout(() => { intro.classList.add('reveal'); HTML.classList.remove('intro-on'); }, 420);
+      // the screen clears and the page arrives underneath: each dashboard card's delay grows with its distance from
+      // the middle of the screen (the middle first, the corners last)
+      const cx = innerWidth / 2, cy = innerHeight / 2, far = Math.hypot(cx, cy);
+      $$('.dash .card').forEach((c) => {
+        const r = c.getBoundingClientRect();
+        const d = Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy) / far;
+        c.style.setProperty('--d', `${Math.round(d * 320)}ms`);
+      });
+      setTimeout(() => {
+        intro.classList.add('reveal');
+        HTML.classList.add('intro-enter');
+        HTML.classList.remove('intro-on');
+        setTimeout(() => HTML.classList.remove('intro-enter'), 2200);
+      }, 520);
       const end = () => { HTML.classList.remove('intro-morph'); intro.remove(); };
       glide.finished.then(end, end);
     }
