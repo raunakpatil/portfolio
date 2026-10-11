@@ -151,6 +151,9 @@ main { padding: 0 var(--gap) var(--gap); }
 .dash .card:nth-child(4) { animation-delay: .18s; }
 .dash .card:nth-child(5) { animation-delay: .24s; }
 @keyframes card-in { from { opacity: 0; transform: translateY(14px) scale(.985); } }
+/* coming back to the dashboard (it's already been seen): a quick fade, all at once — the full entrance is for arrival */
+.dash.again .card { animation: dash-back .3s ease both; animation-delay: 0s; }
+@keyframes dash-back { from { opacity: 0; } }
 
 .card-label {
   position: absolute; top: 14px; left: 16px; z-index: 4;
@@ -260,12 +263,8 @@ main { padding: 0 var(--gap) var(--gap); }
    it lets the pointer through, so the cards themselves are what the mouse finds */
 .tunnel, .wall { pointer-events: none; }
 .tcard { pointer-events: auto; }
-.wall {
-  position: absolute;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, .15) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, .15) 1px, transparent 1px);
-}
+.wall { position: absolute; }   /* (they carry the cards; the grid is drawn on .tunnel-grid) */
+.tunnel-grid { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .wall-floor { transform-origin: 50% 0; transform: rotateX(-90deg); }
 .wall-ceil { transform-origin: 50% 100%; transform: rotateX(90deg); }
 .wall-left { transform-origin: 100% 50%; transform: rotateY(-90deg); }
@@ -1231,6 +1230,7 @@ main { padding: 0 var(--gap) var(--gap); }
    stays exactly where the card lands) */
 .modal.fly[open] { animation: none; background: transparent; }
 .modal.fly .modal-inner { background: var(--surface); animation: fade-in .5s ease .06s both; }
+.modal.fly::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(8, 8, 8, .7); }   /* (a blur re-renders the page every frame of the flight) */
 /* closing: the popup and its backdrop fade away */
 .modal[open].closing { animation: modal-out .22s ease forwards; }
 .modal[open].closing::backdrop { animation: fade-out .22s ease forwards; }

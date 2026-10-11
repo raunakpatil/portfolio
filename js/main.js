@@ -303,6 +303,8 @@
       window.scrollTo(0, 0);
       document.body.dataset.route = r;
       window.warmView?.(r);
+      // the dashboard's staggered entrance plays on arrival only; coming back, it just fades in (see .dash.again)
+      if (r === 'dashboard') { const d = $('.dash'); if (d) { if (d.dataset.seen) d.classList.add('again'); d.dataset.seen = '1'; } }
       // Ronie (three.js + the robot) only loads when someone actually opens it
       if (r === 'assistant') {
         bootScreen();
@@ -752,7 +754,10 @@
     const stage = $('#tunnel-stage');
     const tunnel = $('#tunnel');
     const fog = $('#tunnel-fog');
-    const L = 2200, SPEED = 0.07, CELL = 120;
+    // The tunnel: four walls CELLS cells deep. The walls only carry the cards (in CSS 3D); their grid is drawn on a
+    // canvas behind them with the very same projection (drawGrid) — thin lines on huge tilted planes, nudged a fraction
+    // of a pixel every frame, shimmered. Floor and ceiling are COLS columns across, the side walls ROWS rows high.
+    const CELL = 120, CELLS = 18, L = CELL * CELLS, SPEED = 0.07, PERSP = 430, COLS = 6, ROWS = 4;
     const walls = {};
     for (const side of ['floor', 'ceil', 'left', 'right']) {
       const w = document.createElement('div');
@@ -760,15 +765,19 @@
       tunnel.appendChild(w);
       walls[side] = w;
     }
+    const gridC = document.createElement('canvas');
+    gridC.className = 'tunnel-grid';
+    gridC.setAttribute('aria-hidden', 'true');
+    card.insertBefore(gridC, stage);
 
     let W = 0, Hh = 0;
     const layout = () => {
       const r = stage.getBoundingClientRect();
       W = r.width; Hh = r.height;
-      Object.assign(walls.floor.style, { width: `${W}px`, height: `${L}px`, left: '0px', top: `${Hh}px`, backgroundSize: `${W / 6}px ${CELL}px` });
-      Object.assign(walls.ceil.style, { width: `${W}px`, height: `${L}px`, left: '0px', top: `${-L}px`, backgroundSize: `${W / 6}px ${CELL}px` });
-      Object.assign(walls.left.style, { width: `${L}px`, height: `${Hh}px`, left: `${-L}px`, top: '0px', backgroundSize: `${CELL}px ${Hh / 4}px` });
-      Object.assign(walls.right.style, { width: `${L}px`, height: `${Hh}px`, left: `${W}px`, top: '0px', backgroundSize: `${CELL}px ${Hh / 4}px` });
+      Object.assign(walls.floor.style, { width: `${W}px`, height: `${L}px`, left: '0px', top: `${Hh}px` });
+      Object.assign(walls.ceil.style, { width: `${W}px`, height: `${L}px`, left: '0px', top: `${-L}px` });
+      Object.assign(walls.left.style, { width: `${L}px`, height: `${Hh}px`, left: `${-L}px`, top: '0px' });
+      Object.assign(walls.right.style, { width: `${L}px`, height: `${Hh}px`, left: `${W}px`, top: '0px' });
       items.forEach((it) => { size(it); place(it); });
     };
 
@@ -865,6 +874,15 @@
       const s = r.width / m.width;
       const tx = r.left + r.width / 2 - (m.left + m.width / 2), ty = r.top + r.height / 2 - (m.top + m.height / 2);
       const T = 620, ease = 'cubic-bezier(.22, .9, .24, 1)';
+      ghost.style.opacity = '0';
+      ghost.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+      // both pictures decoded before anything moves (a decode mid-flight is a dropped frame); at most a short wait
+      const imgs = [...$$('img', ghost), ...$$('img', media)];
+      imgs.forEach((im) => { im.loading = 'eager'; });
+      const ready = Promise.race([Promise.all(imgs.map((im) => im.decode().catch(() => {}))), new Promise((res) => setTimeout(res, 220))]);
+      ready.then(() => requestAnimationFrame(() => fly()));
+      function fly() {
+      ghost.style.opacity = '';
       const flight = ghost.animate([
         { transform: `translate(${tx}px, ${ty}px) scale(${s})`, opacity: 0, borderRadius: '10px' },
         { opacity: 1, offset: 0.1 },
@@ -877,6 +895,7 @@
         flying = false;
       };
       flight.finished.then(done, done);
+      }
       modal.addEventListener('close', () => { it.el.style.visibility = ''; }, { once: true });
     }
     // the popup's picture is fetched as soon as a card is looked at or touched, so it's in before the card lands
@@ -901,7 +920,11 @@
       // each project floats by several times; only its first copy is a stop for the keyboard and screen readers
       if (seen.has(p)) { el.tabIndex = -1; el.setAttribute('aria-hidden', 'true'); }
       else { seen.add(p); el.setAttribute('aria-label', `Open ${p.title}`); }
-      const it = { el, p, side, shade: el.lastChild, across: 0, along: 0, off: rnd(), d: (i / N) * L };
+      // its slot: the walls take turns, five cards to a wall, spread along it a few cells apart (each wall offset a
+      // little from the others); which column / row it sits in is picked once
+      const w = i % 4, j = Math.floor(i / 4), perWall = Math.ceil(N / 4);
+      const slot = (Math.round((j * CELLS) / perWall) + w) % CELLS;
+      const it = { el, p, side, shade: el.lastChild, across: 0, along: 0, cells: 1, a: 0, pick: rnd(), cellD: slot * CELL };
       el.addEventListener('click', () => flyOpen(it));
       el.addEventListener('pointerdown', () => warmPic(p));
       el.addEventListener('focus', () => { focused = it; });
@@ -922,19 +945,27 @@
     // each card shaped like its picture so none of it is cropped: 16:9 on wider screens, the 4:3 pictures on phones;
     // the picture's width runs across the floor and ceiling, and into the distance on the side walls
     const PHONE = matchMedia('(max-width: 760px)');
+    // A card fills whole grid cells: as many columns (rows, on the side walls) as bring it near its natural size, and
+    // whole cells along the wall, centred in that block with an even margin — so its edges sit square in the grid, and
+    // stay there, the cards and the grid moving as one
+    const M = 9;
     function size(it) {
       const ratio = PHONE.matches ? 4 / 3 : 16 / 9;
       const flat = it.side === 'floor' || it.side === 'ceil';
-      it.across = flat ? 184 : 112;
+      const unit = flat ? W / COLS : Hh / ROWS, n = flat ? COLS : ROWS;
+      const k = clamp(Math.round((flat ? 170 : 110) / unit), 1, n);
+      it.across = Math.round(Math.min(k * unit - 2 * M, flat ? (CELL - 2 * M) * ratio : Infinity));
       it.along = Math.round(flat ? it.across / ratio : it.across * ratio);
+      it.cells = Math.ceil((it.along + 2 * M) / CELL);
+      const col = Math.min(n - k, Math.floor(it.pick * (n - k + 1)));
+      it.a = col * unit + (k * unit - it.across) / 2;
       it.el.style.width = `${flat ? it.across : it.along}px`;
       it.el.style.height = `${flat ? it.along : it.across}px`;
     }
 
     function place(it) {
-      const span = (it.side === 'floor' || it.side === 'ceil' ? W : Hh) - it.across - 24;
-      const a = 12 + it.off * Math.max(0, span);
-      const d = it.d;
+      const a = it.a;
+      const d = it.cellD + (it.cells * CELL - it.along) / 2;   // (its depth: centred in its run of cells)
       let x, y;
       if (it.side === 'floor') { x = a; y = d; }
       else if (it.side === 'ceil') { x = a; y = L - d - it.along; }
@@ -1136,6 +1167,39 @@
     }
 
     const ptr = trackPointer(card);
+
+    // the grid, projected exactly as the browser projects the walls (perspective PERSP from the stage's perspective
+    // origin): a cross-section ring every CELL into the distance, and the lines running down the walls — smooth,
+    // anti-aliased lines that keep still while they move
+    function drawGrid(g) {
+      const { ctx, w, h } = fit(gridC);
+      ctx.clearRect(0, 0, w, h);
+      const Ox = (ox / 100) * W, Oy = (oy / 100) * Hh;
+      const pr = (x, y, D) => { const s = PERSP / (PERSP + D); return [Ox + (x - Ox) * s, Oy + (y - Oy) * s]; };
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = 'rgba(255, 255, 255, .14)';
+      ctx.beginPath();
+      for (let D = CELL - g; D <= L; D += CELL) {
+        const [x0, y0] = pr(0, 0, D), [x1, y1] = pr(W, Hh, D);
+        ctx.rect(x0, y0, x1 - x0, y1 - y0);
+      }
+      for (let i = 0; i <= COLS; i++) {
+        const x = (i * W) / COLS;
+        for (const y of [0, Hh]) { ctx.moveTo(...pr(x, y, 0)); ctx.lineTo(...pr(x, y, L)); }
+      }
+      for (let j = 1; j < ROWS; j++) {
+        const y = (j * Hh) / ROWS;
+        for (const x of [0, W]) { ctx.moveTo(...pr(x, y, 0)); ctx.lineTo(...pr(x, y, L)); }
+      }
+      ctx.stroke();
+    }
+    // the popups' pictures, fetched quietly once the tunnel is on screen, so a card always lands on a picture that's in
+    let preloaded = false;
+    function preloadPics() {
+      preloaded = true;
+      const idle = window.requestIdleCallback || ((f) => setTimeout(f, 300));
+      idle(() => P.forEach(warmPic), { timeout: 2000 });
+    }
     // warp-speed stars streaming out of the tunnel's vanishing point
     const starC = document.createElement('canvas');
     starC.className = 'tunnel-stars';
@@ -1180,19 +1244,16 @@
       if (tagFor) placeTag(dt, false);
       const step = dt * SPEED * MOTION * spd;
       travelled += step;
-      const g = travelled % CELL;
-      walls.floor.style.backgroundPosition = `0 ${-g}px`;
-      walls.ceil.style.backgroundPosition = `0 ${g}px`;
-      walls.right.style.backgroundPosition = `${-g}px 0`;
-      walls.left.style.backgroundPosition = `${g}px 0`;
       for (const it of items) {
-        it.d -= step;
-        if (it.d < -it.along - 60) it.d += L + it.along;
+        it.cellD -= step;
+        if (it.cellD < -it.cells * CELL - 60) it.cellD += L;   // (a whole tunnel back: still square in the grid)
         place(it);
       }
       ox = lerp(ox, 50 - ptr.nx * 14, 0.06);
       oy = lerp(oy, 50 - ptr.ny * 14, 0.06);
       stage.style.perspectiveOrigin = `${ox}% ${oy}%`;
+      drawGrid(travelled % CELL);
+      if (!preloaded) preloadPics();
       fog.style.setProperty('--fx', `${ox}%`);
       fog.style.setProperty('--fy', `${oy}%`);
       drawStars(dt);
