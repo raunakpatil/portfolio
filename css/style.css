@@ -45,8 +45,6 @@ html.intro-morph .brand { visibility: hidden; }
    clear, to its place — the middle first, rippling outwards (js sets each card's --d) — then the header's controls */
 /* (opacity and scale only — the graphics chip runs those on its own, smooth whatever the cards' insides are drawing;
    a blur here re-rendered every card, canvases and all, on every frame) */
-html.intro-enter .dash .card { animation: dash-arrive 1.05s cubic-bezier(.16, 1, .3, 1) var(--d, 0ms) both; will-change: transform, opacity; }
-@keyframes dash-arrive { from { opacity: 0; transform: scale(1.045); } 40% { opacity: 1; } }
 html.intro-enter .tabs, html.intro-enter .social { animation: bar-arrive .9s cubic-bezier(.16, 1, .3, 1) .45s both; }
 @keyframes bar-arrive { from { opacity: 0; transform: translateY(-8px) scale(.97); } }
 
@@ -198,16 +196,13 @@ main { padding: 0 var(--gap) var(--gap); }
   background: var(--card); color: var(--on-card); border-radius: var(--radius);
   animation: card-in .8s var(--ease) both;
 }
-.dash .card:nth-child(2) { animation-delay: .06s; }
-.dash .card:nth-child(3) { animation-delay: .12s; }
-.dash .card:nth-child(4) { animation-delay: .18s; }
-.dash .card:nth-child(5) { animation-delay: .24s; }
 @keyframes card-in { from { opacity: 0; transform: translateY(14px) scale(.985); } }
-/* once it has arrived, its entrance is done (else, the arrival's class lifted, the plain entrance would play again) */
-.dash.arrived .card { animation: none; }
-/* coming back to the dashboard (it's already been seen): a quick fade, all at once — the full entrance is for arrival */
-.dash.again .card { animation: dash-back .3s ease both; animation-delay: 0s; }
-@keyframes dash-back { from { opacity: 0; } }
+/* the dashboard's cards come in just as the project cards do (rise): up and in, one after another */
+.dash .card { animation: rise .7s var(--ease) both; }
+.dash .card:nth-child(2) { animation-delay: 50ms; }
+.dash .card:nth-child(3) { animation-delay: 100ms; }
+.dash .card:nth-child(4) { animation-delay: 150ms; }
+.dash .card:nth-child(5) { animation-delay: 200ms; }
 
 .card-label {
   position: absolute; top: 14px; left: 16px; z-index: 4;

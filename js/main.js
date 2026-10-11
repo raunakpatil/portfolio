@@ -182,19 +182,13 @@
         { transform: `translate(${tx}px, ${ty}px) scale(${s})`, opacity: same ? 1 : 0 },
       ], { duration: T, delay: 220, easing: ease, fill: 'forwards' });
       if (!same) setTimeout(() => { HTML.classList.remove('intro-morph'); brand.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 420, easing: 'ease' }); }, 220 + T * 0.6);
-      // the screen clears and the page arrives underneath: each dashboard card's delay grows with its distance from
-      // the middle of the screen (the middle first, the corners last)
-      const cx = innerWidth / 2, cy = innerHeight / 2, far = Math.hypot(cx, cy);
-      $$('.dash .card').forEach((c) => {
-        const r = c.getBoundingClientRect();
-        const d = Math.hypot(r.left + r.width / 2 - cx, r.top + r.height / 2 - cy) / far;
-        c.style.setProperty('--d', `${Math.round(d * 320)}ms`);
-      });
+      // the screen clears and the page comes in underneath: its cards rise in (held at their first frame till now),
+      // the header's controls settle just after
       setTimeout(() => {
         intro.classList.add('reveal');
         HTML.classList.add('intro-enter');
         HTML.classList.remove('intro-on');
-        setTimeout(() => { $('.dash')?.classList.add('arrived'); HTML.classList.remove('intro-enter'); }, 2000);
+        setTimeout(() => HTML.classList.remove('intro-enter'), 1600);
       }, 520);
       const end = () => { HTML.classList.remove('intro-morph'); intro.remove(); };
       glide.finished.then(end, end);
@@ -375,8 +369,6 @@
       window.scrollTo(0, 0);
       document.body.dataset.route = r;
       window.warmView?.(r);
-      // the dashboard's staggered entrance plays on arrival only; coming back, it just fades in (see .dash.again)
-      if (r === 'dashboard') { const d = $('.dash'); if (d) { if (d.dataset.seen) d.classList.add('again'); d.dataset.seen = '1'; } }
       // Ronie (three.js + the robot) only loads when someone actually opens it
       if (r === 'assistant') {
         bootScreen();
