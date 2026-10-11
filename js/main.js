@@ -54,7 +54,7 @@
     requestAnimationFrame(frame);
     const dt = Math.min(50, now - prevT);
     prevT = now;
-    if (document.hidden) return;
+    if (document.hidden || modal.open) return;   // (a popup is open: the page behind it rests)
     for (const l of loops) {
       // IntersectionObserver reports a frame late when a page is hidden; skip
       // anything with no size (its view is display:none) instead of drawing at 0×0
@@ -131,8 +131,9 @@
 
   /* ---------- detail modal ---------- */
   const modal = $('#detail');
-  function openDetail(item) {
+  function openDetail(item, fly = false) {
     $('#detail-media').innerHTML = item.mediaHTML || thumb(item.thumbAs || item);
+    $$('#detail-media img').forEach((im) => { im.loading = 'eager'; });
     $('#detail-meta').innerHTML = [item.category, item.year].filter(Boolean).map((x) => `<span>${esc(x)}</span>`).join('');
     $('#detail-title').textContent = item.title;
     $('#detail-desc').textContent = item.description || '';
@@ -142,10 +143,20 @@
     link.hidden = !has;
     if (has) link.href = item.link;
     link.textContent = item.linkText || 'Visit project ↗';
+    modal.classList.remove('closing');
+    modal.classList.toggle('fly', fly);
     modal.showModal();
   }
-  $('.modal-close').addEventListener('click', () => modal.close());
-  modal.addEventListener('click', (e) => { if (e.target === modal) modal.close(); });
+  // closing fades the popup and its backdrop away (Esc too) instead of cutting to the page
+  function closeDetail() {
+    if (!modal.open || modal.classList.contains('closing')) return;
+    if (!MOTION) { modal.close(); return; }
+    modal.classList.add('closing');
+    setTimeout(() => { modal.close(); modal.classList.remove('closing', 'fly'); }, 220);
+  }
+  $('.modal-close').addEventListener('click', closeDetail);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeDetail(); });
+  modal.addEventListener('cancel', (e) => { e.preventDefault(); closeDetail(); });
 
   /* ---------- Ronie loading screen: a spinning ASCII core + a boot log, while the 3D files download ---------- */
   let bootRunning = false;
@@ -793,6 +804,7 @@
         tagFor = tagged;
         if (!tagFor) return;
         const p = tagFor.p;
+        warmPic(p);
         tag.innerHTML = `<span class="tg"><small><i></i>${esc([p.category, p.year].filter(Boolean).join(' · '))}</small><b>${esc(p.title)}</b></span>`;
         tag.style.setProperty('--cat', catColor(p.category));
         tag.dataset.side = '';
@@ -830,24 +842,51 @@
       return shown;
     }
     // a click flies the card out of the tunnel towards you, then its popup opens
+    // A click lifts the card off the wall and flies it into the popup's picture. The popup opens at once (the tunnel
+    // rests behind it), its panel fading in while the card travels; the card is a copy laid inside the popup — the
+    // popup sits above the whole page, so a copy outside it would vanish under its backdrop — scaled evenly (never
+    // stretched) from the card's middle to exactly the picture's box, where the tunnel picture gives way to the
+    // project's own. Then the copy goes and the real picture is already underneath.
+    let flying = false;
     function flyOpen(it) {
-      if (!MOTION) return openDetail(it.p);
+      if (!MOTION || flying) return openDetail(it.p);
+      flying = true;
       const r = it.el.getBoundingClientRect();
-      const fw = Math.min(860, innerWidth - 32), fh = fw * 8.5 / 16;
+      openDetail(it.p, true);
+      const media = $('#detail-media');
+      const m = media.getBoundingClientRect();
+      media.style.visibility = 'hidden';
+      it.el.style.visibility = 'hidden';               // (the card has left the wall)
       const ghost = document.createElement('div');
       ghost.className = 'tcard-fly';
-      ghost.innerHTML = thumb(tunnelPic(it.p));
-      Object.assign(ghost.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
-      document.body.appendChild(ghost);
-      const dx = (innerWidth - fw) / 2 - r.left, dy = Math.max(24, (innerHeight - fh) / 2 - 90) - r.top;
-      ghost.animate([
-        { transform: 'none', opacity: 1 },
-        { transform: `translate(${dx}px, ${dy}px) scale(${fw / r.width}, ${fh / r.height})`, opacity: 1, offset: 0.85 },
-        { transform: `translate(${dx}px, ${dy}px) scale(${fw / r.width}, ${fh / r.height})`, opacity: 0 },
-      ], { duration: 520, easing: 'cubic-bezier(.55, 0, .2, 1)', fill: 'forwards' });
-      setTimeout(() => openDetail(it.p), 400);
-      setTimeout(() => ghost.remove(), 560);
+      ghost.innerHTML = `<div class="fly-a">${thumb(tunnelPic(it.p))}</div><div class="fly-b">${thumb(it.p)}</div>`;
+      Object.assign(ghost.style, { left: `${m.left}px`, top: `${m.top}px`, width: `${m.width}px`, height: `${m.height}px` });
+      modal.appendChild(ghost);
+      const s = r.width / m.width;
+      const tx = r.left + r.width / 2 - (m.left + m.width / 2), ty = r.top + r.height / 2 - (m.top + m.height / 2);
+      const T = 620, ease = 'cubic-bezier(.22, .9, .24, 1)';
+      const flight = ghost.animate([
+        { transform: `translate(${tx}px, ${ty}px) scale(${s})`, opacity: 0, borderRadius: '10px' },
+        { opacity: 1, offset: 0.1 },
+        { transform: 'none', opacity: 1, borderRadius: '20px 20px 0 0' },
+      ], { duration: T, easing: ease, fill: 'forwards' });
+      ghost.lastChild.animate([{ opacity: 0 }, { opacity: 0, offset: 0.35 }, { opacity: 1 }], { duration: T, easing: 'ease-in-out', fill: 'forwards' });
+      const done = () => {
+        media.style.visibility = '';
+        ghost.remove();
+        flying = false;
+      };
+      flight.finished.then(done, done);
+      modal.addEventListener('close', () => { it.el.style.visibility = ''; }, { once: true });
     }
+    // the popup's picture is fetched as soon as a card is looked at or touched, so it's in before the card lands
+    const warmed = new Set();
+    const warmPic = (p) => {
+      const src = PHONE.matches && p.imageMobile ? p.imageMobile : p.image;
+      if (!src || warmed.has(src)) return;
+      warmed.add(src);
+      new Image().src = src;
+    };
     // the tunnel's own pictures when a project has them (see tunnelImage in data.js)
     const tunnelPic = (p) => (p.tunnelImage ? { ...p, image: p.tunnelImage, imageMobile: p.tunnelImageMobile || p.tunnelImage } : p);
     const seen = new Set();
@@ -864,6 +903,7 @@
       else { seen.add(p); el.setAttribute('aria-label', `Open ${p.title}`); }
       const it = { el, p, side, shade: el.lastChild, across: 0, along: 0, off: rnd(), d: (i / N) * L };
       el.addEventListener('click', () => flyOpen(it));
+      el.addEventListener('pointerdown', () => warmPic(p));
       el.addEventListener('focus', () => { focused = it; });
       el.addEventListener('blur', () => { if (focused === it) focused = null; });
       byEl.set(el, it);

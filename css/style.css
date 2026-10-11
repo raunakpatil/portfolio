@@ -307,9 +307,13 @@ main { padding: 0 var(--gap) var(--gap); }
 .tunnel-tag[data-side="right"]::after { top: var(--ly); right: 100%; width: 14px; height: 1px; background: linear-gradient(90deg, rgba(255, 255, 255, .08), rgba(255, 255, 255, .45)); }
 .tunnel-tag[data-side="left"]::after { top: var(--ly); left: 100%; width: 14px; height: 1px; background: linear-gradient(90deg, rgba(255, 255, 255, .45), rgba(255, 255, 255, .08)); }
 /* a project's card flying out of the tunnel to its popup */
-.tcard-fly { position: fixed; z-index: 1000; overflow: hidden; border-radius: 6px; pointer-events: none; transform-origin: 0 0; box-shadow: 0 20px 60px rgba(0, 0, 0, .5); }
-.tcard-fly .thumb, .tcard-fly picture, .tcard-fly img { width: 100%; height: 100%; }
-.tcard-fly img { object-fit: cover; }
+.tcard-fly {
+  position: fixed; z-index: 5; overflow: hidden; pointer-events: none; transform-origin: 50% 50%;
+  will-change: transform, opacity; background: #111;
+}
+.tcard-fly > div { position: absolute; inset: 0; }
+.tcard-fly .thumb { position: absolute; inset: 0; width: 100%; height: 100%; }
+.tcard-fly img { width: 100%; height: 100%; object-fit: cover; }
 .tunnel-fog {
   position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(ellipse 30% 32% at var(--fx, 50%) var(--fy, 50%), #151515 0%, rgba(21, 21, 21, .85) 35%, rgba(21, 21, 21, 0) 100%);
@@ -1220,7 +1224,18 @@ main { padding: 0 var(--gap) var(--gap); }
 }
 .modal::backdrop { background: rgba(10, 10, 10, .55); backdrop-filter: blur(4px); }
 .modal[open] { animation: pop .4s var(--ease); }
+.modal[open]::backdrop { animation: fade-in .35s ease both; }
 @keyframes pop { from { opacity: 0; transform: translateY(16px) scale(.98); } }
+@keyframes fade-in { from { opacity: 0; } }
+/* opened by a card flying in from the dashboard tunnel: the panel only fades in (no movement, so the picture's box
+   stays exactly where the card lands) */
+.modal.fly[open] { animation: none; background: transparent; }
+.modal.fly .modal-inner { background: var(--surface); animation: fade-in .5s ease .06s both; }
+/* closing: the popup and its backdrop fade away */
+.modal[open].closing { animation: modal-out .22s ease forwards; }
+.modal[open].closing::backdrop { animation: fade-out .22s ease forwards; }
+@keyframes modal-out { to { opacity: 0; transform: translateY(8px) scale(.985); } }
+@keyframes fade-out { to { opacity: 0; } }
 .modal-inner { position: relative; max-height: calc(100vh - 48px); overflow: auto; }
 .modal-close {
   position: absolute; top: 14px; right: 14px; z-index: 2; display: grid; place-items: center;
