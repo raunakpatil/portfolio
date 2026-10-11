@@ -1376,7 +1376,7 @@ function updateCursorLight(dt) {
   // cycles through the spectrum like the cursor trail; the three arcs sit 40° apart in hue so the ring
   // reads as one rich, shifting colour (120° apart would mix back to white on his armour)
   const t = Date.now() / 1000;
-  const strength = (2.4 - 1.1 * power) * cursor.level; // stronger in the dark while he's asleep
+  const strength = (0.9 + 0.4 * power) * cursor.level; // soft while he's asleep (a dim glow in the dark), as before once awake
   for (let k = 0; k < 3; k++) {
     // a slow cycle (~12 s round the spectrum); white while he's asleep, colour fades in as he wakes
     _c.setHSL(((t * 30 + k * 40) % 360) / 360, power, 0.55 + 0.45 * (1 - power));
