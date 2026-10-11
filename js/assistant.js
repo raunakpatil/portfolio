@@ -136,17 +136,22 @@ const PORTRAIT_UI = matchMedia('(max-width: 760px), (orientation: portrait)');
 const HANDHELD = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const hovers = (e) => e.pointerType === 'mouse' && !TOUCH.matches;
 
+// no 3D body on this device (or it was lost): the note runs along the top, the conversation carries on
+function talkOnly() {
+  loading.textContent = "My 3D body didn't load on this device — but I can still talk.";
+  loading.hidden = false;
+  loading.classList.remove('leaving');
+  root.classList.add('no3d');
+}
 function init3D() {
   // the best graphics first; if the browser won't give that (a busy or recovering graphics chip, an older driver), a
   // plainer surface — and only when there's no 3D at all, words only
   for (const opts of [{ antialias: true, powerPreference: 'high-performance' }, { antialias: false }, { antialias: false, powerPreference: 'low-power' }]) {
     try { renderer = new THREE.WebGLRenderer({ canvas, alpha: true, ...opts }); break; } catch { renderer = null; }
   }
-  if (!renderer) {
-    loading.textContent = "My 3D body didn't load on this device — but I can still talk.";
-    root.classList.add('no3d');
-    return false;
-  }
+  if (!renderer) { talkOnly(); return false; }
+  // if the graphics chip gives out later (the browser drops the 3D surface), he carries on in words rather than freeze
+  canvas.addEventListener('webglcontextlost', () => { talkOnly(); if (!awake) wake(); }, { once: true });
   renderer.setPixelRatio(quality.ratio);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -2186,24 +2191,17 @@ function loadKokoro() {
   kokoroLoading = (async () => {
     // only where it runs well: a computer's browser with a GPU (WebGPU) — not a phone or tablet
     if (!('gpu' in navigator) || HANDHELD) return false;
-    window.__ronieVoiceStarted = true;
     const onReply = ({ data }) => {
       const w = rpcWaiting.get(data.id);
       if (!w) return;
       rpcWaiting.delete(data.id);
       if (data.ok) w.resolve(data); else w.reject(new Error(data.error));
     };
-    const pre = window.ronieVoice;                   // the site may have started fetching it already (main.js)
-    if (pre && pre.alive) {
-      pre.adopted = true;
-      voiceWorker = pre.worker;
-      voiceWorker.addEventListener('message', onReply);
-      if (!(await pre.loading)) throw new Error('voice failed to load');
-    } else {
-      voiceWorker = new Worker(`js/ronie-voice-worker.js${new URL(import.meta.url).search}`, { type: 'module' });
-      voiceWorker.addEventListener('message', onReply);
-      await voiceRpc({ type: 'load', model: VOICE.model });
-    }
+    // (its files come from the browser's own database once they've been fetched — sw.js — so after the first visit this
+    // takes a few seconds, and the graphics chip only takes the voice on now, with his room open)
+    voiceWorker = new Worker(`js/ronie-voice-worker.js${new URL(import.meta.url).search}`, { type: 'module' });
+    voiceWorker.addEventListener('message', onReply);
+    await voiceRpc({ type: 'load', model: VOICE.model });
     kokoroReady = true;
     return true;
   })().catch((err) => { console.warn('natural voice unavailable, using the quick one', err); return false; })

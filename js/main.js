@@ -1852,38 +1852,24 @@
     </li>`).join('');
   }
 
-  /* ---------- global: Ronie's voice, fetched early ---------- */
-  // His natural voice is a large model (~330 MB) that the browser downloads once and keeps. Waiting until someone opens
-  // his room meant a first visit could hear nothing for a minute, so on a computer that can run it (WebGPU, not a phone)
-  // and a decent connection (no data saver, not 2G), the download starts the moment this page has loaded. If his room
-  // opens meanwhile he takes over this same download (window.ronieVoice); if not, the worker is let go once it's in —
-  // the files stay in the browser's cache, so his room then loads the voice from disk in a moment.
-  (function prefetchVoice() {
-    const c = navigator.connection;
-    // (not on phones or tablets — an iPad calls itself a Mac, but its touch screen gives it away)
-    if (!('gpu' in navigator) || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
-      || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) return;
-    if (c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ''))) return;
-    const model = (D.assistant && D.assistant.voice && D.assistant.voice.model) || 'onnx-community/Kokoro-82M-v1.0-ONNX';
-    const go = () => {
-      if (window.__ronieVoiceStarted) return;          // (his room got there first)
-      try {
-        const worker = new Worker(`js/ronie-voice-worker.js${ASSET_V ? `?v=${ASSET_V}` : ''}`, { type: 'module' });
-        const v = window.ronieVoice = { worker, alive: true, adopted: false, loading: null };
-        v.loading = new Promise((resolve) => {
-          worker.addEventListener('message', ({ data }) => {
-            if (data.id !== 'prefetch') return;
-            resolve(!!data.ok);
-            if (!v.adopted) { worker.terminate(); v.alive = false; }
-          });
-        });
-        worker.postMessage({ id: 'prefetch', type: 'load', model });
-      } catch { /* no voice prefetch */ }
-    };
-    const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1));
-    const start = () => idle(go, { timeout: 800 });   // (right after the page has loaded — before anyone taps anything)
-    if (document.readyState === 'complete') start(); else addEventListener('load', start, { once: true });
-  })();
+  /* ---------- global: Ronie's voice, kept on the computer ---------- */
+  // His natural voice is a 325 MB model, too big for the browser's caches — so it used to come down again on every visit,
+  // and fetching it early meant loading it onto the graphics chip on every landing, next to nothing else yet. Now sw.js
+  // keeps its files in the browser's own database: the first time, on a computer that can run it (WebGPU, not a phone
+  // or tablet) and a decent connection (no data saver, not 2G), they're fetched quietly once this page has loaded — just
+  // stored, nothing on the graphics chip — and from then on his room loads the voice from disk in a few seconds.
+  if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+    const ready = navigator.serviceWorker.register('/sw.js').then(() => navigator.serviceWorker.ready).catch(() => null);
+    (function warmVoice() {
+      const c = navigator.connection;
+      if (!('gpu' in navigator) || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+        || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) return;
+      if (c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ''))) return;
+      const idle = window.requestIdleCallback || ((f) => setTimeout(f, 1));
+      const start = () => idle(() => ready.then((reg) => reg && reg.active && reg.active.postMessage({ type: 'warm-voice' })), { timeout: 2000 });
+      if (document.readyState === 'complete') start(); else addEventListener('load', start, { once: true });
+    })();
+  }
 
   /* ---------- global: email links open a ready-to-send message ---------- */
   // Plain mailto: links need a mail app set up — on many computers that's just a "pick an app" box. On a computer, an

@@ -109,7 +109,9 @@ Persona, rules and the model live in `worker/src/index.js`. Usage is visible in 
 ### Ronie's voice
 With sound on (the default), Ronie speaks every line, using no server and no AI quota:
 - **Kokoro** (`am_puck`) runs in the visitor's browser on computers with WebGPU: natural and expressive. The model
-  (~300 MB) is fetched once in the background when he wakes, then cached.
+  (325 MB) is too big for the browser's caches, so `sw.js` (a service worker that touches only these files) keeps it in
+  IndexedDB: on a computer it's fetched quietly after the first landing — stored only, nothing on the graphics chip —
+  and every later visit loads the voice from disk in a few seconds when his room opens.
 - Phones, and the moments before Kokoro has loaded, use the **device's own speech voice** (the most natural male
   English voice it has).
 A server voice (Deepgram Aura) was tried and removed: ~150 neurons per line used up the free allowance the chat needs.

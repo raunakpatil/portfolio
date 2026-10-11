@@ -619,6 +619,7 @@ main { padding: 0 var(--gap) var(--gap); }
 /* no 3D on this device: the note becomes a quiet line along the top, clear of the chat */
 .rai.no3d .rai-loading { inset: 18px 70px auto; display: block; font-size: 11px; line-height: 1.5; pointer-events: none; }
 .rai.no3d .rai-wake { display: none; }
+.rai.no3d .rai-canvas, .rai.no3d .rai-bgfx { opacity: 0; }
 .sp {
   --sp-o: #e67e22; --sp-tx: #d8dce0; --sp-dim: #7d848b; --sp-line: rgba(255, 255, 255, .1);
   width: 100%; height: 100%; display: grid; gap: 10px; text-align: left; color: var(--sp-tx);
