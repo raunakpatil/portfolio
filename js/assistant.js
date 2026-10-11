@@ -130,6 +130,10 @@ const rand = (i) => ((Math.sin(i * 12.9898 + 4.1) * 43758.5453) % 1 + 1) % 1;
 // touch screens can't hover, so there he just looks ahead and the light stays off.
 const TOUCH = matchMedia('(hover: none), (pointer: coarse)');
 const PHONE_UI = matchMedia('(max-width: 760px)');   // the phone layout (css: the same breakpoint)
+// phones, and tablets held upright: the chat along the bottom with Ronie above it (css: the same queries)
+const PORTRAIT_UI = matchMedia('(max-width: 760px), (orientation: portrait)');
+// phones and tablets (an iPad calls itself a Mac; its touch screen gives it away)
+const HANDHELD = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 const hovers = (e) => e.pointerType === 'mouse' && !TOUCH.matches;
 
 function init3D() {
@@ -1348,8 +1352,8 @@ function resize() {
     bloomComposer.setPixelRatio(quality.ratio * 0.5); bloomComposer.setSize(w, h);
   }
   camera.aspect = w / h;
-  // leave room for the dialogue: robot sits right of centre on wide screens, higher up on phones
-  if (w > 820) camera.setViewOffset(w, h, -w * 0.14, 0, w, h);
+  // leave room for the dialogue: robot sits right of centre on wide screens, higher up on phones and upright tablets
+  if (!PORTRAIT_UI.matches) camera.setViewOffset(w, h, -w * 0.14, 0, w, h);
   else camera.setViewOffset(w, h, 0, h * 0.26, w, h);
   camera.updateProjectionMatrix();
 }
@@ -2008,7 +2012,8 @@ function loop(now) {
   else if (moon.built) updateMoon(dt);
 
   // fixed camera framing the idle pose — it doesn't chase him when he moves
-  const dist = 2.7 * Math.max(1, 1.05 / Math.max(camera.aspect, 0.3));
+  // (an upright tablet steps back as far as a phone does, so he stands clear of the chat below him)
+  const dist = 2.7 * Math.max(PORTRAIT_UI.matches ? 1.9 : 1, 1.05 / Math.max(camera.aspect, 0.3));
   camera.position.copy(target).addScaledVector(facing, dist).add(new THREE.Vector3(0, 0.14, 0));
   camera.lookAt(target);
   if (moon.built) placeBackdrop();
@@ -2175,8 +2180,8 @@ function voiceRpc(msg) {
 function loadKokoro() {
   if (kokoroLoading) return kokoroLoading;
   kokoroLoading = (async () => {
-    // only where it runs well: a desktop browser with a GPU (WebGPU)
-    if (!('gpu' in navigator) || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return false;
+    // only where it runs well: a computer's browser with a GPU (WebGPU) — not a phone or tablet
+    if (!('gpu' in navigator) || HANDHELD) return false;
     window.__ronieVoiceStarted = true;
     const onReply = ({ data }) => {
       const w = rpcWaiting.get(data.id);

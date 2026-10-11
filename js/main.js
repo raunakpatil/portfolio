@@ -1510,7 +1510,9 @@
   // the files stay in the browser's cache, so his room then loads the voice from disk in a moment.
   (function prefetchVoice() {
     const c = navigator.connection;
-    if (!('gpu' in navigator) || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) return;
+    // (not on phones or tablets — an iPad calls itself a Mac, but its touch screen gives it away)
+    if (!('gpu' in navigator) || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)
+      || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1)) return;
     if (c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ''))) return;
     const model = (D.assistant && D.assistant.voice && D.assistant.voice.model) || 'onnx-community/Kokoro-82M-v1.0-ONNX';
     const go = () => {
