@@ -109,6 +109,12 @@ window.PORTFOLIO = {
      sit in it; 16:9 and 4:3); without them the tunnel uses image / imageMobile. */
   projects: [
     {
+      title: 'Ronie — 3D AI Agent', category: 'AI Agents', year: 2026, image: 'img/projects/ronie.webp', imageMobile: 'img/projects/ronie-mobile.webp', tunnelImage: 'img/tunnel/ronie.webp', tunnelImageMobile: 'img/tunnel/ronie-mobile.webp', colors: ['#ff7a1a', '#7c5cff'],
+      tags: ['three.js', 'WebGPU', 'Kokoro TTS', 'Cloudflare Workers', 'Gemini', 'Blender'],
+      description: "The 3D AI agent who lives on this website: he answers visitors' questions from real facts only, speaks in a neural voice that runs on their own GPU, reacts with 23 expressions and 23 moves I authored in Blender with Python, and plays a mind-reading game — free to run. Works with any 3D character; the code is an open template.",
+      link: 'https://github.com/raunakpatil/ronie-3d-ai-website-agent', linkText: 'See the case study ↗',
+    },
+    {
       title: 'YouTube Agentic AI Studio', category: 'AI Agents', year: 2026, image: 'img/projects/youtube-agentic-ai-studio.webp', imageMobile: 'img/projects/youtube-agentic-ai-studio-mobile.webp', tunnelImage: 'img/tunnel/youtube-agentic-ai-studio.webp', tunnelImageMobile: 'img/tunnel/youtube-agentic-ai-studio-mobile.webp', colors: ['#c6f432', '#7c5cff'],
       tags: ['Python', 'Gemini', 'LangChain', 'Edge TTS', 'YouTube API'],
       description: 'A 100% free AI pipeline that researches, scripts, narrates, animates and auto-uploads faceless YouTube videos — one command, zero cost per video. 96★ on GitHub.',
