@@ -766,20 +766,81 @@
     const N = Math.max(20, P.length);
     const rnd = seeded('tunnel');
     const items = [];
-    let slowdown = 1;
+    // each kind of project has a colour (the experience map's palette): its card's outline, the legend, and the
+    // coloured streaks flying past
+    const CAT_COLORS = ['#c6f432', '#b18cff', '#ff7ab6', '#5eead4', '#ffb547', '#7cc4ff'];
+    const cats = [...new Set(P.map((p) => p.category).filter(Boolean))];
+    const catColor = (c) => CAT_COLORS[Math.max(0, cats.indexOf(c)) % CAT_COLORS.length];
+    $('#tunnel-title').textContent = `Projects · ${P.length}`;
+    $('#tunnel-legend').innerHTML = cats.map((c) => `<span><i style="background:${catColor(c)}"></i>${esc(c)}</span>`).join('');
+    const TOUCH_ONLY = matchMedia('(hover: none)');
+    $('#tunnel-hint').textContent = `${TOUCH_ONLY.matches ? 'Tap' : 'Click'} a floating project · anywhere else for all projects`;
+    // the card being looked at (hovered, focused or touched): it slows right down and gets its name tag
+    let slowdown = 1, held = 0, tagged = null;
+    const tag = $('#tunnel-tag');
+    const look = (it) => {
+      tagged?.el.classList.remove('looked');
+      tagged = it;
+      it.el.classList.add('looked');
+      slowdown = 0.12;
+      tag.innerHTML = `${esc(it.p.title)} <span>· ${esc([it.p.category, it.p.year].filter(Boolean).join(' · '))}</span>`;
+      tag.style.setProperty('--cat', catColor(it.p.category));
+      tag.classList.add('on');
+    };
+    const unlook = (it) => {
+      if (tagged !== it) return;
+      it.el.classList.remove('looked');
+      tagged = null; slowdown = 1;
+      tag.classList.remove('on');
+    };
+    // a click flies the card out of the tunnel towards you, then its popup opens
+    function flyOpen(it) {
+      if (!MOTION) return openDetail(it.p);
+      const r = it.el.getBoundingClientRect();
+      const fw = Math.min(860, innerWidth - 32), fh = fw * 8.5 / 16;
+      const ghost = document.createElement('div');
+      ghost.className = 'tcard-fly';
+      ghost.innerHTML = thumb(it.p);
+      Object.assign(ghost.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+      document.body.appendChild(ghost);
+      const dx = (innerWidth - fw) / 2 - r.left, dy = Math.max(24, (innerHeight - fh) / 2 - 90) - r.top;
+      ghost.animate([
+        { transform: 'none', opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) scale(${fw / r.width}, ${fh / r.height})`, opacity: 1, offset: 0.85 },
+        { transform: `translate(${dx}px, ${dy}px) scale(${fw / r.width}, ${fh / r.height})`, opacity: 0 },
+      ], { duration: 520, easing: 'cubic-bezier(.55, 0, .2, 1)', fill: 'forwards' });
+      setTimeout(() => openDetail(it.p), 400);
+      setTimeout(() => ghost.remove(), 560);
+    }
+    const seen = new Set();
     for (let i = 0; i < N; i++) {
       const p = P[i % P.length];
       const side = sides[i % 4];
       const el = document.createElement('button');
       el.type = 'button';
       el.className = 'tcard';
-      el.setAttribute('aria-label', `Open ${p.title}`);
-      el.innerHTML = `<div class="tcard-in">${thumb(p)}</div>`;
-      el.addEventListener('click', () => openDetail(p));
-      el.addEventListener('pointerenter', () => { slowdown = 0.12; });
-      el.addEventListener('pointerleave', () => { slowdown = 1; });
+      el.style.setProperty('--cat', catColor(p.category));
+      el.innerHTML = `<div class="tcard-in">${thumb(p)}</div><span class="tcard-shade"></span>`;
+      // each project floats by several times; only its first copy is a stop for the keyboard and screen readers
+      if (seen.has(p)) { el.tabIndex = -1; el.setAttribute('aria-hidden', 'true'); }
+      else { seen.add(p); el.setAttribute('aria-label', `Open ${p.title}`); }
+      const it = { el, p, side, shade: el.lastChild, across: 0, along: 0, off: rnd(), d: (i / N) * L };
+      el.addEventListener('click', () => flyOpen(it));
+      el.addEventListener('pointerenter', () => look(it));
+      el.addEventListener('pointerleave', () => unlook(it));
+      el.addEventListener('focus', () => look(it));
+      el.addEventListener('blur', () => unlook(it));
       walls[side].appendChild(el);
-      items.push({ el, side, across: 0, along: 0, off: rnd(), d: (i / N) * L });
+      items.push(it);
+    }
+    // touch screens: everything drifts a little slower, and a finger held on the card all but stops it, to aim
+    card.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'mouse') held = 1; });
+    for (const t of ['pointerup', 'pointercancel']) card.addEventListener(t, () => { held = 0; });
+    // over the empty middle (not a project, not the chat), the tunnel jumps to hyperspace
+    let overChat = false;
+    for (const n of $$('.bubble, .answer', card)) {
+      n.addEventListener('pointerenter', () => { overChat = true; });
+      n.addEventListener('pointerleave', () => { overChat = false; });
     }
     // each card shaped like its picture so none of it is cropped: 16:9 on wider screens, the 4:3 pictures on phones;
     // the picture's width runs across the floor and ceiling, and into the distance on the side walls
@@ -804,9 +865,20 @@
       else { x = L - d - it.along; y = a; }
       it.el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
       it.el.style.opacity = clamp((L - d) / 700, 0, 1).toFixed(3);
+      it.shade.style.opacity = (0.55 * clamp((d - 250) / 1100, 0, 1)).toFixed(3);   // lit up close, dim far off
     }
 
     new ResizeObserver(layout).observe(stage);
+
+    // the name tag sits just above the card it names (below it, for one near the top), kept inside the card
+    function placeTag() {
+      const c = card.getBoundingClientRect(), r = tagged.el.getBoundingClientRect();
+      const tw = tag.offsetWidth, th = tag.offsetHeight;
+      const x = clamp(r.left + r.width / 2 - c.left - tw / 2, 10, c.width - tw - 10);
+      let y = r.top - c.top - th - 8;
+      if (y < 44) y = Math.min(r.bottom - c.top + 8, c.height - th - 34);
+      tag.style.transform = `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px)`;
+    }
 
     // chat: the answer floats as a sparkling particle cloud and snaps into crisp text on hover
     const T = D.tunnel;
@@ -925,18 +997,20 @@
       clearTimeout(revealTimer);
       if (MOTION) pill.classList.remove('on');
     };
-    // a new answer on every hover; phones can't hover, so there the answers cycle on their own every few seconds
+    // the answers settle into words on their own every few seconds (quicker on phones, which can't hover), and a hover
+    // brings the next one in at once and holds it while the mouse is there
     const AUTO = matchMedia('(hover: none), (max-width: 760px)');
-    const CYCLE = 3000, SHOWN = 2300;
-    let cyc = CYCLE - 400;
-    pill.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse' && !AUTO.matches) reveal(); });
-    pill.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !AUTO.matches) conceal(); });
-    AUTO.addEventListener?.('change', () => { conceal(); cyc = CYCLE - 400; });
+    const timing = () => (AUTO.matches ? [3000, 2300] : [5200, 3200]);
+    let [CYCLE, SHOWN] = timing();
+    let cyc = CYCLE - 400, mouseOn = false;
+    pill.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse' && !AUTO.matches) { mouseOn = true; reveal(); } });
+    pill.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !AUTO.matches) { mouseOn = false; conceal(); cyc = 0; } });
+    AUTO.addEventListener?.('change', () => { conceal(); [CYCLE, SHOWN] = timing(); cyc = CYCLE - 400; });
     new ResizeObserver(() => { built = false; }).observe(pill);
     document.fonts?.ready.then(() => { built = false; });
 
     function chat(now, dt) {
-      if (AUTO.matches) {
+      if (!mouseOn) {
         cyc += dt;
         if (cyc >= CYCLE) { cyc = 0; reveal(); } else if (cyc >= SHOWN && hovered) conceal();
       }
@@ -952,11 +1026,13 @@
     starC.className = 'tunnel-stars';
     starC.setAttribute('aria-hidden', 'true');
     card.insertBefore(starC, $('.chat', card));
-    const STAR_COLORS = [null, null, null, null, null, '#ff9cf0', '#9cf6ff', '#e4ff9c'];
+    // most streaks white; the rest in the colours of the kinds of project (see the legend)
+    const STAR_COLORS = cats.map(catColor);
     const newStar = (anyDepth) => {
       let x = Math.random() * 2 - 1, y = Math.random() * 2 - 1;
       if (Math.abs(x) < 0.12 && Math.abs(y) < 0.12) { x += Math.sign(x || 1) * 0.12; y += Math.sign(y || 1) * 0.12; }
-      return { x, y, z: anyDepth ? 0.05 + Math.random() * 0.95 : 1, c: STAR_COLORS[(Math.random() * STAR_COLORS.length) | 0] };
+      const c = STAR_COLORS.length && Math.random() < 0.38 ? STAR_COLORS[(Math.random() * STAR_COLORS.length) | 0] : null;
+      return { x, y, z: anyDepth ? 0.05 + Math.random() * 0.95 : 1, c };
     };
     const stars = Array.from({ length: 160 }, () => newStar(true));
     function drawStars(dt) {
@@ -982,7 +1058,10 @@
 
     let ox = 50, oy = 50, travelled = 0, spd = 1;
     onFrame(card, (now, dt) => {
-      spd = lerp(spd, slowdown, 0.08);
+      const mid = ptr.inside && !tagged && !overChat && (ptr.nx / 0.42) ** 2 + (ptr.ny / 0.5) ** 2 < 1;
+      const want = held ? 0.1 : tagged ? slowdown : mid ? 2.8 : TOUCH_ONLY.matches ? 0.65 : 1;
+      spd = lerp(spd, want, want > spd ? 0.04 : 0.08);
+      if (tagged) placeTag();
       const step = dt * SPEED * MOTION * spd;
       travelled += step;
       const g = travelled % CELL;
