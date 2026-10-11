@@ -69,7 +69,15 @@ neon-tube room.
 
 ```
 blender -b --factory-startup --python tools/blender/ronie_anims.py -- path/to/scene.gltf models/ronie-anims.glb
+python -I tools/squeeze-anims.py models/ronie-anims.glb models/ronie-anims.glb 1e-4
 ```
+
+The second step shrinks the export (a quarter less to download) without changing a pose: it drops the keyframes
+the motion between their neighbours already reproduces (checked: no joint ends up more than 0.06° off, at any
+frame) and the channels on non-bone nodes.
+
+The dotted maps' coastline, `js/world-land.json`, is baked from world-atlas's land-50m by `tools/bake-world-land.py`
+(how to run it is at the top of that file).
 
 Poses are written as world-space rotations on top of his idle pose, so edit the angle tables in that script.
 It also saves a `.blend` next to the output; `tools/blender/ronie_preview.py` (body) and `ronie_hands_preview.py` (hands)

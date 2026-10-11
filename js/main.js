@@ -291,6 +291,7 @@
       moveIndicator();
       window.scrollTo(0, 0);
       document.body.dataset.route = r;
+      window.warmView?.(r);
       // Ronie (three.js + the robot) only loads when someone actually opens it
       if (r === 'assistant') {
         bootScreen();
@@ -305,6 +306,32 @@
     addEventListener('resize', moveIndicator);
     document.fonts?.ready.then(moveIndicator);
     go();
+
+    // Pictures for the pages nobody has opened yet wait, instead of all downloading with the dashboard: Ronie's room
+    // keeps them as data-src (his backdrop, his loading sheet), the Library's covers are loading="lazy". They start as
+    // soon as someone heads that way — a pointer over, a touch on, or focus on any way in — so they're in by the time
+    // the page opens. (go() does the same for a page that's opened directly.)
+    const warmed = new Set();
+    function warm(r) {
+      if (!r || warmed.has(r)) return;
+      warmed.add(r);
+      const v = $(`.view[data-view="${r}"]`);
+      if (!v) return;
+      $$('[data-src]', v).forEach((n) => { n.src = n.dataset.src; n.removeAttribute('data-src'); });
+      $$('[data-href]', v).forEach((n) => { n.setAttribute('href', n.dataset.href); n.removeAttribute('data-href'); });
+      $$('img[loading="lazy"]', v).forEach((n) => { n.loading = 'eager'; });
+    }
+    window.warmView = warm;
+    warm(document.body.dataset.route);   // (the page this visit opened on — go() ran before this was here)
+    const routeOf = (el) => {
+      const t = el && el.closest && el.closest('[data-route], [data-link^="#"], a[href^="#"]');
+      if (!t) return null;
+      const h = t.dataset.route || (t.dataset.link || t.getAttribute('href') || '').slice(1);
+      return RENAMED[h] || h;
+    };
+    for (const type of ['pointerover', 'focusin', 'touchstart']) {
+      document.addEventListener(type, (e) => warm(routeOf(e.target)), { passive: true });
+    }
 
     // links: the dot button grows into a pill of icon links (his profile page, then D.links)
     const ICONS = {
@@ -979,34 +1006,24 @@
   }
 
   /* ---------- card 5: dotted world map ---------- */
-  // Coastline rings, fetched once and shared by every map on the site.
+  // Coastline rings, fetched once and shared by every map on the site. js/world-land.json is world-atlas's land-50m,
+  // baked by tools/bake-world-land.py into plain rings (longitudes already unwrapped across the antimeridian, so
+  // Russia stays in one piece), with the points the dot grid can never tell apart dropped: each ring is
+  // [x, y, dx, dy, …] in 1/q degrees. A third the download of the original, and no topojson library.
   let landPromise = null;
   function loadLand() {
     if (landPromise) return landPromise;
-    if (!window.topojson) return (landPromise = Promise.resolve(null));
-    landPromise = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json').then((r) => r.json()).then((topo) => {
-      const fc = topojson.feature(topo, topo.objects.land);
-      const out = [];
-      for (const f of fc.features) {
-        const g = f.geometry;
-        const list = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
-        for (const poly of list) {
-          for (const ring of poly) {
-            // unwrap longitudes so rings crossing the antimeridian (e.g. Russia) stay continuous
-            let prev = ring[0][0], shift = 0, x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
-            const pts = ring.map(([lon, lat]) => {
-              if (lon - prev > 180) shift -= 360; else if (prev - lon > 180) shift += 360;
-              prev = lon;
-              const x = lon + shift;
-              x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, lat); y1 = Math.max(y1, lat);
-              return [x, lat];
-            });
-            out.push({ pts, x0, x1, y0, y1 });
-          }
-        }
+    landPromise = fetch(`js/world-land.json${ASSET_V ? `?v=${ASSET_V}` : ''}`).then((r) => r.json()).then(({ q, r }) => r.map((f) => {
+      let x = f[0], y = f[1], x0 = x, x1 = x, y0 = y, y1 = y;
+      const pts = [[x / q, y / q]];
+      for (let i = 2; i < f.length; i += 2) {
+        x += f[i]; y += f[i + 1];
+        pts.push([x / q, y / q]);
+        if (x < x0) x0 = x; else if (x > x1) x1 = x;
+        if (y < y0) y0 = y; else if (y > y1) y1 = y;
       }
-      return out;
-    }).catch(() => null);
+      return { pts, x0: x0 / q, x1: x1 / q, y0: y0 / q, y1: y1 / q };
+    })).catch(() => null);
     return landPromise;
   }
 
@@ -1358,7 +1375,7 @@
       <p class="cover-kicker">Case study ${String(i + 1).padStart(2, '0')} · ${esc(c.year)}</p>
       <h3 class="cover-title">${esc(c.coverTitle || c.title)}</h3>
       <p class="cover-by">${esc(D.name)}</p>
-      ${c.cover ? `<img class="cover-img" src="${esc(c.cover)}" alt="" onerror="this.remove()">` : ''}
+      ${c.cover ? `<img class="cover-img" src="${esc(c.cover)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
       <span class="grain"></span>
     </div>`;
   }
@@ -1391,14 +1408,14 @@
   const yearOf = (c) => String(c.date || '').slice(-4);
   function certCoverHTML(c, i) {
     const [c1, c2] = c.colors || ['#eee', '#222'];
-    const art = c.photo ? `<img class="cert-photo" src="${esc(c.photo)}" alt="">`
-      : c.logo ? `<span class="cert-logo"><img src="${esc(c.logo)}" alt=""></span>` : '';
+    const art = c.photo ? `<img class="cert-photo" src="${esc(c.photo)}" alt="" loading="lazy">`
+      : c.logo ? `<span class="cert-logo"><img src="${esc(c.logo)}" alt="" loading="lazy"></span>` : '';
     return `<div class="cover cert-cover" style="--c1:${esc(c1)};--c2:${esc(c2)};--spine:${esc(c.spine)};--ink:${esc(c.ink)};--title:${esc(c.coverInk || c.spine)}">
       <p class="cover-kicker">Certificate ${String(i + 1).padStart(2, '0')} · ${esc(yearOf(c))}</p>
       <h3 class="cover-title">${esc(c.short || c.title)}</h3>
       <div class="cert-art">${art}</div>
       <p class="cover-by">${esc(issuerShort(c.issuer))}</p>
-      ${c.cover ? `<img class="cover-img" src="${esc(c.cover)}" alt="" onerror="this.remove()">` : ''}
+      ${c.cover ? `<img class="cover-img" src="${esc(c.cover)}" alt="" loading="lazy" onerror="this.remove()">` : ''}
       <span class="grain"></span>
     </div>`;
   }
