@@ -157,7 +157,7 @@ img { display: block; max-width: 100%; }
   clip-path: inset(6px 6px 6px calc(100% - 52px) round 999px);          /* closed: just the button's own pill */
   transition: clip-path .55s var(--snap); will-change: clip-path;
 }
-.social.open .social-links { clip-path: inset(-18px round 999px); }   /* (room for its soft shadow) */
+.social.open .social-links { clip-path: inset(-18px -40px -56px -40px round 32px); }   /* (room for its soft shadow, and the names that show underneath on hover) */
 .social-links a {
   position: relative; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; color: #555;
   opacity: 0; transform: translateX(10px);
