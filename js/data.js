@@ -109,7 +109,7 @@ window.PORTFOLIO = {
      sit in it; 16:9 and 4:3); without them the tunnel uses image / imageMobile. */
   projects: [
     {
-      title: 'Ronie — 3D AI Agent', category: 'AI Agents', year: 2026, image: 'img/projects/ronie.webp?v=5', imageMobile: 'img/projects/ronie-mobile.webp?v=2', tunnelImage: 'img/tunnel/ronie.webp', tunnelImageMobile: 'img/tunnel/ronie-mobile.webp', colors: ['#ff7a1a', '#7c5cff'],
+      title: 'Ronie — 3D AI Agent', category: 'AI Agents', year: 2026, image: 'img/projects/ronie.webp?v=5', imageMobile: 'img/projects/ronie-mobile.webp?v=2', tunnelImage: 'img/tunnel/ronie.webp?v=2', tunnelImageMobile: 'img/tunnel/ronie-mobile.webp?v=2', colors: ['#ff7a1a', '#7c5cff'],
       tags: ['three.js', 'WebGPU', 'Kokoro TTS', 'Cloudflare Workers', 'Gemini', 'Blender'],
       description: "The 3D AI agent who lives on this website: he answers visitors' questions from real facts only, speaks in a neural voice that runs on their own GPU, reacts with 23 expressions and 23 moves I authored in Blender with Python, and plays a mind-reading game — free to run. Works with any 3D character; the code is an open template.",
       link: 'https://github.com/raunakpatil/ronie-3d-ai-website-agent', linkText: 'See the case study ↗',
