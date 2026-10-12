@@ -116,6 +116,13 @@ window.PORTFOLIO = {
       demo: '#assistant', demoText: 'Meet Ronie →',
     },
     {
+      title: 'Zeul — Wallpaper App', aka: ['Zeul'], category: 'App', year: 2026, image: 'img/projects/zeul.webp', imageMobile: 'img/projects/zeul-mobile.webp', tunnelImage: 'img/tunnel/zeul.webp', tunnelImageMobile: 'img/tunnel/zeul-mobile.webp', colors: ['#eb6834', '#111111'],
+      tags: ['Kotlin', 'Jetpack Compose', 'Supabase', 'Edge Functions', 'Android'],
+      description: 'A free, open-source Android wallpaper app: hand-picked HD and AMOLED wallpapers, a For You feed that learns your style, search with colour filters, community uploads with built-in moderation, and an auto wallpaper changer — in a soft, tactile UI with a hamster mascot. Open source (GPL-3.0).',
+      link: 'https://github.com/raunakpatil/ZeulWallpaperApp',
+      demo: 'https://github.com/raunakpatil/ZeulWallpaperApp/releases/latest', demoText: 'Download the APK ↗',
+    },
+    {
       title: 'YouTube Agentic AI Studio', category: 'AI Agents', year: 2026, image: 'img/projects/youtube-agentic-ai-studio.webp', imageMobile: 'img/projects/youtube-agentic-ai-studio-mobile.webp', tunnelImage: 'img/tunnel/youtube-agentic-ai-studio.webp', tunnelImageMobile: 'img/tunnel/youtube-agentic-ai-studio-mobile.webp', colors: ['#c6f432', '#7c5cff'],
       tags: ['Python', 'Gemini', 'LangChain', 'Edge TTS', 'YouTube API'],
       description: 'A 100% free AI pipeline that researches, scripts, narrates, animates and auto-uploads faceless YouTube videos — one command, zero cost per video. 96★ on GitHub.',

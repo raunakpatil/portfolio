@@ -2532,6 +2532,8 @@ async function askRonie() {
 
 // buttons for the places an answer points to — his email, LinkedIn, GitHub, YouTube channel, Instagram, or a project he names —
 // so nobody has to copy an address out of a sentence; any address the model still writes out is swapped for words
+// a project goes by its title, and by any short names it has (aka in data.js: "Zeul" for "Zeul — Wallpaper App")
+const namesOf = (p) => [p.title, ...(p.aka || [])].map((n) => n.toLowerCase());
 const linkOf = (label) => (D.links.find((l) => l.label === label) || {}).href;
 const PLACES = [
   { label: 'Email Raunak', href: () => `mailto:${A.email}`, test: /e-?mail|@\w+\.\w|get in touch|reach (out|him)|contact/i },
@@ -2544,7 +2546,7 @@ function linksFor(reply) {
   const out = [];
   for (const p of PLACES) if (p.test.test(reply) && p.href()) out.push({ label: p.label, href: p.href() });
   for (const p of D.projects) {
-    if (p.link && p.link !== '#' && reply.toLowerCase().includes(p.title.toLowerCase())) out.push({ label: p.title, href: p.link });
+    if (p.link && p.link !== '#' && namesOf(p).some((n) => reply.toLowerCase().includes(n))) out.push({ label: p.aka ? p.aka[0] : p.title, href: p.link });
   }
   // about hiring or reaching him, but no place named: the ways to reach Raunak
   if (!out.length && /open to (work|new roles|opportunities)|\bhir(e|ing)\b|reach (him|out|raunak)|contact|connect|get in touch|next role/i.test(reply)) {
@@ -2562,8 +2564,8 @@ function projectIn(text) {
   const t = text.toLowerCase();
   let best = null, at = Infinity;
   for (const p of D.projects) {
-    const i = p.image && p.link && p.link !== '#' ? t.indexOf(p.title.toLowerCase()) : -1;
-    if (i >= 0 && i < at) { best = p; at = i; }
+    if (!(p.image && p.link && p.link !== '#')) continue;
+    for (const n of namesOf(p)) { const i = t.indexOf(n); if (i >= 0 && i < at) { best = p; at = i; } }
   }
   return best;
 }
