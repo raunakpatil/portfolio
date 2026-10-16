@@ -144,7 +144,8 @@ window.PORTFOLIO = {
       title: 'Titanic Survival Predictor', category: 'Dashboard', year: 2026, image: 'img/projects/titanic-survival-predictor.webp', imageMobile: 'img/projects/titanic-survival-predictor-mobile.webp', tunnelImage: 'img/tunnel/titanic-survival-predictor.webp', tunnelImageMobile: 'img/tunnel/titanic-survival-predictor-mobile.webp', colors: ['#3b82f6', '#5eead4'],
       tags: ['XGBoost', 'SHAP', 'Streamlit', 'Plotly'],
       description: 'An interactive ML explainability dashboard: survival prediction, passenger search, a fairness audit and model insights powered by XGBoost and SHAP.',
-      link: 'https://titanic-survival-predictor-untighkxeujjcqbj7h79kn.streamlit.app/',
+      link: 'https://github.com/raunakpatil/titanic-survival-predictor',
+      demo: 'https://titanic-survival-predictor-raunak.streamlit.app/', demoText: 'Try the live demo ↗',
     },
     {
       title: 'Interdimensional Cable', category: 'Website', year: 2026, image: 'img/projects/interdimensional-cable.webp', imageMobile: 'img/projects/interdimensional-cable-mobile.webp', tunnelImage: 'img/tunnel/interdimensional-cable.webp', tunnelImageMobile: 'img/tunnel/interdimensional-cable-mobile.webp', colors: ['#4ade80', '#a78bfa'],

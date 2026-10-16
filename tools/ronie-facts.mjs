@@ -27,7 +27,7 @@ add('Skills (with tools):');
 for (const s of D.skills.items) add(`- ${s.name}: ${s.tools.join(', ')}`);
 add();
 add('Projects:');
-for (const p of D.projects) add(`- ${p.title} (${p.year}, ${p.category}): ${clean(p.description)} Tech: ${p.tags.join(', ')}.${p.link && p.link !== '#' ? ` Link: ${p.link}` : ''}`);
+for (const p of D.projects) add(`- ${p.title} (${p.year}, ${p.category}): ${clean(p.description)} Tech: ${p.tags.join(', ')}.${p.link && p.link !== '#' ? ` Link: ${p.link}` : ''}${p.demo && /^https?:/.test(p.demo) ? ` ${(p.demoText || 'Live demo').replace(/\s*[↗→]\s*$/, '')}: ${p.demo}` : ''}`);
 add();
 add('Case studies from his work:');
 for (const c of D.caseStudies) add(`- ${c.title} (${c.year}): ${clean(c.description)}`);
