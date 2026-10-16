@@ -1,5 +1,5 @@
-# Shrinks models/ronie-anims.glb after Blender exports it (run it after tools/blender/ronie_anims.py):
-#   python -I tools/squeeze-anims.py models/ronie-anims.glb models/ronie-anims.glb 1e-4
+# Shrinks models/ronie-anims.glb after Blender exports it (run it after scripts/blender/ronie_anims.py):
+#   python -I scripts/squeeze-anims.py models/ronie-anims.glb models/ronie-anims.glb 1e-4
 """Shrink models/ronie-anims.glb without changing a single pose.
 
 - drops the channels on non-bone nodes (assistant.js throws those away on load anyway)

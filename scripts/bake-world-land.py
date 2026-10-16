@@ -1,6 +1,6 @@
 # Bakes js/world-land.json (the coastline the dotted maps draw) from world-atlas land-50m.
 # 1. curl -o land-50m.json https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/land-50m.json
-# 2. python -I tools/bake-world-land.py land-50m.json js/world-land.json 0.02
+# 2. python -I scripts/bake-world-land.py land-50m.json js/world-land.json 0.02
 # (0.02 deg: the same dots as the full data, bar a few single shoreline dots — checked at desktop, tablet and phone sizes)
 """Bake world-atlas land-50m into a small, same-origin coastline file for the dotted maps.
 

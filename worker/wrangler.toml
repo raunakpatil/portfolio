@@ -15,3 +15,11 @@ namespace_id = "1001"
   [ratelimits.simple]
   limit = 30
   period = 60
+
+# the Tools page's feed (src/feed.js): rebuilt every half hour into KV, so /feed answers at once
+[[kv_namespaces]]
+binding = "FEED"
+id = "08e09fa0db2a4372bf3974b7042f3667"
+
+[triggers]
+crons = ["*/30 * * * *"]

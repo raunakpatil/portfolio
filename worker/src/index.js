@@ -1,6 +1,7 @@
 // Ronie's chat: a tiny Cloudflare Worker that answers visitors' questions about Raunak with a small model on
 // Workers AI (free daily allowance). It only knows what's in facts.js, which is generated from js/data.js.
 import { FACTS } from './facts.js';
+import { buildFeed } from './feed.js';
 
 const MODEL = '@cf/qwen/qwen3-30b-a3b-fp8';   // 30B mixture-of-experts, ~3B active: smart, but priced like a 3B model
 const ALLOWED = ['https://raunakpatil.com', 'https://www.raunakpatil.com', 'http://127.0.0.1:5173', 'http://localhost:5173'];
@@ -225,17 +226,38 @@ async function google(env, g, system, messages, opts) {
 // Workers AI's free daily allowance is used up (error 4006) — resets at 00:00 UTC
 const quotaGone = (err) => /4006|daily free allocation/i.test(String(err && err.message || err));
 
+// the Tools page's headlines and trending models (feed.js): rebuilt every half hour by the cron trigger into KV
+// (FEED), so /feed is a quick read; each copy of the worker also keeps the last one in memory for a few minutes
+const FEED_KEY = 'feed-v1';
+let feedMemo = { until: 0, body: '' };
+async function refreshFeed(env) {
+  const data = await buildFeed();
+  const body = JSON.stringify(data);
+  if (data.news.length >= 5 && env.FEED) await env.FEED.put(FEED_KEY, body);   // (a bad moment upstream keeps the last good one)
+  return body;
+}
+async function feed(env, ctx, cors) {
+  const headers = { ...cors, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600' };
+  if (Date.now() < feedMemo.until) return new Response(feedMemo.body, { headers });
+  let body = env.FEED ? await env.FEED.get(FEED_KEY) : null;
+  if (body && Date.now() - Date.parse(JSON.parse(body).updated) > 3 * 3600e3) { ctx.waitUntil(refreshFeed(env).catch(() => {})); }   // (the cron stalled: catch up)
+  if (!body) body = await refreshFeed(env);
+  feedMemo = { until: Date.now() + 5 * 6e4, body };
+  return new Response(body, { headers });
+}
+
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     const origin = request.headers.get('Origin') || '';
     const cors = {
       'Access-Control-Allow-Origin': ALLOWED.includes(origin) ? origin : ALLOWED[0],
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
       Vary: 'Origin',
     };
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
     const path = new URL(request.url).pathname;
+    if (request.method === 'GET' && path === '/feed') return feed(env, ctx, cors);
     if (request.method !== 'POST' || !['/chat', '/pick'].includes(path)) return json({ error: 'not found' }, 404, cors);
     if (!ALLOWED.includes(origin)) return json({ error: 'forbidden' }, 403, cors);
 
@@ -291,5 +313,9 @@ export default {
       // most often: the free daily allowance is used up — the site falls back to Ronie's scripted answers
       return json({ error: quotaGone(err) ? 'quota' : 'unavailable' }, 503, cors);
     }
+  },
+  // every half hour (wrangler.toml): the Tools page's feed, fresh
+  async scheduled(event, env, ctx) {
+    ctx.waitUntil(refreshFeed(env));
   },
 };

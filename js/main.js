@@ -359,16 +359,19 @@
       ind.style.width = `${a.offsetWidth}px`;
       ind.style.transform = `translateX(${a.offsetLeft}px)`;
     };
-    // Ronie has his own address, raunakpatil.com/ronie (ronie.html sends visitors in); every other page is /#page
-    const onRonie = () => /^\/ronie\/?$/.test(location.pathname);
+    // Ronie and the Tools page have their own addresses, raunakpatil.com/ronie and /tools (ronie.html and tools.html
+    // send visitors in); every other page is /#page
+    const PATHS = { assistant: '/ronie', tools: '/tools' };
+    const onPath = () => Object.keys(PATHS).find((k) => new RegExp(`^${PATHS[k]}/?$`).test(location.pathname));
     // old addresses that still work: the Case Study page is now the Library
     const RENAMED = { 'case-study': 'library' };
     const go = () => {
       let h = location.hash.slice(1);
       if (RENAMED[h]) { h = RENAMED[h]; history.replaceState(null, '', `#${h}`); }
-      const r = routes.includes(h) ? h : !h && onRonie() ? 'assistant' : 'dashboard';
-      if (r === 'assistant' && (h || !onRonie())) history.replaceState(null, '', `/ronie${location.search}`);   // (keeps ?room=…)
-      else if (r !== 'assistant' && onRonie()) history.replaceState(null, '', `/#${r}`);
+      const here = onPath();
+      const r = routes.includes(h) ? h : !h && here ? here : 'dashboard';
+      if (PATHS[r] && (h || here !== r)) history.replaceState(null, '', `${PATHS[r]}${location.search}`);   // (keeps ?room=…)
+      else if (!PATHS[r] && here) history.replaceState(null, '', `/#${r}`);
       $$('.view').forEach((v) => { v.hidden = v.dataset.view !== r; });
       links.forEach((a) => {
         const on = a.dataset.route === r;
@@ -379,6 +382,7 @@
       window.scrollTo(0, 0);
       document.body.dataset.route = r;
       window.warmView?.(r);
+      if (r === 'tools') loadTools().then((m) => m.open());
       // Ronie (three.js + the robot) only loads when someone actually opens it
       if (r === 'assistant') {
         bootScreen();
@@ -389,6 +393,12 @@
         });
       }
     };
+    // the Tools page's script (js/tools.js) comes once someone heads that way; it fetches the latest headlines itself
+    let toolsMod = null;
+    function loadTools() {
+      toolsMod ||= import(`./tools.js${ASSET_V ? `?v=${ASSET_V}` : ''}`).catch((err) => { toolsMod = null; console.error('Tools failed to load', err); return { open() {} }; });
+      return toolsMod;
+    }
     addEventListener('hashchange', go);
     addEventListener('resize', moveIndicator);
     document.fonts?.ready.then(moveIndicator);
@@ -402,6 +412,7 @@
     function warm(r) {
       if (!r || warmed.has(r)) return;
       warmed.add(r);
+      if (r === 'tools') loadTools();
       const v = $(`.view[data-view="${r}"]`);
       if (!v) return;
       $$('[data-src]', v).forEach((n) => { n.src = n.dataset.src; n.removeAttribute('data-src'); });
@@ -1346,7 +1357,7 @@
 
   /* ---------- card 5: dotted world map ---------- */
   // Coastline rings, fetched once and shared by every map on the site. js/world-land.json is world-atlas's land-50m,
-  // baked by tools/bake-world-land.py into plain rings (longitudes already unwrapped across the antimeridian, so
+  // baked by scripts/bake-world-land.py into plain rings (longitudes already unwrapped across the antimeridian, so
   // Russia stays in one piece), with the points the dot grid can never tell apart dropped: each ring is
   // [x, y, dx, dy, …] in 1/q degrees. A third the download of the original, and no topojson library.
   let landPromise = null;

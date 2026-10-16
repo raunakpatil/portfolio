@@ -40,6 +40,20 @@ window shows `photo` (a picture in `img/certs/`) or, failing that, `logo` (an is
 and NIELIT's emblems, used to identify who issued a certificate). Opening a book shows `brief`, the skills, the
 credential `id` and a link to `url`.
 
+## Tools page (raunakpatil.com/tools)
+`tools.html` sends visitors to `/#tools`, and the site keeps `/tools` in the address bar (like `/ronie`). The page itself
+is `js/tools.js`, loaded once someone heads that way.
+- **Latest in AI** (headlines and trending open models) comes live from Ronie's worker, `GET /feed`
+  (`worker/src/feed.js`): a cron trigger rebuilds it every 30 minutes into the `FEED` KV namespace. Only headlines,
+  sources, dates and links are kept; stories on crime, adult content or party politics are left out, and trending
+  models are only shown from the makers listed in `MAKERS`. If the worker doesn't answer, the page shows the snapshot
+  in `data/feed.json` — refresh it now and then with `node scripts/build-feed.mjs`.
+- **AI Tools** is `data/tools.json`: `n` name, `u` link, `d` one line about it, `c` category (a key of `categories`),
+  `p` price (`free`, `freemium`, `paid` or `open`), `pick` for Raunak's picks, `uses` for a badge ("Ronie's voice"),
+  `added` (YYYY-MM-DD) on new ones — they show as New for a month and turn on the New sort. Update `updated` too.
+  Icons: `python -I scripts/tool-icons.py` fetches any missing ones into `img/tools/` (`icon` names another domain to
+  take the icon from; `"icon": false` shows the tool's first letter instead).
+
 ## Ronie's surroundings
 By default Ronie stands in front of a picture (neon mountains under a colossal moon, 3:1) behind his transparent
 3D canvas. It's a pair: `img/ronie-bg.webp` has the mountains' neon subdued, and `img/ronie-bg-lit.webp` has it
@@ -65,22 +79,22 @@ neon-tube room.
 ## Ronie's extra moves (Blender)
 `models/ronie-anims.glb` holds Ronie's idle variations, the chat moves, and the guessing game's photo moves
 (`pickup`, `toss_happy`, `toss_angry`, `toss`) and the project card's `pickup_show` (held out to the viewer, gripped by its bottom-left corner), authored in Blender 5.2 by
-`tools/blender/ronie_anims.py` on the original model (unzip `3dmodel/sci-fi_o.b._robot_unit_th-icc02_animated.zip`):
+`scripts/blender/ronie_anims.py` on the original model (unzip `3dmodel/sci-fi_o.b._robot_unit_th-icc02_animated.zip`):
 
 ```
-blender -b --factory-startup --python tools/blender/ronie_anims.py -- path/to/scene.gltf models/ronie-anims.glb
-python -I tools/squeeze-anims.py models/ronie-anims.glb models/ronie-anims.glb 1e-4
+blender -b --factory-startup --python scripts/blender/ronie_anims.py -- path/to/scene.gltf models/ronie-anims.glb
+python -I scripts/squeeze-anims.py models/ronie-anims.glb models/ronie-anims.glb 1e-4
 ```
 
 The second step shrinks the export (a quarter less to download) without changing a pose: it drops the keyframes
 the motion between their neighbours already reproduces (checked: no joint ends up more than 0.06° off, at any
 frame) and the channels on non-bone nodes.
 
-The dotted maps' coastline, `js/world-land.json`, is baked from world-atlas's land-50m by `tools/bake-world-land.py`
+The dotted maps' coastline, `js/world-land.json`, is baked from world-atlas's land-50m by `scripts/bake-world-land.py`
 (how to run it is at the top of that file).
 
 Poses are written as world-space rotations on top of his idle pose, so edit the angle tables in that script.
-It also saves a `.blend` next to the output; `tools/blender/ronie_preview.py` (body) and `ronie_hands_preview.py` (hands)
+It also saves a `.blend` next to the output; `scripts/blender/ronie_preview.py` (body) and `ronie_hands_preview.py` (hands)
 render poses from it to check them. Fingers: each hand has a finger block (Index1-3) and a thumb; poses for them
 (`FL`/`FR`) are in the script but switched off with `FINGERS = False`.
 
@@ -99,7 +113,7 @@ site falls back to the scripted menu if the worker can't answer. The worker URL 
 After changing your details in data.js (wrangler needs Node 22; this runs it without changing your system Node):
 
 ```
-node tools/ronie-facts.mjs
+node scripts/ronie-facts.mjs
 cd worker
 npx -y -p node@22 -p wrangler@4 -- wrangler deploy
 ```

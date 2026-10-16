@@ -26,7 +26,7 @@
       d.classList.add(ronie || calm ? 'no-intro' : 'intro-on');
     })();
   </script>
-  <link rel="stylesheet" href="css/style.css?v=20261014770000">
+  <link rel="stylesheet" href="css/style.css?v=20261017010000">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -49,6 +49,7 @@
       <a href="#dashboard" data-route="dashboard">Dashboard</a>
       <a href="#projects" data-route="projects">Projects</a>
       <a href="#library" data-route="library">Library</a>
+      <a href="#tools" data-route="tools">Tools</a>
     </nav>
     <!-- links: a small pill button that grows into a row of icon links (filled in by main.js) -->
     <div class="social" id="social">
@@ -168,6 +169,66 @@
           <h2 class="page-title lib-title" id="lib-certs">Certificates</h2>
           <div class="lib-card"><div class="shelf-wrap"><div class="shelf shelf-certs" id="certs"></div></div></div>
         </section>
+      </div>
+    </section>
+
+    <!-- ============ TOOLS (raunakpatil.com/tools — tools.html sends visitors in; filled by js/tools.js) ============ -->
+    <section class="view tl" data-view="tools" hidden>
+      <div class="page-head">
+        <h1 class="page-title">Tools</h1>
+        <p class="tl-status" id="tl-status"><i></i><span>Fetching the latest…</span></p>
+      </div>
+
+      <div class="tl-news" id="tl-news" aria-busy="true">
+        <article class="card tl-lead" id="tl-lead" aria-label="Top stories">
+          <div class="tl-lead-top">
+            <span class="tl-eyebrow">Latest in AI</span>
+            <span class="tl-lead-nav">
+              <button type="button" id="tl-lead-prev" aria-label="Previous story">‹</button>
+              <button type="button" id="tl-lead-next" aria-label="Next story">›</button>
+            </span>
+          </div>
+          <div class="tl-lead-bars" id="tl-lead-bars"></div>
+          <div class="tl-lead-story" id="tl-lead-story" aria-live="polite"><span class="tl-skel w80"></span><span class="tl-skel w60"></span></div>
+        </article>
+        <div class="tl-wire">
+          <div class="tl-wire-head">
+            <h2>Headlines</h2>
+            <div class="chips" id="tl-topics" role="group" aria-label="Filter headlines"></div>
+          </div>
+          <ol class="tl-wire-list" id="tl-wire-list"><li class="tl-skel-row"></li><li class="tl-skel-row"></li><li class="tl-skel-row"></li><li class="tl-skel-row"></li></ol>
+          <button type="button" class="tl-pill tl-wire-more" id="tl-wire-more" hidden></button>
+        </div>
+      </div>
+
+      <div class="tl-models">
+        <div class="tl-sec-head"><h2>Trending open models</h2><span>on Hugging Face this week</span></div>
+        <div class="tl-strip" id="tl-models"></div>
+      </div>
+
+      <div class="tl-dir">
+        <div class="tl-dir-head">
+          <h2 class="page-title">AI Tools</h2>
+          <label class="tl-search">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+            <input id="tl-search" type="search" placeholder="Search tools" aria-label="Search tools" autocomplete="off" spellcheck="false">
+            <kbd aria-hidden="true">/</kbd>
+          </label>
+          <div class="viewby tl-sort" id="tl-sort" role="group" aria-label="Sort">
+            <span>Sort</span>
+            <button type="button" data-sort="picks" aria-pressed="true">Picks</button>
+            <button type="button" data-sort="new" aria-pressed="false">New</button>
+            <button type="button" data-sort="az" aria-pressed="false">A–Z</button>
+          </div>
+        </div>
+        <div class="tl-filters">
+          <div class="chips" id="tl-price" role="group" aria-label="Filter by price"></div>
+          <div class="chips tl-cats" id="tl-cats" role="group" aria-label="Filter by category"></div>
+        </div>
+        <p class="tl-count" id="tl-count"></p>
+        <div class="tl-grid" id="tl-grid"></div>
+        <button type="button" class="tl-pill tl-more" id="tl-more" hidden></button>
+        <p class="tl-foot">Headlines and trending models update by themselves through the day; each one links to where it was published. The tools are picked by Raunak and refreshed every few weeks — last on <span id="tl-updated">…</span>.</p>
       </div>
     </section>
 
@@ -339,7 +400,7 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261014770000"></script>
-  <script src="js/main.js?v=20261014770000" defer></script>
+  <script src="js/data.js?v=20261017010000"></script>
+  <script src="js/main.js?v=20261017010000" defer></script>
 </body>
 </html>

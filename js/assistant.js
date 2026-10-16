@@ -2541,6 +2541,7 @@ const PLACES = [
   { label: 'GitHub', href: () => linkOf('GitHub'), test: /git\s?hub/i },
   { label: 'YouTube channel', href: () => linkOf('YouTube'), test: /youtube channel|eldritch lore/i },
   { label: 'Instagram', href: () => linkOf('Instagram'), test: /instagram/i },
+  { label: 'AI news & tools', href: () => '#tools', test: /tools page|ai news|latest (ai )?(news|headlines)|\/tools\b|(directory|list) of (ai )?tools/i },
 ];
 function linksFor(reply) {
   const out = [];
@@ -2580,7 +2581,7 @@ function linkRow(links) {
     const a = document.createElement('a');
     a.className = 'rai-link';
     a.href = l.href;
-    if (!l.href.startsWith('mailto:')) { a.target = '_blank'; a.rel = 'noopener'; }
+    if (/^https?:/.test(l.href)) { a.target = '_blank'; a.rel = 'noopener'; }   // (his own pages, #…, open right here)
     a.textContent = l.label;
     a.insertAdjacentHTML('beforeend', '<span aria-hidden="true">↗</span>');
     a.style.animationDelay = `${i * 60}ms`;
