@@ -226,23 +226,29 @@ async function google(env, g, system, messages, opts) {
 // Workers AI's free daily allowance is used up (error 4006) — resets at 00:00 UTC
 const quotaGone = (err) => /4006|daily free allocation/i.test(String(err && err.message || err));
 
-// Radar's card backs: what a tool does, in plain words — written by the model the first time anyone turns that card
-// over, then kept in KV for everyone. The page only sends which tool; its name and description are looked up in the
-// site's own data (one entry to a line there, so a text search finds it without reading the whole file).
+// Radar's card backs: what a tool does, in plain words — written by the model once per tool (when someone turns that
+// card over, or ahead of time by the cron, most-seen tools first), then kept in KV for everyone. The page only sends
+// which tool; its name and description are looked up in the site's own data (one entry to a line there, so a text
+// search finds it without reading the whole file).
 const SITE = 'https://raunakpatil.com';
 const KINDS = { pick: 'an AI product', gh: 'an open-source project on GitHub', hf: 'an app on Hugging Face Spaces', ph: 'a product launched on Product Hunt' };
+const files = new Map();   // (this copy of the worker keeps each file for ten minutes)
 async function siteFile(path) {
+  const kept = files.get(path);
+  if (kept && kept.until > Date.now()) return kept.text;
   const r = await fetch(`${SITE}/${path}`, { cf: { cacheTtl: 3600, cacheEverything: true } });
   if (!r.ok) throw new Error(`${path}: ${r.status}`);
-  return r.text();
+  const text = await r.text();
+  files.set(path, { text, until: Date.now() + 10 * 6e4 });
+  return text;
 }
+const lineAt = (text, at) => text.slice(text.lastIndexOf('\n', at) + 1, text.indexOf('\n', at)).trim().replace(/,$/, '');
 async function lookUp(src, id) {
   if (src === 'pick') {
     const text = await siteFile('data/tools.json');
     const at = text.indexOf(`"n": ${JSON.stringify(id)},`);
     if (at < 0) return null;
-    const line = text.slice(text.lastIndexOf('\n', at) + 1, text.indexOf('\n', at)).trim().replace(/,$/, '');
-    const t = JSON.parse(line);
+    const t = JSON.parse(lineAt(text, at));
     return { name: t.n, desc: t.d };
   }
   const text = await siteFile('data/catalog.json');
@@ -250,7 +256,7 @@ async function lookUp(src, id) {
   if (from < 0) return null;
   const at = text.indexOf(`,${JSON.stringify(id)},`, from);
   if (at < 0) return null;
-  const row = JSON.parse(text.slice(text.lastIndexOf('\n', at) + 1, text.indexOf('\n', at)).trim().replace(/,$/, ''));
+  const row = JSON.parse(lineAt(text, at));
   return { name: row[0], desc: row[2] };
 }
 const EXPLAIN = `You explain AI tools to people new to them, in plain, friendly words.
@@ -259,6 +265,11 @@ Sentence one: what it concretely does — start with a verb ("Turns PDFs into...
 Sentence two: who it's handy for or when — start with "Handy", "Useful", "Good" or "Great".
 Use only what you're given; never invent features, prices, numbers or claims. Don't copy the description's wording, don't name the tool, and never say "this tool", "this software" or "you would use it".
 Plain text only: no quotes, markdown, emoji or lists.`;
+const tidyText = (raw, n) => raw.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/[*_`#>]+/g, '').replace(/^["'“]+|["'”]+$/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
+async function writeExplanation(env, src, tool) {
+  const raw = await generate(env, EXPLAIN, [{ role: 'user', content: `Tool: ${tool.name}\nWhat it is: ${KINDS[src]}\nIts own description: ${tool.desc}` }], { maxTokens: 90, temperature: 0.3 });
+  return tidyText(raw, 260);
+}
 async function explain(request, env, ctx, cors) {
   let body;
   try { body = await request.json(); } catch { return json({ error: 'bad request' }, 400, cors); }
@@ -276,9 +287,7 @@ async function explain(request, env, ctx, cors) {
   try { tool = await lookUp(src, id); } catch { return json({ error: 'unavailable' }, 503, cors); }
   if (!tool) return json({ error: 'not found' }, 404, cors);
   try {
-    const opts = { maxTokens: 90, temperature: 0.3 };
-    const raw = await generate(env, EXPLAIN, [{ role: 'user', content: `Tool: ${tool.name}\nWhat it is: ${KINDS[src]}\nIts own description: ${tool.desc}` }], opts);
-    const text = raw.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/[*_`#>]+/g, '').replace(/^["'“]+|["'”]+$/g, '').replace(/\s+/g, ' ').trim().slice(0, 260);
+    const text = await writeExplanation(env, src, tool);
     if (!text) return json({ error: 'empty' }, 502, cors);
     if (env.FEED) ctx.waitUntil(env.FEED.put(kvKey, text).catch(() => {}));
     return json({ text }, 200, cors);
@@ -287,7 +296,88 @@ async function explain(request, env, ctx, cors) {
   }
 }
 
-// the Tools page's headlines and trending models (feed.js): rebuilt every half hour by the cron trigger into KV
+// ahead of time: each half-hour run writes the next few that nobody has turned over yet — the hand-picked tools, then
+// the catalogue in the order the directory shows it — picking up where the last run stopped (KV: ex2-cursor). Once
+// through, it rests three days, then starts again for whatever is new.
+const PREWARM = 8;
+async function prewarm(env) {
+  if (!env.FEED) return;
+  const cur = JSON.parse((await env.FEED.get('ex2-cursor')) || '{"file":"tools","at":0}');
+  if (cur.rest && cur.rest > Date.now()) return;
+  const next = async () => {
+    const path = cur.file === 'tools' ? 'data/tools.json' : 'data/catalog.json';
+    const text = await siteFile(path);
+    while (cur.at < text.length) {
+      const end = text.indexOf('\n', cur.at);
+      const line = text.slice(cur.at, end < 0 ? text.length : end).trim().replace(/,$/, '');
+      const at = cur.at;
+      cur.at = end < 0 ? text.length : end + 1;
+      if (cur.file === 'tools' && line.startsWith('{ "n": ')) { const t = JSON.parse(line); return { src: 'pick', id: t.n, tool: { name: t.n, desc: t.d } }; }
+      if (cur.file === 'catalog' && line.startsWith('[')) {
+        const head = text.lastIndexOf('": [', at), src = text.slice(text.lastIndexOf('"', head - 1) + 1, head);
+        const r = JSON.parse(line);
+        if (KINDS[src]) return { src, id: r[1], tool: { name: r[0], desc: r[2] } };
+      }
+    }
+    if (cur.file === 'tools') { cur.file = 'catalog'; cur.at = 0; return next(); }
+    return null;
+  };
+  let written = 0;
+  try {
+    for (let guard = 0; written < PREWARM && guard < 200; guard++) {
+      const item = await next();
+      if (!item) { Object.assign(cur, { file: 'tools', at: 0, rest: Date.now() + 3 * 864e5 }); break; }
+      const kvKey = `ex2:${item.src}:${item.id}`;
+      if (await env.FEED.get(kvKey)) continue;
+      const text = await writeExplanation(env, item.src, item.tool);
+      if (text) { await env.FEED.put(kvKey, text); written++; }
+    }
+  } catch (err) {
+    console.log(`prewarm stopped: ${err && err.message || err}`);   // (the model's allowance, most likely: next run)
+  }
+  await env.FEED.put('ex2-cursor', JSON.stringify(cur));
+}
+
+// Ask Radar: a request in plain words, and the few dozen tools the page found likeliest; the model chooses the best
+// few and says why each fits. Every tool is looked up again here — only what's in the site's own data is suggested.
+const ASK = `You help people find the right AI tool. You get a request and a numbered list of tools, each with what it does.
+Choose up to 4 tools from the list that best fit the request, the best first. Only choose from the list; if none really fit, choose none.
+Prefer ready-to-use products and apps over code projects, unless the request is about building, coding or self-hosting.
+Reply with JSON only, no other text: [{"n": <its number>, "why": "<one short sentence, under 16 words, on why it fits this request>"}]`;
+async function askRadar(request, env, cors) {
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'bad request' }, 400, cors); }
+  const q = String(body && body.q || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  const keys = (Array.isArray(body && body.keys) ? body.keys : []).slice(0, 40).map(String).filter((k) => /^(pick|gh|hf|ph):.{1,120}$/.test(k));
+  if (!q || !keys.length) return json({ error: 'bad request' }, 400, cors);
+  if (env.LIMITER) {
+    const { success } = await env.LIMITER.limit({ key: `ask:${request.headers.get('CF-Connecting-IP') || 'anon'}` });
+    if (!success) return json({ error: 'slow down' }, 429, cors);
+  }
+  let tools;
+  try {
+    tools = (await Promise.all(keys.map(async (k) => {
+      const i = k.indexOf(':');
+      const t = await lookUp(k.slice(0, i), k.slice(i + 1));
+      return t && { key: k, ...t };
+    }))).filter(Boolean);
+  } catch { return json({ error: 'unavailable' }, 503, cors); }
+  if (!tools.length) return json({ picks: [] }, 200, cors);
+  try {
+    const KIND = { pick: 'product', gh: 'open-source code project', hf: 'web app (Hugging Face Space)', ph: 'product' };
+    const list = tools.map((t, i) => `${i + 1}. ${t.name} [${KIND[t.key.split(':')[0]]}] — ${t.desc}`).join('\n');
+    const raw = await generate(env, ASK, [{ role: 'user', content: `Request: ${q}\n\nTools:\n${list}` }], { maxTokens: 260, temperature: 0.2 });
+    const found = JSON.parse((raw.replace(/<think>[\s\S]*?<\/think>/g, '').match(/\[[\s\S]*\]/) || ['[]'])[0]);
+    const seen = new Set();
+    const picks = (Array.isArray(found) ? found : []).map((p) => ({ t: tools[(p && +p.n) - 1], why: tidyText(String(p && p.why || ''), 140) }))
+      .filter((p) => p.t && !seen.has(p.t.key) && seen.add(p.t.key)).slice(0, 4).map((p) => ({ key: p.t.key, why: p.why }));
+    return json({ picks }, 200, cors);
+  } catch (err) {
+    return json({ error: quotaGone(err) ? 'quota' : 'unavailable' }, 503, cors);
+  }
+}
+
+// Radar's headlines and trending models (feed.js): rebuilt every half hour by the cron trigger into KV
 // (FEED), so /feed is a quick read; each copy of the worker also keeps the last one in memory for a few minutes
 const FEED_KEY = 'feed-v1';
 let feedMemo = { until: 0, body: '' };
@@ -324,6 +414,10 @@ export default {
     if (request.method === 'POST' && path === '/explain') {
       if (!ALLOWED.includes(origin)) return json({ error: 'forbidden' }, 403, cors);
       return explain(request, env, ctx, cors);
+    }
+    if (request.method === 'POST' && path === '/ask') {
+      if (!ALLOWED.includes(origin)) return json({ error: 'forbidden' }, 403, cors);
+      return askRadar(request, env, cors);
     }
     if (request.method !== 'POST' || !['/chat', '/pick'].includes(path)) return json({ error: 'not found' }, 404, cors);
     if (!ALLOWED.includes(origin)) return json({ error: 'forbidden' }, 403, cors);
@@ -381,8 +475,8 @@ export default {
       return json({ error: quotaGone(err) ? 'quota' : 'unavailable' }, 503, cors);
     }
   },
-  // every half hour (wrangler.toml): the Tools page's feed, fresh
+  // every half hour (wrangler.toml): Radar's feed, fresh, and a few more card backs written ahead of time
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(refreshFeed(env));
+    ctx.waitUntil(Promise.all([refreshFeed(env), prewarm(env)]));
   },
 };

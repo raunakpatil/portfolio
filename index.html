@@ -21,12 +21,13 @@
     // prefers reduced motion. Decided here, before the first paint, so it never flashes.
     (function () {
       var d = document.documentElement;
+      d.classList.add('js');
       var ronie = /^\/ronie\/?$/.test(location.pathname) || location.hash === '#assistant';
       var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
       d.classList.add(ronie || calm ? 'no-intro' : 'intro-on');
     })();
   </script>
-  <link rel="stylesheet" href="css/style.css?v=20261017110000">
+  <link rel="stylesheet" href="css/style.css?v=20261017151246">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -217,12 +218,14 @@
             <label class="tl-search">
               <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
               <input id="tl-search" type="search" placeholder="Search AI tools" aria-label="Search AI tools" autocomplete="off" spellcheck="false">
+              <button type="button" class="tl-ask" id="tl-ask" hidden>✦ Ask Radar</button>
               <kbd aria-hidden="true">/</kbd>
             </label>
             <div class="tl-dds" id="tl-dds"></div>
             <button type="button" class="tl-clear" id="tl-clear" hidden>Clear</button>
           </div>
         </div>
+        <div class="tl-answer" id="tl-answer" aria-live="polite" hidden></div>
         <p class="tl-count" id="tl-count"></p>
         <div class="tl-grid" id="tl-grid"></div>
         <button type="button" class="tl-pill tl-more" id="tl-more" hidden></button>
@@ -398,7 +401,7 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261017110000"></script>
-  <script src="js/main.js?v=20261017110000" defer></script>
+  <script src="js/data.js?v=20261017151246"></script>
+  <script src="js/main.js?v=20261017151246" defer></script>
 </body>
 </html>

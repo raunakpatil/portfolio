@@ -1,7 +1,8 @@
 # Radar (raunakpatil.com/radar): twice a week (Mondays and Thursdays), gather the catalogue of AI tools again —
 # open-source projects on GitHub, apps on Hugging Face Spaces and launches on Product Hunt (scripts/build-catalog.mjs;
 # Product Hunt needs the PRODUCTHUNT_TOKEN secret) — and save a fresh snapshot of the news feed (scripts/build-feed.mjs).
-# Commits only when something changed. Can also be started by hand from the Actions tab.
+# Commits only when something changed; then checks the hand-picked links (scripts/check-links.mjs), keeping an issue
+# open while any look broken. Can also be started by hand from the Actions tab.
 name: Refresh Radar
 on:
   schedule:
@@ -10,6 +11,7 @@ on:
 permissions:
   contents: write
   pages: write
+  issues: write
 concurrency: refresh-radar
 jobs:
   refresh:
@@ -27,14 +29,21 @@ jobs:
         run: node scripts/build-catalog.mjs
       - name: Save the news snapshot
         run: node scripts/build-feed.mjs || true
+      - name: Rebuild /radar's page (its list for search engines)
+        run: node scripts/build-radar-page.mjs
       - name: Commit
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git add data/catalog.json data/feed.json
+          git add data/catalog.json data/catalog-state.json data/feed.json radar.html
           if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Radar: newly added AI tools"
           git push
           gh api -X POST "repos/${{ github.repository }}/pages/builds" || true
+      - name: Check the hand-picked links
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/check-links.mjs

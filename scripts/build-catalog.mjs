@@ -2,9 +2,8 @@
 //  - open-source AI projects on GitHub (the most-starred under a set of AI topics),
 //  - AI apps on Hugging Face Spaces (the most-liked ones that are up and running), and
 //  - AI products launched on Product Hunt (the most upvoted; with a PRODUCTHUNT_TOKEN).
-// Each gets one of the directory's categories from its own words, and two dates at the end of its entry: the day it
-// joined Radar (kept from the last catalogue, today's for a newcomer) and the day it was released — the GitHub
-// project or the Space created, the Product Hunt launch — which drives "New releases". Nothing is listed twice — not a tool already hand-picked,
+// Each gets one of the directory's categories from its own words, the day it was released — the GitHub project or
+// the Space created, the Product Hunt launch, for "New releases" — and how fast it's rising (for the Rising sort). Nothing is listed twice — not a tool already hand-picked,
 // not two entries with the same name or the same description (the most popular one stays), not a copied Space.
 // Run weekly by .github/workflows/refresh-radar.yml, or by hand:
 //   node scripts/build-catalog.mjs     (GITHUB_TOKEN in the environment, or a logged-in `gh`, for GitHub)
@@ -158,18 +157,22 @@ async function producthunt() {
   return out.sort((a, b) => b[3] - a[3]);
 }
 
-/* ---------- once each, and since when ---------- */
+/* ---------- once each, since when, and how fast it's rising ---------- */
+// data/catalog.json is what the page loads: each entry ends with the day it was released and how fast it's rising
+// (stars, likes or upvotes gained a day). What only this script needs — the day each one joined Radar, and its last
+// few counts, to measure the rise — is kept apart, in data/catalog-state.json, so visitors never download it.
 const FILE = new URL('../data/catalog.json', import.meta.url);
+const STATE = new URL('../data/catalog-state.json', import.meta.url);
 const today = new Date().toISOString().slice(0, 10);
 const prev = (() => { try { return JSON.parse(readFileSync(FILE, 'utf8')); } catch { return null; } })();
-// the day each one joined (kept just before its release date in v2 catalogues); the first v2 run used the release date
-const joined = new Map();
+const state = (() => { try { return JSON.parse(readFileSync(STATE, 'utf8')); } catch { return { joined: {}, pop: {} }; } })();
+// (catalogues before v3 kept the joined date in the entry itself)
 if (prev?.v === 2) {
-  for (const r of prev.gh || []) joined.set(`gh:${r[1]}`, r[6]);
-  for (const r of prev.hf || []) joined.set(`hf:${r[1]}`, r[8]);
-  for (const r of prev.ph || []) joined.set(`ph:${r[1]}`, r[8]);
+  for (const r of prev.gh || []) state.joined[`gh:${r[1]}`] ||= r[6];
+  for (const r of prev.hf || []) state.joined[`hf:${r[1]}`] ||= r[8];
+  for (const r of prev.ph || []) state.joined[`ph:${r[1]}`] ||= r[8];
 }
-const since = (key, published) => joined.get(key) || (prev?.v === 2 ? today : published || today);
+const firstRun = !Object.keys(state.joined).length;
 
 const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 const curated = JSON.parse(readFileSync(new URL('../data/tools.json', import.meta.url), 'utf8')).tools;
@@ -185,16 +188,39 @@ const once = (url, name, desc) => {
   return true;
 };
 
+const days = (d) => (Date.parse(today) - Date.parse(d)) / 864e5;
+// a day's gain, measured from a count 3–21 days old; until there is one, for something released in the last 120 days,
+// its average since then (an old giant's lifetime average says nothing about now, so it waits to be measured)
+function rise(key, pop, rel) {
+  const past = (state.pop[key] || []).filter(([d]) => d !== today);
+  const base = past.filter(([d]) => days(d) >= 3 && days(d) <= 21).sort((a, b) => a[0].localeCompare(b[0]))[0];
+  state.pop[key] = [...past.slice(-5), [today, pop]];
+  const r = base ? (pop - base[1]) / days(base[0]) : rel && days(rel) <= 120 ? pop / Math.max(14, days(rel)) : 0;
+  return Math.max(0, Math.round(r * 10) / 10);
+}
+const keep = new Set();
+const entry = (src, r, at) => {
+  const key = `${src}:${r[1]}`, rel = r[at] || '';
+  keep.add(key);
+  state.joined[key] ||= firstRun ? rel || today : today;
+  return [...r.slice(0, at), rel, rise(key, r[3], rel)];
+};
+
 const [hfAll, ghAll] = [await spaces(), await github()];
-const phAll = PH_TOKEN ? await producthunt() : (console.log('Product Hunt: no PRODUCTHUNT_TOKEN — keeping the last list'), prev?.ph || []);
-// (when a kept list is reused, its entries already end with [joined, released])
-const released = (r, at) => (r.length > at + 1 ? r[at + 1] : r[at]) || '';
-const repos = ghAll.filter((r) => once(`https://github.com/${r[1]}`, r[0], r[2])).map((r) => [...r.slice(0, 6), since(`gh:${r[1]}`, r[6]), released(r, 6)]);
-const hf = hfAll.filter((r) => once(`https://huggingface.co/spaces/${r[1]}`, r[0], r[2])).map((r) => [...r.slice(0, 8), since(`hf:${r[1]}`, r[8]), released(r, 8)]);
-const ph = phAll.filter((r) => once(r[7], r[0], r[2])).map((r) => [...r.slice(0, 8), since(`ph:${r[1]}`, r[8]), released(r, 8)]);
-const added = [...repos.map((r) => r[6]), ...hf.map((r) => r[8]), ...ph.map((r) => r[8])].filter((d) => d === today).length;
-// one entry to a line, so each week's change is a small diff
+// (without a token, the last list is kept — brought back to the shape the fetch gives: released last)
+const phAll = PH_TOKEN ? await producthunt() : (console.log('Product Hunt: no PRODUCTHUNT_TOKEN — keeping the last list'),
+  (prev?.ph || []).map((r) => [...r.slice(0, 8), prev.v === 2 ? r[9] || r[8] : r[8]]));
+const repos = ghAll.filter((r) => once(`https://github.com/${r[1]}`, r[0], r[2])).map((r) => entry('gh', r, 6));
+const hf = hfAll.filter((r) => once(`https://huggingface.co/spaces/${r[1]}`, r[0], r[2])).map((r) => entry('hf', r, 8));
+const ph = phAll.filter((r) => once(r[7], r[0], r[2])).map((r) => entry('ph', r, 8));
+const added = [...keep].filter((k) => state.joined[k] === today).length;
+for (const k of Object.keys(state.joined)) if (!keep.has(k)) delete state.joined[k];
+for (const k of Object.keys(state.pop)) if (!keep.has(k)) delete state.pop[k];
+
+// one entry to a line, so each run's change is a small diff
 const lines = (rows) => rows.map((r) => `    ${JSON.stringify(r)}`).join(',\n');
-writeFileSync(FILE, `{\n  "v": 2,\n  "updated": "${today}",\n  "gh": [\n${lines(repos)}\n  ],\n  "hf": [\n${lines(hf)}\n  ],\n  "ph": [\n${lines(ph)}\n  ]\n}\n`);
+writeFileSync(FILE, `{\n  "v": 3,\n  "updated": "${today}",\n  "gh": [\n${lines(repos)}\n  ],\n  "hf": [\n${lines(hf)}\n  ],\n  "ph": [\n${lines(ph)}\n  ]\n}\n`);
+const obj = (o) => Object.keys(o).sort().map((k) => `    ${JSON.stringify(k)}: ${JSON.stringify(o[k])}`).join(',\n');
+writeFileSync(STATE, `{\n  "joined": {\n${obj(state.joined)}\n  },\n  "pop": {\n${obj(state.pop)}\n  }\n}\n`);
 const kept = repos.length + hf.length + ph.length, seen = ghAll.length + hfAll.length + phAll.length;
 console.log(`data/catalog.json: ${repos.length} GitHub projects, ${hf.length} Hugging Face spaces, ${ph.length} Product Hunt launches (${seen - kept} repeats and look-alikes dropped, ${added} new today)`);

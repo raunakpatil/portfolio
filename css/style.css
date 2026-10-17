@@ -1507,6 +1507,11 @@ main { padding: 0 var(--gap) var(--gap); }
    as each one's time runs), the rest as a list beside it; the open models trending this week as small dark tiles;
    then the directory of tools — searched and filtered like the projects, on light cards that lift on hover. */
 .tl .page-head { align-items: center; }
+/* (radar.html's plain list for search engines without the page's script; with it, the real page shows instead) */
+.tl-seo { padding: 0 10px 30px; font-size: 13px; line-height: 1.6; }
+.tl-seo h2 { margin: 18px 0 6px; font-size: 18px; font-weight: 500; }
+.tl-seo h3 { margin: 12px 0 4px; font-size: 14px; font-weight: 500; }
+html.js .tl-seo { display: none; }
 
 .tl-news { --news-h: 380px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--gap); }
 .tl-lead { display: flex; flex-direction: column; height: var(--news-h); padding: 20px 22px 22px; }
@@ -1748,7 +1753,7 @@ main { padding: 0 var(--gap) var(--gap); }
 .tool-icon.emo { font-size: 24px; background: linear-gradient(135deg, var(--g1), var(--g2)); }
 .tool-pop { font-family: var(--mono); font-size: 11px; color: #777; padding: 4px 9px; border-radius: 999px; box-shadow: var(--neu-in-sm); white-space: nowrap; }
 .tool-by { margin-top: -4px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .03em; color: #9a9a9a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.tool.cat h3 { overflow-wrap: anywhere; }
+.tool.cat h3 { overflow-wrap: break-word; min-width: 0; }
 /* a card's two sides, front and back (a tap anywhere turns it over; only its ↗ opens the page), stacked in one cell so
    the card keeps its size, turning over about the vertical axis */
 .tool-card { position: relative; min-width: 0; perspective: 1400px; animation: rise .6s var(--ease) both; }
@@ -1790,6 +1795,54 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
   animation: tl-shimmer 1.4s linear infinite;
 }
 .tl-skel-line.short { width: 62%; }
+/* saving a tool (♥), climbing ones (↑ Rising), and Ask Radar */
+.tool-save {
+  position: relative; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #b5b5b5;
+  box-shadow: var(--neu-in-sm); transition: color .25s, box-shadow .25s, transform .3s var(--ease);
+}
+.tool-save::after { content: ""; position: absolute; inset: -6px; }   /* (a bigger target than it looks) */
+.tool-save svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; transition: fill .25s, transform .35s var(--ease); }
+.tool-save:hover { color: #ff4f6d; box-shadow: var(--neu-out-sm); }
+.tool-save[aria-pressed="true"] { color: #ff4f6d; box-shadow: var(--neu-out-sm); }
+.tool-save[aria-pressed="true"] svg { fill: currentColor; animation: tl-pop .4s var(--ease); }
+@keyframes tl-pop { 40% { transform: scale(1.35); } }
+.tl-saved { color: #ff4f6d; }
+.tool-rise { padding: 4px 9px; border-radius: 999px; background: #e9fbe9; color: #15803d; font-family: var(--mono); font-size: 10.5px; white-space: nowrap; box-shadow: var(--neu-out-sm); }
+.tl-ask {
+  flex: none; height: 30px; padding: 0 13px; border-radius: 999px; background: #111; color: #fff; font-size: 12.5px; white-space: nowrap;
+  box-shadow: var(--key); transition: transform .3s var(--ease), background .3s; animation: tl-in .4s cubic-bezier(.16, 1, .3, 1) both;
+}
+.tl-ask:hover { background: #222; transform: translateY(-1px); }
+.tl-ask[hidden] { display: none; }
+.tl-answer { margin: 16px 10px 0; padding: 16px 18px 12px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--neu-out-sm); animation: tl-in .5s cubic-bezier(.16, 1, .3, 1) both; }
+.tl-answer[hidden] { display: none; }
+.tl-answer-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: #6b6b6b; }
+.tl-answer-head b { color: #111; font-weight: 500; }
+.tl-answer-x { width: 28px; height: 28px; border-radius: 50%; font-size: 18px; line-height: 1; color: #888; box-shadow: var(--neu-in-sm); }
+.tl-answer-x:hover { color: #111; }
+.tl-answer-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin-top: 12px; }
+.tl-answer-list a {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #fafafa;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .05); transition: box-shadow .3s, transform .35s var(--ease); animation: rise .5s var(--ease) both;
+}
+.tl-answer-list li:nth-child(2) a { animation-delay: 60ms; }
+.tl-answer-list li:nth-child(3) a { animation-delay: 120ms; }
+.tl-answer-list li:nth-child(4) a { animation-delay: 180ms; }
+.tl-answer-list a:hover { box-shadow: var(--neu-out-sm); transform: translateY(-2px); }
+.tl-answer-list .tool-icon { flex: none; width: 40px; height: 40px; border-radius: 11px; }
+.tl-answer-list .tool-icon img { inset: 7px; width: 26px; height: 26px; }
+.tl-answer-list .tool-icon img.av { inset: 0; width: 100%; height: 100%; border-radius: 11px; }
+.tl-answer-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.tl-answer-t b { font-size: 14px; font-weight: 500; }
+.tl-answer-t span { font-size: 12.5px; line-height: 1.4; color: #6b6b6b; }
+.tl-answer-list .ar { color: #a5a5a5; transition: transform .3s var(--ease), color .3s; }
+.tl-answer-list a:hover .ar { transform: translate(2px, -2px); color: #111; }
+.tl-answer-wait { display: flex; gap: 6px; padding: 18px 2px 8px; }
+.tl-answer-wait i { width: 7px; height: 7px; border-radius: 50%; background: #bbb; animation: tl-dots 1.2s ease-in-out infinite; }
+.tl-answer-wait i:nth-child(2) { animation-delay: .15s; }
+.tl-answer-wait i:nth-child(3) { animation-delay: .3s; }
+@keyframes tl-dots { 0%, 80%, 100% { opacity: .3; transform: none; } 40% { opacity: 1; transform: translateY(-3px); } }
+.tl-answer-none { padding: 12px 2px 6px; font-size: 13px; color: #777; }
 .tl-more { margin-top: 22px; }
 .tl-none-box { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 64px 0; color: #777; }
 .tl-empty { grid-column: 1 / -1; padding: 48px 20px; text-align: center; color: #777; }
@@ -1844,6 +1897,9 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
   .tl-dd-menu, .tl-dd-menu.left { position: fixed; top: auto; left: 12px; right: 12px; bottom: 12px; max-height: 62vh; border-radius: 20px; transform: translateY(16px); }
   .tl-dd-menu [role="option"] { padding: 12px 14px; font-size: 14px; }
   .tl-search kbd { display: none; }
+  .tl-answer { margin: 14px 0 0; padding: 14px; }
+  .tool-rise { display: none; }   /* (no room beside the name; the Rising sort still has them) */
+  .tl-answer-list { grid-template-columns: minmax(0, 1fr); }
   .tl-grid { grid-template-columns: minmax(0, 1fr); }
   /* phones: each tool a compact row — icon, name and flags, the line about it, then its category and price */
   .tool { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 4px 14px; min-height: 0; padding: 14px; }

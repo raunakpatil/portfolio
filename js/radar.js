@@ -41,7 +41,9 @@ async function getFeed() {
 }
 const tools = fetch(`data/tools.json${V ? `?v=${V}` : ''}`).then((r) => r.json());
 // the long list (data/catalog.json, scripts/build-catalog.mjs, refreshed weekly) — fetched alongside, shown when in
-const catalog = fetch(`data/catalog.json${V ? `?v=${V}` : ''}`).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+let startCatalog;
+const catalog = new Promise((done) => { startCatalog = () => done(fetch(`data/catalog.json${V ? `?v=${V}` : ''}`).then((r) => (r.ok ? r.json() : null)).catch(() => null)); });
+const idle = (f) => (window.requestIdleCallback ? requestIdleCallback(f, { timeout: 1200 }) : setTimeout(f, 300));
 const feed = getFeed().catch(() => ({ news: [], models: [], live: false }));
 
 /* ---------- latest in AI ---------- */
@@ -200,12 +202,14 @@ const GH_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10
 const SOURCES = {
   all: ['Everything', ''],
   star: ["Raunak's picks", '<span class="tl-star" aria-hidden="true">★</span>'],
+  saved: ['Saved', '<span class="tl-saved" aria-hidden="true">♥</span>'],
   pick: ['Hand-picked', ''],
   gh: ['GitHub', GH_SVG],
   hf: ['Hugging Face', '<span aria-hidden="true">🤗</span>'],
   ph: ['Product Hunt', '<span class="tl-ph" aria-hidden="true">P</span>'],
 };
-const SORTS = { picks: 'Featured', az: 'A–Z', new: 'Newest' };
+const SORTS = { picks: 'Featured', rising: 'Rising', az: 'A–Z', new: 'Newest' };
+const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/></svg>';
 const GRAD = { red: '#fda4af', yellow: '#fde68a', green: '#86efac', blue: '#93c5fd', indigo: '#a5b4fc', purple: '#d8b4fe', pink: '#f9a8d4', gray: '#e5e7eb' };
 const fmt = (n) => n.toLocaleString('en-US');
 // (a Space's icon is sometimes several emoji: just the first)
@@ -262,7 +266,12 @@ function renderDirectory(T, catalogP) {
   const grid = $('#tl-grid'), more = $('#tl-more'), count = $('#tl-count'), search = $('#tl-search'), clear = $('#tl-clear');
   const keyOf = (t) => `${t.n} ${t.d} ${T.categories[t.c]} ${PRICES[t.p] || ''} ${t.uses || ''} ${t.by || ''}`.toLowerCase();
 
-  const curated = T.tools.map((t, i) => ({ ...t, src: 'pick', i, date: t.added }));
+  const curated = T.tools.map((t, i) => ({ ...t, src: 'pick', i }));
+  let rising = new Set();
+  // saved tools: kept in this browser only
+  const SAVE_KEY = 'radar-saved';
+  const saved = new Set((() => { try { return JSON.parse(localStorage.getItem(SAVE_KEY) || '[]'); } catch { return []; } })());
+  const keepSaved = () => { try { localStorage.setItem(SAVE_KEY, JSON.stringify([...saved])); } catch { /* private window: this visit only */ } };
   let all = curated.map((t) => ({ ...t, key: keyOf(t) }));
 
   // the catalogue joins when it arrives (it's the bigger file); anything already hand-picked isn't listed twice
@@ -277,15 +286,18 @@ function renderDirectory(T, catalogP) {
       known.add(k); known.add(u);
       return true;
     });
-    const gh = take(C.gh || [], ([n, full, d, stars, c, oid, date, rel]) => ({ n, u: `https://github.com/${full}`, d, c, p: 'open', src: 'gh', pop: stars, oid, by: full.split('/')[0], date, rel }));
-    const hf = take(C.hf || [], ([n, id, d, likes, c, emoji, from, to, date, rel]) => ({ n, u: `https://huggingface.co/spaces/${id}`, d, c, p: 'free', src: 'hf', pop: likes, emoji, from, to, by: id.split('/')[0], date, rel }));
+    const gh = take(C.gh || [], ([n, full, d, stars, c, oid, rel, rise]) => ({ n, u: `https://github.com/${full}`, d, c, p: 'open', src: 'gh', pop: stars, oid, by: full.split('/')[0], rel, rise }));
+    const hf = take(C.hf || [], ([n, id, d, likes, c, emoji, from, to, rel, rise]) => ({ n, u: `https://huggingface.co/spaces/${id}`, d, c, p: 'free', src: 'hf', pop: likes, emoji, from, to, by: id.split('/')[0], rel, rise }));
     // in turns: the nth-most-popular GitHub project sits by the nth-most-liked Space
     gh.forEach((t, k) => { t.rank = k / gh.length; });
     // (Product Hunt's price label, where it gives one: otherwise "price on site")
-    const ph = take(C.ph || [], ([n, slug, d, votes, c, thumb, p, link, date, rel]) => ({ n, u: link, d, c, p: p || 'na', src: 'ph', pop: votes, thumb, slug, by: 'Product Hunt', date, rel: rel || date }));
+    const ph = take(C.ph || [], ([n, slug, d, votes, c, thumb, p, link, rel, rise]) => ({ n, u: link, d, c, p: p || 'na', src: 'ph', pop: votes, thumb, slug, by: 'Product Hunt', rel, rise }));
     hf.forEach((t, k) => { t.rank = (k + 0.5) / hf.length; });
     ph.forEach((t, k) => { t.rank = (k + 0.25) / ph.length; });
+    // rising: in turns again, the fastest-climbing of each place first (its stars, likes or upvotes gained a day)
+    for (const list of [gh, hf, ph]) [...list].sort((a, b) => (b.rise || 0) - (a.rise || 0)).forEach((t, k, arr) => { t.riseRank = (k + 0.5) / arr.length; });
     const extra = [...gh, ...hf, ...ph].sort((a, b) => a.rank - b.rank).map((t, k) => ({ ...t, i: curated.length + k }));
+    rising = new Set(extra.filter((t) => t.rise > 0).sort((a, b) => a.riseRank - b.riseRank).slice(0, 24).map((t) => t.i));
     all = [...all, ...extra.map((t) => ({ ...t, key: keyOf(t) }))];
     rankAll();
     search.placeholder = `Search ${fmt(all.length)} AI tools`;
@@ -293,14 +305,17 @@ function renderDirectory(T, catalogP) {
     draw();
   });
 
-  const inSrc = (t, s) => s === 'all' || (s === 'star' ? t.pick : t.src === s);
+  const inSrc = (t, s) => s === 'all' || (s === 'star' ? t.pick : s === 'saved' ? saved.has(keyFor(t)) : t.src === s);
   const matches = (t, skip) => (skip === 'q' || !S.q || S.q.split(/\s+/).every((w) => t.key.includes(w)))
     && (skip === 'src' || inSrc(t, S.src))
     && (skip === 'price' || S.price === 'all' || t.p === S.price)
     && (skip === 'cat' || S.cat === 'all' || t.c === S.cat);
   // the three ways in: Raunak's top 20, everything, or what's newly released (in the last NEW_DAYS days)
   // (new releases: released — the project or Space created, the product launched — in the last NEW_DAYS days)
-  const isFresh = (t) => t.rel && Date.now() - Date.parse(t.rel) < NEW_DAYS * 864e5;
+  // (and only real launches: a proper description, a GitHub project that's about AI, a Space people have liked)
+  const AI_WORDS = /\b(ai|llms?|gpt[\w.-]*|agents?|agentic|models?|neural|ml|machine learning|deep learning|diffusion|transformers?|rag|embeddings?|chatbots?|vision|speech|tts|asr|stt|generative|prompts?|copilot|openai|anthropic|claude|gemini|llama|mistral|qwen|deepseek|ollama|langchain|inference|nlp|mcp|ocr|text-to-\w+|image-to-\w+|voice|lora|fine-?tun\w*|multimodal|reasoning|semantic)\b/i;
+  const isFresh = (t) => t.rel && Date.now() - Date.parse(t.rel) < NEW_DAYS * 864e5 && (t.d || '').length >= 24
+    && (t.src === 'gh' ? AI_WORDS.test(`${t.n} ${t.d}`) : t.src === 'hf' ? t.pop >= 50 : t.src !== 'pick');
   const pool = () => (S.view === 'top' ? all.filter((t) => t.pick) : S.view === 'new' ? all.filter(isFresh) : all);
   const tally = (skip, test) => pool().reduce((n, t) => n + (matches(t, skip) && test(t) ? 1 : 0), 0);
   const views = $('#tl-views');
@@ -317,7 +332,7 @@ function renderDirectory(T, catalogP) {
     S.view = b.dataset.v;
     $('.tl-bar').classList.toggle('top', S.view === 'top');
     $('.tl-bar').classList.toggle('new', S.view === 'new');
-    set('limit', 24);
+    set('view', S.view);
   });
 
   const bar = $('#tl-dds');
@@ -421,7 +436,7 @@ function renderDirectory(T, catalogP) {
       <div class="tool tool-front${t.src === 'pick' ? '' : ' cat'}" role="button" tabindex="0" aria-label="${esc(t.n)} — turn over for details">
       <span class="tool-top">
         ${icon(t)}
-        <span class="tool-flags">${rank}${t.uses ? `<span class="tool-uses">${esc(t.uses)}</span>` : ''}${isNew ? '<span class="tool-new">New</span>' : ''}${t.pick ? '<span class="tool-pick" title="One of Raunak\'s picks">★</span>' : ''}${pop}<a class="tool-go" href="${esc(t.u)}" target="_blank" rel="noopener" aria-label="Open ${esc(t.n)} (${esc(host(t.u))})" title="Open ${esc(host(t.u))}">↗</a></span>
+        <span class="tool-flags">${rank}${t.uses ? `<span class="tool-uses">${esc(t.uses)}</span>` : ''}${isNew ? '<span class="tool-new">New</span>' : ''}${t.pick ? '<span class="tool-pick" title="One of Raunak\'s picks">★</span>' : ''}${rising.has(t.i) && S.sort !== 'rising' ? '<span class="tool-rise" title="Climbing fast right now">↑ Rising</span>' : ''}${pop}<button type="button" class="tool-save" aria-pressed="${saved.has(keyFor(t))}" aria-label="Save ${esc(t.n)}" title="Save">${HEART}</button><a class="tool-go" href="${esc(t.u)}" target="_blank" rel="noopener" aria-label="Open ${esc(t.n)} (${esc(host(t.u))})" title="Open ${esc(host(t.u))}">↗</a></span>
       </span>
       <h3>${esc(t.n)}</h3>
       ${t.src === 'ph' ? `<span class="tool-by">Product Hunt${when}</span>` : t.by ? `<span class="tool-by">${t.src === 'gh' ? 'GitHub' : 'Hugging Face'} · ${esc(t.by)}${when}</span>` : when ? `<span class="tool-by">Added${when}</span>` : ''}
@@ -453,11 +468,20 @@ function renderDirectory(T, catalogP) {
   grid.addEventListener('click', (e) => {
     const c = e.target.closest('.tool-card');
     if (!c || e.target.closest('.tool-go')) return;   // (↗ only opens the page)
+    const sv = e.target.closest('.tool-save');
+    if (sv) {   // (♥ saves it, or lets it go)
+      const k = keyFor(byI.get(+c.dataset.i));
+      if (saved.has(k)) saved.delete(k); else saved.add(k);
+      keepSaved();
+      sv.setAttribute('aria-pressed', String(saved.has(k)));
+      if (S.src === 'saved') draw();
+      return;
+    }
     turn(c, !c.classList.contains('flipped'));
   });
   grid.addEventListener('keydown', (e) => {
     const side = e.target.closest('.tool-front, .tool-back');
-    if (!side || e.target.closest('.tool-go')) return;
+    if (!side || e.target.closest('.tool-go, .tool-save')) return;
     if (e.key === 'Enter' || e.key === ' ' || (e.key === 'Escape' && side.classList.contains('tool-back'))) {
       e.preventDefault();
       turn(side.closest('.tool-card'), side.classList.contains('tool-front'));
@@ -470,13 +494,17 @@ function renderDirectory(T, catalogP) {
     items = top ? items.sort((a, b) => a.i - b.i)
       : S.view === 'new' ? items.sort((a, b) => b.rel.localeCompare(a.rel) || a.i - b.i)
       : S.sort === 'az' ? items.sort((a, b) => a.n.localeCompare(b.n))
+      : S.sort === 'rising' ? items.sort((a, b) => (a.riseRank ?? 2) - (b.riseRank ?? 2) || a.i - b.i)
       : S.sort === 'new' ? items.sort((a, b) => (b.added || '').localeCompare(a.added || '') || a.i - b.i)
       : items.sort((a, b) => (a.src === 'pick' && b.src === 'pick' ? (b.pick ? 1 : 0) - (a.pick ? 1 : 0) : 0) || a.i - b.i);
     count.textContent = top ? `Raunak's top ${items.length} · ${day(T.updated)}` : S.view === 'new' ? `${fmt(items.length)} new releases · newest first` : `${fmt(items.length)} of ${fmt(all.length)}`;
     const n = Math.min(items.length, S.limit);
     const sig = `${S.view}|${items.slice(0, n).map((t) => t.i).join()}|${S.q}`;
     if (sig !== shownSig) {   // (the catalogue arriving under an unchanged first screen redraws nothing)
-      grid.innerHTML = items.slice(0, n).map(card).join('') || `<div class="tl-none-box"><p>Nothing matches${S.q ? ` “${esc(S.q)}”` : ''}.</p><button type="button" class="tl-pill" id="tl-reset">Clear the filters</button></div>`;
+      grid.innerHTML = items.slice(0, n).map(card).join('') || (S.src === 'saved' && !saved.size
+        ? '<div class="tl-none-box"><p>Nothing saved yet — tap the ♥ on any tool to keep it here.</p></div>'
+        : !$('#tl-answer').hidden ? '<div class="tl-none-box"><p>Radar&rsquo;s suggestions are just above — or clear the search to browse everything.</p><button type="button" class="tl-pill" id="tl-reset">Clear the search</button></div>'
+        : `<div class="tl-none-box"><p>Nothing matches${S.q ? ` “${esc(S.q)}”` : ''}.</p><button type="button" class="tl-pill" id="tl-reset">Clear the filters</button></div>`);
       shownN = n;
       shownSig = sig;
     }
@@ -494,8 +522,33 @@ function renderDirectory(T, catalogP) {
     more.hidden = items.length <= S.limit;
     more.textContent = `Show more · ${fmt(shownN)} of ${fmt(items.length)}`;
   });
-  const set = (k, v) => { S[k] = v; S.limit = 24; draw(); };
-  const reset = () => { Object.assign(S, { q: '', src: 'all', price: 'all', cat: 'all', limit: 24 }); search.value = ''; draw(); };
+  const set = (k, v) => { S[k] = v; S.limit = 24; draw(); toURL(k !== 'q'); };
+  const reset = () => { Object.assign(S, { q: '', src: 'all', price: 'all', cat: 'all', limit: 24 }); search.value = ''; draw(); toURL(true); };
+  // a view of the directory is a link: raunakpatil.com/radar?view=new&cat=video&price=free — and back steps back
+  const PARAMS = { view: 'all', q: '', src: 'all', price: 'all', cat: 'all', sort: 'picks' };
+  const onRadar = () => /^\/radar(\.html)?\/?$/.test(location.pathname);
+  function fromURL() {
+    const u = new URLSearchParams(location.search);
+    for (const k of Object.keys(PARAMS)) S[k] = u.get(k) || PARAMS[k];
+    if (!['all', 'top', 'new'].includes(S.view)) S.view = 'all';
+    if (!SOURCES[S.src]) S.src = 'all';
+    if (S.price !== 'all' && !PRICES[S.price]) S.price = 'all';
+    if (S.cat !== 'all' && !T.categories[S.cat]) S.cat = 'all';
+    if (!SORTS[S.sort]) S.sort = 'picks';
+    S.q = S.q.toLowerCase().slice(0, 80);
+    search.value = S.q;
+    $$('[data-v]', views).forEach((x) => x.setAttribute('aria-selected', String(x.dataset.v === S.view)));
+    $('.tl-bar').classList.toggle('top', S.view === 'top');
+    $('.tl-bar').classList.toggle('new', S.view === 'new');
+  }
+  function toURL(push) {
+    if (!onRadar()) return;
+    const u = new URLSearchParams();
+    for (const [k, d] of Object.entries(PARAMS)) if (S[k] && S[k] !== d) u.set(k, S[k]);
+    const url = `/radar${u.toString() ? `?${u}` : ''}`;
+    if (url !== location.pathname + location.search) history[push ? 'pushState' : 'replaceState'](null, '', url);
+  }
+  addEventListener('popstate', () => { if (onRadar()) { fromURL(); S.limit = 24; draw(); } });
   clear.addEventListener('click', reset);
   let qt = 0;
   search.addEventListener('input', () => { clearTimeout(qt); qt = setTimeout(() => set('q', search.value.trim().toLowerCase()), 140); });
@@ -509,13 +562,84 @@ function renderDirectory(T, catalogP) {
   grid.addEventListener('click', (e) => { if (e.target.closest('#tl-reset')) reset(); });
   search.placeholder = `Search ${fmt(all.length)} AI tools`;
   rankAll();
+  fromURL();
   drawViews();
   draw();
+  initAsk({ all: () => all, keyFor, icon, esc, onAnswer: () => { shownSig = ''; draw(); } });
+}
+
+/* ---------- Ask Radar ---------- */
+// Describe what you need ("something to turn my podcast into clips") and Radar suggests a few tools. The page picks the
+// likeliest few dozen by their words; Ronie's worker (POST /ask) reads those and chooses, saying why for each.
+const ASK_URL = (D.assistant?.chatUrl || '').replace(/\/chat$/, '/ask');
+const STOP = new Set('a an and any app apps are best can could do does find for from get give good great help how i if in into is it its like make me my need of on or please recommend something some suggest that the thing this to tool tools use using want way what which with without would you your ai an'.split(' '));
+const ALSO = {
+  podcast: ['audio', 'voice', 'speech'], podcasts: ['audio', 'voice'], clip: ['video', 'short'], clips: ['video', 'short'],
+  photo: ['image', 'picture'], photos: ['image', 'picture'], picture: ['image', 'photo'], pictures: ['image'], image: ['photo', 'picture'],
+  images: ['image', 'photo'], art: ['image', 'drawing'], code: ['coding', 'developer', 'programming'], coding: ['code'],
+  write: ['writing', 'copy', 'text'], writing: ['write', 'copy'], essay: ['writing'], slides: ['presentation', 'deck'],
+  presentation: ['slides', 'deck'], song: ['music', 'audio'], songs: ['music'], music: ['song', 'audio'], meeting: ['notes', 'transcribe', 'transcription'],
+  meetings: ['meeting', 'notes'], notes: ['meeting', 'note'], voice: ['speech', 'tts', 'audio'], video: ['clip', 'film'], videos: ['video'],
+  chat: ['assistant', 'chatbot'], research: ['papers', 'search'], papers: ['research'], pdf: ['document', 'documents'], pdfs: ['pdf', 'document'],
+  translate: ['translation', 'language'], logo: ['brand', 'design'], website: ['site', 'web'], '3d': ['model', 'mesh'],
+  email: ['inbox', 'mail'], emails: ['email', 'inbox'], resume: ['cv', 'job'], transcribe: ['transcription', 'speech'],
+};
+const words = (q) => q.toLowerCase().split(/[^a-z0-9+#]+/).filter((w) => w.length > 1 && !STOP.has(w));
+
+function initAsk({ all, keyFor, icon, esc: e, onAnswer }) {
+  const search = $('#tl-search'), btn = $('#tl-ask'), box = $('#tl-answer');
+  if (!btn || !box || !ASK_URL) return;
+  const ready = () => words(search.value).length >= 2 && search.value.trim().split(/\s+/).length >= 3;
+  const toggle = () => { btn.hidden = !ready(); };
+  search.addEventListener('input', toggle);
+  toggle();
+  // the likeliest few dozen, by their own words (a word's ending is let go, so "podcasts" finds "podcast"): room for
+  // the 16 best of the hand-picked tools and the 20 best of the catalogue, so a polished product isn't crowded out
+  const likely = (q) => {
+    const stem = (w) => (w.length > 5 ? w.slice(0, -2) : w.length > 3 ? w.replace(/s$/, '') : w);
+    const terms = [...new Set(words(q).flatMap((w) => [w, ...(ALSO[w] || [])]).map(stem))];
+    const scored = all().map((t) => {
+      const name = t.n.toLowerCase();
+      let s = 0;
+      for (const w of terms) { if (name.includes(w)) s += 4; if (t.key.includes(w)) s += 2; }
+      if (s) s += t.src === 'pick' ? (t.pick ? 2 : 1) : 1 - (t.rank || 0);
+      return [s, t];
+    }).filter(([s]) => s > 0).sort((a, b) => b[0] - a[0]).map(([, t]) => t);
+    return [...scored.filter((t) => t.src === 'pick').slice(0, 16), ...scored.filter((t) => t.src !== 'pick').slice(0, 20)];
+  };
+  let asked = 0;
+  async function ask() {
+    const q = search.value.trim().slice(0, 200);
+    if (!ready()) return;
+    const n = ++asked;
+    box.hidden = false;
+    box.innerHTML = `<div class="tl-answer-head"><span><b>✦ Radar</b> is looking for “${e(q)}”…</span><button type="button" class="tl-answer-x" aria-label="Close">×</button></div><div class="tl-answer-wait"><i></i><i></i><i></i></div>`;
+    const pool = likely(q);
+    const byKey = new Map(pool.map((t) => [keyFor(t), t]));
+    let picks = [];
+    if (pool.length) {
+      try {
+        const r = await fetch(ASK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q, keys: [...byKey.keys()] }), signal: AbortSignal.timeout(20000) });
+        picks = r.ok ? ((await r.json()).picks || []) : [];
+      } catch { picks = []; }
+    }
+    if (n !== asked) return;   // (a newer question took over)
+    onAnswer?.();
+    const found = picks.map((p) => [byKey.get(p.key), p.why]).filter(([t]) => t);
+    // (if the model can't be reached, the best word matches still help)
+    const list = found.length ? found : pool.slice(0, 4).map((t) => [t, '']);
+    box.innerHTML = `<div class="tl-answer-head"><span><b>✦ Radar</b> suggests, for “${e(q)}”</span><button type="button" class="tl-answer-x" aria-label="Close">×</button></div>`
+      + (list.length ? `<ul class="tl-answer-list">${list.map(([t, why]) => `<li><a href="${e(t.u)}" target="_blank" rel="noopener">${icon(t)}<span class="tl-answer-t"><b>${e(t.n)}</b><span>${e(why || t.d)}</span></span><span class="ar" aria-hidden="true">↗</span></a></li>`).join('')}</ul>`
+        : '<p class="tl-answer-none">Nothing close in the directory — try describing it another way.</p>');
+  }
+  btn.addEventListener('click', ask);
+  search.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && ready()) { ev.preventDefault(); ask(); } });
+  box.addEventListener('click', (ev) => { if (ev.target.closest('.tl-answer-x')) { asked++; box.hidden = true; box.innerHTML = ''; onAnswer?.(); } });
 }
 
 /* ---------- wiring ---------- */
 const ready = Promise.all([
-  tools.then((T) => renderDirectory(T, catalog)).catch((e) => { console.error('Tools list failed', e); $('#tl-grid').innerHTML = '<p class="tl-empty">The tools list didn\'t load. Refresh to try again.</p>'; }),
+  tools.then((T) => { renderDirectory(T, catalog); idle(startCatalog); }).catch((e) => { console.error('Tools list failed', e); $('#tl-grid').innerHTML = '<p class="tl-empty">The tools list didn\'t load. Refresh to try again.</p>'; }),
   feed.then(renderNews),
 ]);
 const leadBox = $('#tl-lead');

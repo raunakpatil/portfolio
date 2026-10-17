@@ -362,7 +362,7 @@
     // Ronie and Radar have their own addresses, raunakpatil.com/ronie and /radar (ronie.html and radar.html send
     // visitors in); every other page is /#page
     const PATHS = { assistant: '/ronie', radar: '/radar' };
-    const onPath = () => Object.keys(PATHS).find((k) => new RegExp(`^${PATHS[k]}/?$`).test(location.pathname));
+    const onPath = () => Object.keys(PATHS).find((k) => new RegExp(`^${PATHS[k]}(\\.html)?/?$`).test(location.pathname));   // (radar.html is /radar's page)
     // old addresses that still work: the Case Study page is now the Library, and Tools is Radar
     const RENAMED = { 'case-study': 'library', tools: 'radar' };
     const go = () => {
@@ -381,6 +381,7 @@
       moveIndicator();
       window.scrollTo(0, 0);
       document.body.dataset.route = r;
+      document.title = r === 'radar' ? 'Radar — AI news, trending models and AI tools · Raunak Patil' : `${D.name} — Portfolio`;
       window.warmView?.(r);
       if (r === 'radar') loadRadar().then((m) => m.open());
       // Ronie (three.js + the robot) only loads when someone actually opens it

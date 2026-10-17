@@ -25,8 +25,9 @@ Then open http://localhost:5173.
 Hosted free on GitHub Pages from the `portfolio` repo, at https://raunakpatil.com
 (the `CNAME` file holds the domain). Every push to `main` goes live within a minute or two.
 
-Browsers cache files for 10 minutes, so `index.html` loads the CSS/JS as `?v=<version>`.
-Change that version (one value, used on all three lines) whenever you publish, so visitors get the new files immediately.
+Browsers cache files for 10 minutes, so `index.html` loads the CSS/JS as `?v=<version>`. Before every push run
+`node scripts/deploy-prep.mjs`: it sets a new version and rebuilds `radar.html` (the page `/radar` serves — a copy of
+`index.html` with Radar's own title and a list for search engines), so the two always match.
 
 DNS for raunakpatil.com (at GoDaddy):
 - `A` records for `@` → `185.199.108.153`, `185.199.109.153`, `185.199.110.153`, `185.199.111.153`
@@ -68,6 +69,19 @@ AI news, trending open models and a directory of AI tools. `radar.html` sends vi
   plain words (written once per tool by Ronie's worker, `POST /explain`, which looks the tool up in the site's own data
   and keeps the answer in KV), how to get it, when it was added, where it ranks and what's like it; only its ↗ opens
   the page. The trending models each take a colour along the skill matrix's spectrum.
+
+- **Rising** (a sort, and a chip on the fastest climbers): each entry's stars, likes or upvotes gained a day, measured
+  from its counts on earlier runs (kept in `data/catalog-state.json`, which visitors never download); until there's
+  history, only things released in the last 120 days count, by their average since release.
+- **Saved**: the ♥ on a card keeps it in this browser (`localStorage`), shown under Source → Saved.
+- **Links to a view**: search, filters and view live in the address (`/radar?view=new&cat=video&price=free`), and the
+  back button steps back through them.
+- **Ask Radar**: a question of three words or more ("something to turn my podcast into clips") shows ✦ Ask Radar; the
+  page picks the likeliest few dozen tools by their words and Ronie's worker (`POST /ask`) chooses the best few, saying
+  why. Card backs are also written ahead of time by the worker's cron, a few each half hour, most-seen tools first.
+- **Broken links**: the Refresh Radar Action checks every hand-picked link (`scripts/check-links.mjs`) and keeps a
+  GitHub issue open listing any that look broken; it closes itself once they answer again.
+- `robots.txt` and `sitemap.xml` point search engines at `/`, `/radar` and `/ronie`.
 
 ## Ronie's surroundings
 By default Ronie stands in front of a picture (neon mountains under a colossal moon, 3:1) behind his transparent
