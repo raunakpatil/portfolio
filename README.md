@@ -66,8 +66,7 @@ AI news, trending open models and a directory of AI tools. `radar.html` sends vi
   `pick`s, in the order they're listed), **Newly added**. A tap turns a card over to its details: what it does in
   plain words (written once per tool by Ronie's worker, `POST /explain`, which looks the tool up in the site's own data
   and keeps the answer in KV), how to get it, when it was added, where it ranks and what's like it; only its ↗ opens
-  the page. Each card takes its category's colour
-  (`CAT_HUE` in `js/radar.js`, along the skill matrix's spectrum).
+  the page. The trending models each take a colour along the skill matrix's spectrum, with their own wave of bars.
 
 ## Ronie's surroundings
 By default Ronie stands in front of a picture (neon mountains under a colossal moon, 3:1) behind his transparent

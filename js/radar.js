@@ -138,14 +138,30 @@ function renderNews(f) {
 
   const strip = $('#tl-models');
   if (!f.models?.length) { strip.closest('.tl-models').hidden = true; return; }
-  const tile = (m, i, copy) => `<a class="tl-model" href="${esc(m.link)}" target="_blank" rel="noopener"${copy ? ' aria-hidden="true" tabindex="-1"' : ''} draggable="false">
+  // each model its own colour, sweeping the skill matrix's spectrum along the strip, and its own wave of bars, lit as
+  // far as it ranks (the first, all of them)
+  const count = f.models.length;
+  const tile = (m, i, copy) => `<a class="tl-model" href="${esc(m.link)}" target="_blank" rel="noopener"${copy ? ' aria-hidden="true" tabindex="-1"' : ''} draggable="false" style="--h:${Math.round((((75 - i * (330 / count)) % 360) + 360) % 360)}">
       <span class="tl-model-top"><span>${esc(m.maker)}</span><span class="tl-rank">${String(i + 1).padStart(2, '0')}</span></span>
       <span class="tl-model-name">${esc(m.name)}</span>
       <span class="tl-model-bot"><span class="tl-task">${esc(m.task)}</span><span class="tl-stats"><span title="Likes">♥ ${short(m.likes)}</span><span title="Downloads last month">↓ ${short(m.downloads)}</span></span></span>
+      ${waveBars(m.id, 1 - i / (count + 2))}
     </a>`;
   // one row that drifts along by itself — twice over, so it runs on without a seam — and can be swiped or dragged
   strip.innerHTML = f.models.map((m, i) => tile(m, i)).join('') + (MOTION ? f.models.map((m, i) => tile(m, i, true)).join('') : '');
   if (MOTION) drift(strip);
+}
+
+// a strip of bars like the skill matrix's: a wave of its own (seeded by a name), lit along to `lit` (0–1), the rest dim
+const seedOf = (s) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) / 4294967296); };
+function waveBars(name, lit) {
+  const rnd = seedOf(name), n = 40, ph1 = rnd() * 6.3, f1 = 0.16 + rnd() * 0.2, ph2 = rnd() * 6.3;
+  let r = '';
+  for (let k = 0; k < n; k++) {
+    const h = 6 + 12 * (0.55 + 0.45 * Math.sin(k * f1 + ph1)) * (0.7 + 0.3 * Math.sin(k * 0.5 + ph2)) + rnd() * 2;
+    r += `<rect x="${k * 4}" y="${(22 - h).toFixed(1)}" width="2.4" height="${h.toFixed(1)}" rx="1.2"${k / n < lit ? ` style="--k:${k}"` : ' class="off"'}/>`;
+  }
+  return `<svg class="tl-bars" viewBox="0 0 160 22" preserveAspectRatio="none" aria-hidden="true">${r}</svg>`;
 }
 
 // the trending strip's drift: ~30 px a second, held while the pointer is on it (or a finger, or the keyboard), and for
@@ -357,9 +373,6 @@ function renderDirectory(T, catalogP) {
   // each card has two sides. A tap anywhere on it turns it over (and back); only its ↗ goes to the tool's page.
   // The back only says what the front doesn't: what it does in plain words (written for each tool by Ronie's worker,
   // /explain, the first time anyone turns it over), how to get it, when it joined, where it ranks, what's like it.
-  // Each category has a colour from the dashboard's skill-matrix spectrum, and at the foot of each card a strip of
-  // bars in it (its own wave), lit as far as the tool is popular in its own place.
-  const CAT_HUE = { chat: 75, research: 48, code: 22, agents: 355, image: 328, video: 300, voice: 272, music: 246, writing: 218, work: 190, design: 162, build: 134 };
   const GET = {
     pick: { free: 'Free on {host}', freemium: 'Free plan on {host}', paid: 'Paid plans on {host}', open: 'Free and open source' },
     gh: 'Clone it from GitHub', hf: 'Use it in the browser, nothing to install', ph: 'Plans on its own site',
@@ -391,19 +404,6 @@ function renderDirectory(T, catalogP) {
     }
     rankAll.size = seen;
   };
-  // the strip of bars: a wave of its own (seeded by its name), lit up to how popular it is where it lives
-  const seedOf = (s) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) / 4294967296); };
-  const bars = (t) => {
-    const rnd = seedOf(t.n), n = 34, lit = t.src === 'pick' ? (t.pick ? 1 : 0.82) : Math.max(0.12, 1 - (t.rank || 0));
-    const ph1 = rnd() * 6.3, f1 = 0.18 + rnd() * 0.22, ph2 = rnd() * 6.3;
-    let r = '';
-    for (let k = 0; k < n; k++) {
-      const h = 5 + 9 * (0.55 + 0.45 * Math.sin(k * f1 + ph1)) * (0.7 + 0.3 * Math.sin(k * 0.5 + ph2)) + rnd() * 2;
-      const on = k / n < lit;
-      r += `<rect x="${k * 4}" y="${(18 - h).toFixed(1)}" width="2.4" height="${h.toFixed(1)}" rx="1.2"${on ? ` style="--k:${k}"` : ' class="off"'}/>`;
-    }
-    return `<svg class="tool-bars" viewBox="0 0 136 18" preserveAspectRatio="none" aria-hidden="true">${r}</svg>`;
-  };
   const back = (t) => {
     const get = t.src === 'pick' ? GET.pick[t.p].replace('{host}', esc(host(t.u))) : GET[t.src];
     const kicker = t.src === 'pick'
@@ -431,7 +431,7 @@ function renderDirectory(T, catalogP) {
     const pop = t.src === 'gh' ? `<span class="tool-pop" title="${fmt(t.pop)} stars on GitHub">★ ${short(t.pop)}</span>`
       : t.src === 'hf' ? `<span class="tool-pop" title="${fmt(t.pop)} likes on Hugging Face">♥ ${short(t.pop)}</span>`
       : t.src === 'ph' ? `<span class="tool-pop" title="${fmt(t.pop)} upvotes on Product Hunt">▲ ${short(t.pop)}</span>` : '';
-    return `<div class="tool-card" data-i="${t.i}" style="--h:${CAT_HUE[t.c] ?? 75};animation-delay:${Math.min(k % STEP, 16) * 30}ms"><div class="tool-inner">
+    return `<div class="tool-card" data-i="${t.i}" style="animation-delay:${Math.min(k % STEP, 16) * 30}ms"><div class="tool-inner">
       <div class="tool tool-front${t.src === 'pick' ? '' : ' cat'}" role="button" tabindex="0" aria-label="${esc(t.n)} — turn over for details">
       <span class="tool-top">
         ${icon(t)}
@@ -441,7 +441,6 @@ function renderDirectory(T, catalogP) {
       ${t.src === 'ph' ? `<span class="tool-by">Product Hunt${when}</span>` : t.by ? `<span class="tool-by">${t.src === 'gh' ? 'GitHub' : 'Hugging Face'} · ${esc(t.by)}${when}</span>` : when ? `<span class="tool-by">Added${when}</span>` : ''}
       <p>${esc(t.d)}</p>
       <span class="tool-bot"><span class="tool-cat">${esc(T.categories[t.c])}</span><span class="tool-price"><span class="tl-dot p-${t.p}"></span>${PRICES[t.p] || 'Price on site'}</span></span>
-      ${bars(t)}
       </div>
       <div class="tool tool-back" role="button" tabindex="-1" aria-label="Turn ${esc(t.n)} back over" inert></div>
     </div></div>`;
