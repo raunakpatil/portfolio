@@ -1889,6 +1889,9 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 .tl-answer-head .tl-mark { width: 15px; height: 15px; margin-right: 6px; vertical-align: -3px; color: #111; }
 .tl-answer:has(.wait) .tl-mark .sweep { animation: tl-sweep 1.1s linear infinite; }   /* (while it looks) */
 .tl-ask-now .tl-mark { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; }
+.tl-asking p { display: inline-flex; align-items: center; gap: 8px; }
+.tl-asking .tl-mark { width: 15px; height: 15px; color: #111; }
+.tl-asking .tl-mark .sweep { animation: tl-sweep 1.1s linear infinite; }   /* (while it looks) */
 .tl-ask-now { display: inline-block; margin-top: 4px; background: #111; color: #fff; box-shadow: var(--key); }
 .tl-ask-now:hover { background: #222; box-shadow: var(--key); }
 .tl-ask[hidden] { display: none; }

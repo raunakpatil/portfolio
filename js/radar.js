@@ -521,7 +521,7 @@ function renderDirectory(T, catalogP) {
     if (sig !== shownSig) {   // (the catalogue arriving under an unchanged first screen redraws nothing)
       grid.innerHTML = items.slice(0, n).map(card).join('') || (S.src === 'saved' && !saved.size
         ? '<div class="tl-none-box"><p>Nothing saved yet, tap the ♥ on any tool to keep it here.</p></div>'
-        : askable(S.q) && S.q !== askQ ? `<div class="tl-none-box"><p>Sounds like a question, let Radar find tools for “${esc(S.q)}”.</p><button type="button" class="tl-pill tl-ask-now" id="tl-ask-now">${MARK}Ask Radar</button></div>`
+        : askable(S.q) && S.q !== askQ ? `<div class="tl-none-box tl-asking"><p>${MARK}Radar is finding tools for “${esc(S.q)}”…</p></div>`
         : !$('#tl-answer').hidden ? '<div class="tl-none-box"><p>Radar&rsquo;s suggestions are just above, or clear the search to browse everything.</p><button type="button" class="tl-pill" id="tl-reset">Clear the search</button></div>'
         : `<div class="tl-none-box"><p>Nothing matches${S.q ? ` “${esc(S.q)}”` : ''}.</p><button type="button" class="tl-pill" id="tl-reset">Clear the filters</button></div>`);
       shownN = n;
@@ -638,7 +638,7 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
   const chips = (list) => list.map((x) => `<button type="button" class="tl-try-chip" data-q="${e(x)}">${e(x)}</button>`).join('');
   // one way in, however it's opened (the empty search box in use, or the mark): the panel, with examples to try. It
   // goes the same way too: a click anywhere else, typing, ×, Esc, or the mark again
-  let mode = '', pinned = false, holding = false;
+  let mode = '', pinned = false, holding = false, autoT = 0;
   const intro = (byHand) => {
     mode = 'intro';
     pinned = byHand;
@@ -656,7 +656,15 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
   });
   search.addEventListener('input', () => {
     state();
-    if (search.value.trim()) { if (mode === 'intro') close(); return; }
+    if (search.value.trim()) {
+      if (mode === 'intro') close();
+      // a question answers itself: a moment after the typing stops, Radar asks (Enter asks at once)
+      clearTimeout(autoT);
+      const v = search.value.trim().toLowerCase();
+      if (askable(v) && v !== askedQ) autoT = setTimeout(() => { if (search.value.trim().toLowerCase() === v) ask(); }, 900);
+      return;
+    }
+    clearTimeout(autoT);
     close();
     if (document.activeElement === search) intro(false);
   });
@@ -712,7 +720,7 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
     box.innerHTML = (list.length
       ? head(found.length ? `${MARK}<b>Radar</b> suggests, for “${e(q)}”` : `${MARK}<b>Radar</b> ${failed ? 'couldn’t reach its helper just now' : 'isn’t sure'}. Here are the closest matches for “${e(q)}”`)
         + `<ol class="tl-answer-list">${list.map(([t, why], k) => `<li><a href="${e(t.u)}" target="_blank" rel="noopener"><span class="tl-answer-n">${k + 1}</span>${icon(t)}<span class="tl-answer-t"><b>${e(t.n)}</b><span>${e(why || t.d)}</span><i>${meta(t)}</i></span><span class="ar" aria-hidden="true">↗</span></a></li>`).join('')}</ol>`
-        + `<p class="tl-answer-foot">Not quite it? Add a detail and press Enter.${rest.length ? ` <button type="button" class="tl-answer-more">${fmt(rest.length)} more related tools below ↓</button>` : ''}</p>`
+        + `<p class="tl-answer-foot">Not quite it? Add a detail and Radar will look again.${rest.length ? ` <button type="button" class="tl-answer-more">${fmt(rest.length)} more related tools below ↓</button>` : ''}</p>`
       : head(`${MARK}<b>Radar</b> found nothing for “${e(q)}”`)
         + `<p class="tl-answer-none">Try saying what you want to make or do, for example:</p><div class="tl-answer-try">${chips(EXAMPLES.slice(0, 5))}</div>`);
   }
@@ -737,7 +745,7 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
     ask();
   });
   search.addEventListener('keydown', (ev) => {
-    if (ev.key === 'Enter' && askable(search.value)) { ev.preventDefault(); ask(); }
+    if (ev.key === 'Enter' && askable(search.value)) { ev.preventDefault(); clearTimeout(autoT); ask(); }
     if (ev.key === 'Escape' && !box.hidden) { ev.stopPropagation(); dismiss(); }
   });
   const pickChip = (ev) => { const c = ev.target.closest('.tl-try-chip'); if (c) { ev.preventDefault(); ask(c.dataset.q); } };
