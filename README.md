@@ -60,8 +60,8 @@ AI news, trending open models and a directory of AI tools. `radar.html` sends vi
   same name or description (the most popular stays), no copied Spaces, and no lists, courses or templates. Each entry
   ends with the day it joined, which drives **Newly added** (the last 90 days). The **Refresh Radar** GitHub Action
   rebuilds it on Mondays and Thursdays and commits it — so pull before pushing.
-- The page's three views: **Top 20** (the `pick`s, in the order they're listed), **Browse all** (search, then Source,
-  Price, Category and Sort), **Newly added**. A tap turns a card over to its details (how to start, when it was added,
+- The page's three views: **Browse all** (search, then Source, Price, Category and Sort; the default), **Top 20** (the
+  `pick`s, in the order they're listed), **Newly added**. A tap turns a card over to its details (how to start, when it was added,
   where it ranks, what else is like it); only its ↗ opens the page.
 
 ## Ronie's surroundings

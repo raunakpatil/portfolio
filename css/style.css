@@ -1648,17 +1648,18 @@ main { padding: 0 var(--gap) var(--gap); }
 .tl-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
 .tl-search kbd { font-family: var(--mono); font-size: 11px; color: #9a9a9a; padding: 2px 8px; border-radius: 6px; box-shadow: var(--neu-out-sm); transition: opacity .2s; }
 .tl-search:focus-within kbd { opacity: 0; }
-/* the directory's three ways in (Top 20 · Browse all · Newly added): small cards, the open one a raised black key */
+/* the directory's three ways in (Browse all · Top 20 · Newly added), like the headline chips: the open one raised,
+   the others pressed in */
 .tl-views { display: flex; gap: 8px; margin-left: auto; }
 .tl-views button {
   display: flex; flex-direction: column; gap: 2px; min-width: 196px; padding: 11px 16px 12px; border-radius: 14px; text-align: left;
   background: var(--surface); box-shadow: var(--neu-in-sm); transition: background .3s, color .3s, box-shadow .3s;
 }
-.tl-views button:hover { box-shadow: var(--neu-out-sm); }
+.tl-views button:hover { box-shadow: var(--neu-in); }
 .tl-view-t { font-size: 14px; font-weight: 500; letter-spacing: -.01em; }
 .tl-views small { font-size: 12px; color: #8a8a8a; transition: color .3s; }
-.tl-views [aria-selected="true"] { background: #111; color: #fff; box-shadow: var(--key); }
-.tl-views [aria-selected="true"] small { color: #a8a8a8; }
+.tl-views [aria-selected="true"], .tl-views [aria-selected="true"]:hover { box-shadow: var(--neu-out-sm); }
+.tl-views [aria-selected="true"] small { color: #6b6b6b; }
 
 /* search, then the filters as small pills that open menus — one row */
 .tl-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; flex-basis: 100%; }
