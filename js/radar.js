@@ -205,7 +205,6 @@ const SOURCES = {
   all: ['Everything', ''],
   star: ["Raunak's picks", '<span class="tl-star" aria-hidden="true">★</span>'],
   saved: ['Saved', '<span class="tl-saved" aria-hidden="true">♥</span>'],
-  mine: ['By Raunak', ''],
   pick: ['Hand-picked', ''],
   gh: ['GitHub', GH_SVG],
   hf: ['Hugging Face', '<span aria-hidden="true">🤗</span>'],
@@ -318,12 +317,12 @@ function renderDirectory(T, catalogP) {
     draw();
   });
 
-  const inSrc = (t, s) => s === 'all' || (s === 'star' ? t.pick : s === 'saved' ? saved.has(keyFor(t)) : s === 'mine' ? t.mine : t.src === s);
+  const inSrc = (t, s) => s === 'all' || (s === 'star' ? t.pick : s === 'saved' ? saved.has(keyFor(t)) : t.src === s);
   const matches = (t, skip) => (skip === 'q' || !S.q || S.q.split(/\s+/).every((w) => t.key.includes(w)))
     && (skip === 'src' || inSrc(t, S.src))
     && (skip === 'price' || S.price === 'all' || t.p === S.price)
     && (skip === 'cat' || S.cat === 'all' || t.c === S.cat);
-  // the three ways in: Raunak's top 20, everything, or what's newly released (in the last NEW_DAYS days)
+  // the three ways in: Raunak's top 50, everything, or what's newly released (in the last NEW_DAYS days)
   // (new releases: released — the project or Space created, the product launched — in the last NEW_DAYS days)
   // (and only real launches: a proper description, a GitHub project that's about AI, a Space people have liked)
   const AI_WORDS = /\b(ai|llms?|gpt[\w.-]*|agents?|agentic|models?|neural|ml|machine learning|deep learning|diffusion|transformers?|rag|embeddings?|chatbots?|vision|speech|tts|asr|stt|generative|prompts?|copilot|openai|anthropic|claude|gemini|llama|mistral|qwen|deepseek|ollama|langchain|inference|nlp|mcp|ocr|text-to-\w+|image-to-\w+|voice|lora|fine-?tun\w*|multimodal|reasoning|semantic)\b/i;
