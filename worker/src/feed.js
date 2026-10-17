@@ -63,7 +63,7 @@ const tag = (block, name) => (block.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\
 async function head(url, limit = 140000) {
   const r = await fetch(url, {
     headers: { 'User-Agent': 'raunakpatil.com news shelf (+https://raunakpatil.com/radar)', Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml, */*' },
-    cf: { cacheTtl: 900, cacheEverything: true },
+    cf: { cacheTtlByStatus: { '200-299': 900, '300-599': 0 }, cacheEverything: true },   // (a refusal isn't kept)
     signal: AbortSignal.timeout(8000),
   });
   if (!r.ok || !r.body) throw new Error(`${r.status}`);
@@ -117,8 +117,14 @@ function parse(xml, feed) {
   return out;
 }
 
-async function news(now) {
-  const lists = await Promise.all(FEEDS.map((f) => head(f.url).then((x) => parse(x, f)).catch(() => [])));
+// how each source fared on the last build (kept in the feed as `sources`, for checking on it)
+let health = {};
+// (a source that doesn't answer this time keeps the stories it had in the last build)
+async function news(now, prev) {
+  health = {};
+  const before = (src) => (prev?.news || []).filter((n) => n.source === src);
+  const lists = await Promise.all(FEEDS.map((f) => head(f.url).then((x) => { const l = parse(x, f); health[f.source] = l.length; return l.length ? l : before(f.source); })
+    .catch((e) => { health[f.source] = String(e.message || e).slice(0, 60); return before(f.source); })));
   const seen = new Set();
   const all = lists.flat()
     .filter((n) => now - Date.parse(n.date) < 10 * 864e5 && Date.parse(n.date) < now + 864e5)
@@ -146,7 +152,7 @@ async function models() {
     }));
 }
 
-export async function buildFeed(now = Date.now()) {
-  const [n, m] = await Promise.all([news(now), models().catch(() => [])]);
-  return { updated: new Date(now).toISOString(), news: n, models: m };
+export async function buildFeed(now = Date.now(), prev = null) {
+  const [n, m] = await Promise.all([news(now, prev), models().catch(() => prev?.models || [])]);
+  return { updated: new Date(now).toISOString(), news: n, models: m.length ? m : prev?.models || [], sources: health };
 }

@@ -231,7 +231,9 @@ const quotaGone = (err) => /4006|daily free allocation/i.test(String(err && err.
 const FEED_KEY = 'feed-v1';
 let feedMemo = { until: 0, body: '' };
 async function refreshFeed(env) {
-  const data = await buildFeed();
+  let prev = null;
+  try { prev = env.FEED ? JSON.parse(await env.FEED.get(FEED_KEY)) : null; } catch { /* first time */ }
+  const data = await buildFeed(Date.now(), prev);
   const body = JSON.stringify(data);
   if (data.news.length >= 5 && env.FEED) await env.FEED.put(FEED_KEY, body);   // (a bad moment upstream keeps the last good one)
   return body;

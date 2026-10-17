@@ -1502,18 +1502,11 @@ main { padding: 0 var(--gap) var(--gap); }
 .rai-sound { box-shadow: var(--dneu-in); }
 .rai-sound.on { box-shadow: var(--dneu-out); }
 
-/* ===================== Tools (raunakpatil.com/tools — js/tools.js) =====================
+/* ===================== Radar (raunakpatil.com/radar — js/radar.js) =====================
    The newest AI headlines on a dark card that turns through the top five stories (a fine bar under its title fills
    as each one's time runs), the rest as a list beside it; the open models trending this week as small dark tiles;
    then the directory of tools — searched and filtered like the projects, on light cards that lift on hover. */
 .tl .page-head { align-items: center; }
-.tl-status {
-  margin-left: auto; display: inline-flex; align-items: center; gap: 8px;
-  font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #8a8a8a;
-}
-.tl-status i { width: 7px; height: 7px; border-radius: 50%; background: #c4c4c4; }
-.tl-status.live i { background: #22c55e; animation: tl-pulse 2.2s ease-out infinite; }
-@keyframes tl-pulse { 0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, .45); } 70%, 100% { box-shadow: 0 0 0 7px rgba(34, 197, 94, 0); } }
 
 .tl-news { --news-h: 380px; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--gap); }
 .tl-lead { display: flex; flex-direction: column; height: var(--news-h); padding: 20px 22px 22px; }
@@ -1806,7 +1799,6 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 }
 @media (max-width: 760px) {
   .tl .page-head { gap: 6px 14px; }
-  .tl-status { margin-left: 0; flex-basis: 100%; }
   .tl-lead { min-height: 250px; padding: 16px 16px 18px; }
   .tl-lead h2 { font-size: 22px; }
   .tl-wire { height: 420px; }

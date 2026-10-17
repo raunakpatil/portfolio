@@ -99,18 +99,12 @@ function tickLead(now) {
 }
 
 function renderNews(f) {
-  const status = $('#tl-status');
   const box = $('#tl-news');
   box.removeAttribute('aria-busy');
   if (!f.news.length) {
     box.innerHTML = '<p class="tl-empty">The headlines couldn\'t be fetched just now — try again in a little while.</p>';
-    status.innerHTML = '<span>Offline</span>';
     return;
   }
-  status.classList.toggle('live', f.live);
-  status.innerHTML = f.live
-    ? `<i></i><span>Live · updated ${esc(ago(f.updated, true))}</span>`
-    : `<i></i><span>Snapshot · ${esc(day(f.updated))}</span>`;
 
   lead = f.news.slice(0, LEAD_N);
   $('#tl-lead-bars').innerHTML = lead.map((n, k) => `<button type="button" aria-label="Story ${k + 1}: ${esc(n.title)}"><b></b></button>`).join('');
