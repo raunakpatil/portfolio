@@ -621,14 +621,24 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide }
   const search = $('#tl-search'), btn = $('#tl-ask'), box = $('#tl-answer'), tryRow = $('#tl-try');
   if (!btn || !box || !ASK_URL) return { ask() {} };
   btn.hidden = false;
-  const state = () => { btn.classList.toggle('ready', askable(search.value)); };
-  // examples to try, while the box is empty and in use
+  let asked = 0, askedQ = '';
+  // the sparkle opens Radar (examples, or an answer) and closes it again: pressed in while it's open
+  const setOpen = (on) => {
+    btn.classList.toggle('open', on);
+    btn.setAttribute('aria-expanded', String(on));
+    btn.title = on ? 'Close Ask Radar' : 'Ask Radar: describe what you need';
+  };
+  // (the black key only when there's something new to ask; after an answer, it rests pressed in until the question changes)
+  const state = () => { btn.classList.toggle('ready', askable(search.value) && search.value.trim().toLowerCase() !== askedQ); };
   const chips = (list) => list.map((x) => `<button type="button" class="tl-try-chip" data-q="${e(x)}">${e(x)}</button>`).join('');
-  tryRow.innerHTML = `<span>Try asking</span>${chips(EXAMPLES.slice(0, 4))}`;
-  const showTry = () => { tryRow.hidden = !!search.value.trim() || !box.hidden; };
-  search.addEventListener('focus', showTry);
-  search.addEventListener('blur', () => setTimeout(() => { if (!tryRow.contains(document.activeElement)) tryRow.hidden = true; }, 150));
-  search.addEventListener('input', () => { state(); showTry(); if (!search.value.trim()) close(); });
+  tryRow.innerHTML = `<span>Try</span>${chips(EXAMPLES.slice(0, 4))}`;
+  let pinned = false;   // (the examples opened with the sparkle stay until it's pressed again)
+  const showTry = (on) => { tryRow.hidden = !on; if (!box.hidden) return; setOpen(on && pinned); };
+  search.addEventListener('focus', () => { if (!search.value.trim() && box.hidden) showTry(true); });
+  search.addEventListener('blur', () => setTimeout(() => {
+    if (!pinned && !tryRow.contains(document.activeElement) && document.activeElement !== btn) showTry(false);
+  }, 150));
+  search.addEventListener('input', () => { state(); if (search.value.trim()) { pinned = false; showTry(false); } else { close(); if (document.activeElement === search) showTry(true); } });
   state();
   // the likeliest few dozen, by their own words (a word's ending is let go, so "podcasts" finds "podcast"): room for
   // the 16 best of the hand-picked tools and the 20 best of the catalogue, so a polished product isn't crowded out
@@ -644,24 +654,26 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide }
     }).filter(([s]) => s > 0).sort((a, b) => b[0] - a[0]).map(([, t]) => t);
     return { top: [...scored.filter((t) => t.src === 'pick').slice(0, 16), ...scored.filter((t) => t.src !== 'pick').slice(0, 20)], all: scored.slice(0, 120) };
   };
-  const head = (html) => `<div class="tl-answer-head"><span>${html}</span><button type="button" class="tl-answer-x" aria-label="Close Radar's suggestions" title="Close (Esc)">×</button></div>`;
-  let asked = 0;
+  const head = (k, q) => `<div class="tl-answer-head"><span class="k">${k}</span>${q ? `<span class="q">“${e(q)}”</span>` : ''}</div>`;
   async function ask(text) {
     if (typeof text === 'string') { search.value = text; search.dispatchEvent(new Event('input')); }
     const q = search.value.trim().slice(0, 200);
-    if (!askable(q)) {   // (not a question yet: say how, with a few to try)
-      box.hidden = false;
-      tryRow.hidden = true;
-      box.innerHTML = head('<b>✦ Ask Radar</b>: describe what you want to do, in a few words')
-        + `<div class="tl-answer-try">${chips(EXAMPLES)}</div>`;
+    if (!askable(q)) {   // (not a question yet: a few to try, until the sparkle closes them)
+      close();
+      pinned = true;
+      showTry(true);
+      setOpen(true);
       search.focus();
       return;
     }
     const n = ++asked;
-    box.hidden = false;
+    askedQ = q.toLowerCase();
+    state();
+    pinned = false;
     tryRow.hidden = true;
-    box.innerHTML = head(`<b>✦ Radar</b> is reading the directory for “${e(q)}”…`)
-      + `<ul class="tl-answer-list wait">${'<li><span class="tl-answer-skel"><i></i><b></b></span></li>'.repeat(3)}</ul>`;
+    box.hidden = false;
+    setOpen(true);
+    box.innerHTML = head('Radar is looking', q) + `<ul class="tl-answer-list wait">${'<li><span class="tl-answer-skel"><i></i><b></b></span></li>'.repeat(3)}</ul>`;
     await loaded;   // (the whole catalogue, not just the first screen's)
     const pool = likely(q);
     const byKey = new Map(pool.top.map((t) => [keyFor(t), t]));
@@ -672,37 +684,42 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide }
         if (r.ok) picks = (await r.json()).picks || []; else failed = true;
       } catch { failed = true; }
     }
-    if (n !== asked) return;   // (a newer question took over)
+    if (n !== asked) return;   // (a newer question took over, or it was closed)
     const found = picks.map((p) => [byKey.get(p.key), p.why]).filter(([t]) => t);
     // (if the model can't be reached, the best word matches still help)
     const list = found.length ? found : pool.top.slice(0, 4).map((t) => [t, '']);
     const rest = pool.all.filter((t) => !list.some(([x]) => x === t));
     show(rest, q);
     const meta = (t) => `${e(cats[t.c] || '')}${prices[t.p] ? ` · ${prices[t.p]}` : ''}`;
-    box.innerHTML = (list.length
-      ? head(found.length ? `<b>✦ Radar</b> suggests, for “${e(q)}”` : `<b>✦ Radar</b> ${failed ? 'couldn’t reach its helper just now' : 'isn’t sure'}. Here are the closest matches for “${e(q)}”`)
-        + `<ol class="tl-answer-list">${list.map(([t, why], k) => `<li><a href="${e(t.u)}" target="_blank" rel="noopener"><span class="tl-answer-n">${k + 1}</span>${icon(t)}<span class="tl-answer-t"><b>${e(t.n)}</b><span>${e(why || t.d)}</span><i>${meta(t)}</i></span><span class="ar" aria-hidden="true">↗</span></a></li>`).join('')}</ol>`
-        + `<p class="tl-answer-foot">Not quite it? Add a detail and press Enter.${rest.length ? ` <button type="button" class="tl-answer-more">${fmt(rest.length)} more related tools below ↓</button>` : ''}</p>`
-      : head(`<b>✦ Radar</b> found nothing for “${e(q)}”`)
-        + `<p class="tl-answer-none">Try saying what you want to make or do, for example:</p><div class="tl-answer-try">${chips(EXAMPLES.slice(0, 5))}</div>`);
+    box.innerHTML = list.length
+      ? head(found.length ? 'Radar suggests' : failed ? 'Closest matches' : 'Closest matches', q)
+        + `<ul class="tl-answer-list">${list.map(([t, why]) => `<li><a href="${e(t.u)}" target="_blank" rel="noopener">${icon(t)}<span class="tl-answer-t"><b>${e(t.n)}</b><span>${e(why || t.d)}</span></span><span class="tl-answer-m">${meta(t)}</span><span class="ar" aria-hidden="true">↗</span></a></li>`).join('')}</ul>`
+        + `<p class="tl-answer-foot"><span>${failed ? 'Radar’s helper is busy, so these are the nearest by their words. ' : ''}Add a detail and press Enter to refine.</span>${rest.length ? `<button type="button" class="tl-answer-more">${fmt(rest.length)} more below ↓</button>` : ''}</p>`
+      : head('Nothing close yet', q) + `<p class="tl-answer-foot"><span>Try saying what you want to make or do.</span></p><div class="tl-answer-try">${chips(EXAMPLES.slice(0, 4))}</div>`;
   }
   function close() {
-    if (box.hidden) return;
-    asked++;
-    box.hidden = true;
-    box.innerHTML = '';
-    hide();
+    pinned = false;
+    askedQ = '';
+    tryRow.hidden = true;
+    if (!box.hidden) { asked++; box.hidden = true; box.innerHTML = ''; hide(); }
+    setOpen(false);
+    state();
   }
-  btn.addEventListener('click', () => ask());
+  // the sparkle: asks what's typed, or shows examples; pressed again (with nothing new to ask), it closes
+  btn.addEventListener('click', () => {
+    const open = !box.hidden || (pinned && !tryRow.hidden);
+    const fresh = askable(search.value) && search.value.trim().toLowerCase() !== askedQ;
+    if (open && !fresh) { close(); return; }
+    ask();
+  });
   search.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter' && askable(search.value)) { ev.preventDefault(); ask(); }
-    if (ev.key === 'Escape' && !search.value && !box.hidden) { ev.stopPropagation(); close(); }
+    if (ev.key === 'Escape' && !search.value && (!box.hidden || !tryRow.hidden)) { ev.stopPropagation(); close(); }
   });
   const pickChip = (ev) => { const c = ev.target.closest('.tl-try-chip'); if (c) { ev.preventDefault(); ask(c.dataset.q); } };
   tryRow.addEventListener('mousedown', pickChip);   // (before the box loses focus and the row hides)
   tryRow.addEventListener('click', pickChip);
   box.addEventListener('click', (ev) => {
-    if (ev.target.closest('.tl-answer-x')) { close(); search.focus(); return; }
     if (ev.target.closest('.tl-answer-more')) { $('#tl-count').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     pickChip(ev);
   });
