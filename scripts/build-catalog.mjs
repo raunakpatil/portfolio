@@ -14,7 +14,7 @@ const TOKEN = process.env.GITHUB_TOKEN || (() => { try { return execSync('gh aut
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // it's a portfolio: adult content, "undress" and face-swap / deepfake apps, and the like, stay out
-const SKIP = /\b(nsfw|uncensored|porn\w*|hentai|nude\w*|nudify|undress\w*|sex\w*|erotic\w*|onlyfans|deep-?nude|deepfakes?|face-?swap\w*|faceswap|roop|waifu|lewd|jailbreak\w*|crack(ed)?|keygen|cheat\w*|aimbot|casino|gambl\w*|betting|crypto|airdrop|telegram bot|spam\w*|scrap(er|ing) (instagram|tiktok))\b/i;
+const SKIP = /\b(nsfw|uncensored|porn\w*|hentai|nude\w*|nudify|undress\w*|sex\w*|erotic\w*|onlyfans|deep-?nude|deepfakes?|face-?swap\w*|faceswap|roop|waifu|lewd|eros|jailbreak\w*|crack(ed)?|keygen|cheat\w*|aimbot|casino|gambl\w*|betting|crypto|airdrop|telegram bot|spam\w*|scrap(er|ing) (instagram|tiktok))\b/i;
 // lists, courses and books are worth reading, but they aren't tools
 const NOT_TOOLS = /^awesome|\bawesome[- ]|curated list|\b(list|collection) of\b|\b(course|courses|tutorials?|lessons|roadmap|interview|cheat ?sheet|book|papers? (list|reading)|notes|homework|leetcode|study guide|learning path|from scratch|\d+[- ]days?(-of)?|examples|samples|cookbook|recipes|resources|starter kit|boilerplate|template|playground)\b/i;
 
