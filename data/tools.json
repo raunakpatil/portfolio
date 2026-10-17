@@ -15,10 +15,6 @@
     "build": "Build with AI"
   },
   "tools": [
-    { "n": "YouTube Agentic AI Studio", "u": "https://github.com/raunakpatil/youtube-agentic-ai-studio", "c": "video", "p": "open", "pick": true, "mine": true, "full": true, "uses": "Built by Raunak", "d": "YAAS: a free agent pipeline that researches, scripts, narrates, animates and uploads faceless YouTube videos, with one command and no cost per video." },
-    { "n": "Ronie: 3D AI Website Agent", "u": "https://github.com/raunakpatil/ronie-3d-ai-website-agent", "c": "agents", "p": "open", "pick": true, "mine": true, "full": true, "uses": "Built by Raunak", "d": "A free 3D AI agent for any website: grounded answers, an on-device neural voice, expressions, moves and games. An open template you can reuse." },
-    { "n": "ResRescue", "u": "https://github.com/raunakpatil/Resrescue-ats-resume-optimizer", "c": "work", "p": "open", "pick": true, "mine": true, "full": true, "uses": "Built by Raunak", "d": "A free desktop app that finds jobs and rewrites your résumé to get past applicant tracking systems, spots skill gaps and writes cover letters." },
-
     { "n": "ChatGPT", "u": "https://chatgpt.com", "c": "chat", "p": "freemium", "pick": true, "d": "OpenAI's everyday assistant: chat, files, pictures, voice and agents that browse and act for you." },
     { "n": "Claude", "u": "https://claude.ai", "c": "chat", "p": "freemium", "pick": true, "d": "Anthropic's assistant, careful writing, long documents and serious coding help." },
     { "n": "Gemini", "u": "https://gemini.google.com", "c": "chat", "p": "freemium", "pick": true, "d": "Google's assistant, plugged into Search, Gmail, Docs and your Android phone.", "uses": "In Raunak's stack" },
@@ -61,6 +57,7 @@
     { "n": "Zapier", "u": "https://zapier.com", "c": "agents", "p": "freemium", "d": "Connects thousands of apps, now with AI steps and agents in the middle." },
     { "n": "Make", "u": "https://www.make.com", "c": "agents", "p": "freemium", "d": "Drag-and-drop automations across your apps, with AI wherever you need it." },
     { "n": "Manus", "u": "https://manus.im", "c": "agents", "p": "freemium", "d": "A general agent that researches, builds and delivers whole tasks on its own computer." },
+    { "n": "Ronie: 3D AI Website Agent", "u": "https://github.com/raunakpatil/ronie-3d-ai-website-agent", "c": "agents", "p": "open", "pick": true, "mine": true, "full": true, "uses": "Built by Raunak", "d": "A free 3D AI agent for any website: grounded answers, an on-device neural voice, expressions, moves and games. An open template you can reuse." },
     { "n": "Lindy", "u": "https://www.lindy.ai", "c": "agents", "p": "freemium", "d": "AI assistants for email, meetings and the admin around them, set up in plain English." },
     { "n": "Gumloop", "u": "https://www.gumloop.com", "c": "agents", "p": "freemium", "d": "No-code AI workflows and agents that plug into the tools a team already uses." },
     { "n": "Browser Use", "u": "https://browser-use.com", "c": "agents", "p": "open", "d": "Open-source library that lets AI agents use websites like a person would." },
@@ -92,6 +89,7 @@
     { "n": "HeyGen", "u": "https://www.heygen.com", "c": "video", "p": "freemium", "pick": true, "d": "Talking-avatar videos, and translating your own videos with your voice." },
     { "n": "Synthesia", "u": "https://www.synthesia.io", "c": "video", "p": "freemium", "d": "Training and explainer videos presented by AI avatars, in 140+ languages." },
     { "n": "Descript", "u": "https://www.descript.com", "c": "video", "p": "freemium", "pick": true, "d": "Edit video and podcasts by editing the transcript, like a document." },
+    { "n": "YouTube Agentic AI Studio", "u": "https://github.com/raunakpatil/youtube-agentic-ai-studio", "c": "video", "p": "open", "pick": true, "mine": true, "full": true, "uses": "Built by Raunak", "d": "YAAS: a free agent pipeline that researches, scripts, narrates, animates and uploads faceless YouTube videos, with one command and no cost per video." },
     { "n": "CapCut", "u": "https://www.capcut.com", "c": "video", "p": "freemium", "d": "A popular video editor with auto-captions, effects and AI editing tools." },
     { "n": "OpusClip", "u": "https://www.opus.pro", "c": "video", "p": "freemium", "pick": true, "d": "Finds the best moments in a long video and cuts them into vertical shorts." },
 
@@ -119,6 +117,7 @@
     { "n": "Gamma", "u": "https://gamma.app", "c": "work", "p": "freemium", "pick": true, "d": "Presentations, documents and simple sites, designed for you from an outline." },
     { "n": "Notion AI", "u": "https://www.notion.com/product/ai", "c": "work", "p": "paid", "pick": true, "d": "Writing, search and meeting notes across your whole Notion workspace." },
     { "n": "Granola", "u": "https://www.granola.ai", "c": "work", "p": "freemium", "pick": true, "d": "Meeting notes without a bot joining the call, your notes, filled in by AI." },
+    { "n": "ResRescue", "u": "https://github.com/raunakpatil/Resrescue-ats-resume-optimizer", "c": "work", "p": "open", "pick": true, "mine": true, "full": true, "uses": "Built by Raunak", "d": "A free desktop app that finds jobs and rewrites your résumé to get past applicant tracking systems, spots skill gaps and writes cover letters." },
     { "n": "Otter", "u": "https://otter.ai", "c": "work", "p": "freemium", "d": "Live transcripts and summaries of meetings and lectures." },
     { "n": "Fathom", "u": "https://www.fathom.ai", "c": "work", "p": "freemium", "d": "Records, transcribes and summarises your video calls, free for one person." },
     { "n": "Fireflies", "u": "https://fireflies.ai", "c": "work", "p": "freemium", "d": "A meeting assistant that records, transcribes and searches your calls." },
