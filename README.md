@@ -76,7 +76,7 @@ AI news, trending open models and a directory of AI tools. `radar.html` sends vi
 - **Saved**: the ♥ on a card keeps it in this browser (`localStorage`), shown under Source → Saved.
 - **Links to a view**: search, filters and view live in the address (`/radar?view=new&cat=video&price=free`), and the
   back button steps back through them.
-- **Ask Radar**: the radar mark at the end of the search box (pressed again, it closes). Focusing the empty box shows examples to try; once what's
+- **Ask Radar**: the radar mark at the end of the search box (pressed again, or ×, or Esc, it closes and clears the search). Focusing the empty box shows examples to try; once what's
   typed reads as a question (three words or more) the radar mark opens into "Ask Radar". The page picks the likeliest
   few dozen tools by their words and Ronie's worker (`POST /ask`) chooses the best few, saying how each helps; the
   other likely ones fill the grid below. A question is part of the link (`/radar?q=…&ask=1`) and is asked again when

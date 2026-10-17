@@ -588,6 +588,8 @@ function renderDirectory(T, catalogP) {
     all: () => all, keyFor, icon, esc, cats: T.categories, prices: PRICES, loaded: catalogP,
     show(rest, q) { askRest = rest; askQ = q.trim().toLowerCase(); S.q = askQ; S.ask = '1'; S.limit = 24; draw(); toURL(false); },
     hide() { askRest = null; askQ = ''; if (S.ask) { S.ask = ''; draw(); toURL(false); } },
+    // (closing Radar clears the question too: back to the whole directory)
+    clear() { askRest = null; askQ = ''; S.ask = ''; search.value = ''; set('q', ''); },
   });
   if (S.ask && askable(S.q)) askApi.ask(); else S.ask = '';
 }
@@ -619,12 +621,12 @@ const words = (q) => q.toLowerCase().split(/[^a-z0-9+#]+/).filter((w) => w.lengt
 // (a question, rather than a search: three words or more, two of them meaningful)
 const askable = (q) => words(q).length >= 2 && q.trim().split(/\s+/).length >= 3;
 
-function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide }) {
+function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, clear }) {
   const search = $('#tl-search'), btn = $('#tl-ask'), box = $('#tl-answer'), tryRow = $('#tl-try');
   if (!btn || !box || !ASK_URL) return { ask() {} };
   btn.hidden = false;
   let asked = 0, askedQ = '';
-  // the sparkle opens Radar and closes it again: pressed in while it's open; the black key only when there's
+  // the mark opens Radar and closes it again: pressed in while it's open; the black key only when there's
   // something new to ask
   const setOpen = (on) => {
     btn.classList.toggle('open', on);
@@ -709,25 +711,27 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide }
     box.innerHTML = '';
     hide();
   }
-  // the sparkle: asks what's typed (or shows how); pressed again, with nothing new to ask, it closes
+  // closed by hand (×, Esc, or the mark again): the panel goes and the search is cleared
+  function dismiss() { close(); clear(); state(); }
+  // the mark: asks what's typed (or shows how); pressed again, with nothing new to ask, it closes
   btn.addEventListener('click', () => {
     const fresh = askable(search.value) && search.value.trim().toLowerCase() !== askedQ;
-    if (!box.hidden && !fresh) { close(); return; }
+    if (!box.hidden && !fresh) { dismiss(); return; }
     ask();
   });
   search.addEventListener('keydown', (ev) => {
     if (ev.key === 'Enter' && askable(search.value)) { ev.preventDefault(); ask(); }
-    if (ev.key === 'Escape' && !search.value && !box.hidden) { ev.stopPropagation(); close(); }
+    if (ev.key === 'Escape' && !box.hidden) { ev.stopPropagation(); dismiss(); }
   });
   const pickChip = (ev) => { const c = ev.target.closest('.tl-try-chip'); if (c) { ev.preventDefault(); ask(c.dataset.q); } };
   tryRow.addEventListener('mousedown', pickChip);   // (before the box loses focus and the row hides)
   tryRow.addEventListener('click', pickChip);
   box.addEventListener('click', (ev) => {
-    if (ev.target.closest('.tl-answer-x')) { close(); search.focus(); return; }
+    if (ev.target.closest('.tl-answer-x')) { dismiss(); return; }
     if (ev.target.closest('.tl-answer-more')) { $('#tl-count').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
     pickChip(ev);
   });
-  box.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { close(); search.focus(); } });
+  box.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') dismiss(); });
   return { ask };
 }
 
