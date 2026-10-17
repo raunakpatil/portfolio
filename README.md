@@ -76,9 +76,13 @@ AI news, trending open models and a directory of AI tools. `radar.html` sends vi
 - **Saved**: the ♥ on a card keeps it in this browser (`localStorage`), shown under Source → Saved.
 - **Links to a view**: search, filters and view live in the address (`/radar?view=new&cat=video&price=free`), and the
   back button steps back through them.
-- **Ask Radar**: a question of three words or more ("something to turn my podcast into clips") shows ✦ Ask Radar; the
-  page picks the likeliest few dozen tools by their words and Ronie's worker (`POST /ask`) chooses the best few, saying
-  why. Card backs are also written ahead of time by the worker's cron, a few each half hour, most-seen tools first.
+- **Ask Radar**: the sparkle at the end of the search box. Focusing the empty box shows examples to try; once what's
+  typed reads as a question (three words or more) the sparkle opens into "Ask Radar ↵". The page picks the likeliest
+  few dozen tools by their words and Ronie's worker (`POST /ask`) chooses the best few, saying how each helps; the
+  other likely ones fill the grid below. A question is part of the link (`/radar?q=…&ask=1`) and is asked again when
+  it's opened. Card backs are also written ahead of time by the worker's cron, a few each half hour.
+- **No em dashes**: the site's own text uses commas, colons and en dashes; outside text (headlines, makers'
+  descriptions, the model's lines) has them turned into commas as it's gathered and as it's shown.
 - **Broken links**: the Refresh Radar Action checks every hand-picked link (`scripts/check-links.mjs`) and keeps a
   GitHub issue open listing any that look broken; it closes itself once they answer again.
 - `robots.txt` and `sitemap.xml` point search engines at `/`, `/radar` and `/ronie`.
