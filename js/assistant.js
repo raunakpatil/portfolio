@@ -138,7 +138,7 @@ const hovers = (e) => e.pointerType === 'mouse' && !TOUCH.matches;
 
 // no 3D body on this device (or it was lost): the note runs along the top, the conversation carries on
 function talkOnly() {
-  loading.textContent = "My 3D body didn't load on this device — but I can still talk.";
+  loading.textContent = "My 3D body didn't load on this device, but I can still talk.";
   loading.hidden = false;
   loading.classList.remove('leaving');
   root.classList.add('no3d');
@@ -266,7 +266,7 @@ function init3D() {
     // servers may gzip the model, so loaded can overshoot total — cap at 99% until it's actually parsed
     if (e.total) loadPct.textContent = `${Math.min(99, Math.round((e.loaded / e.total) * 100))}%`;
   }, () => {
-    loading.textContent = "My 3D body didn't load — but I can still talk.";
+    loading.textContent = "My 3D body didn't load, but I can still talk.";
     root.classList.add('ready');
     showWake();
   });
@@ -2280,7 +2280,7 @@ async function speak(text) {
     }
     // phones, and computers that can't run Kokoro: the device's own voice (free, no server, no quota)
     await speakDevice(said, my);
-  } catch { /* no voice this time — the text is still there */ }
+  } catch { /* no voice this time, the text is still there */ }
 }
 
 // the most natural male English voice this device offers (Edge's "Natural" voices, iOS/macOS, Google's)
@@ -2372,7 +2372,7 @@ function showYou(text) {
   toBottom();
 }
 // "my name is Asha", "call me Sam" → the name; "that's not my name", "change my name" → '' (ask again); else null
-const NAME_OK = ["Got it — {name} it is. Nice to meet you, properly this time.", "{name}! Noted, and saved to my memory banks.", "Okay, {name}. My circuits have updated your file.", "{name} it is. I'll try not to forget. I never forget. Usually."];
+const NAME_OK = ["Got it, {name} it is. Nice to meet you, properly this time.", "{name}! Noted, and saved to my memory banks.", "Okay, {name}. My circuits have updated your file.", "{name} it is. I'll try not to forget. I never forget. Usually."];
 function nameIn(q) {
   const t = q.trim().replace(/[.!]+$/, '');
   const m = t.match(/^(?:hi,?\s+|hey,?\s+)?(?:my name is|my name's|call me|you can call me|i am|i'm|im|this is|it's)\s+([a-z][a-z'\- ]{0,28})$/i);
@@ -2572,7 +2572,7 @@ function projectIn(text) {
 }
 
 // when there are buttons, he points at them — a different line each time
-const POINT = ['The links are just below.', 'Tap one below to take a look.', "They're waiting right under this message.", 'Buttons below, if you want a closer look.', 'Everything you need is one tap below.', 'I left the links right underneath.', 'Scroll a hair down — the links are there.'];
+const POINT = ['The links are just below.', 'Tap one below to take a look.', "They're waiting right under this message.", 'Buttons below, if you want a closer look.', 'Everything you need is one tap below.', 'I left the links right underneath.', 'Scroll a hair down, the links are there.'];
 const POINTS_DOWN = /\b(below|underneath|under this)\b/i;
 function linkRow(links) {
   const row = document.createElement('div');
@@ -2633,7 +2633,7 @@ function micButton(el, err, submit) {
       listenUntil = performance.now() + 1400;           // he leans in as the words come
     };
     r.onerror = (e) => {
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') err.textContent = 'The microphone is blocked — allow it in your browser to talk to me.';
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') err.textContent = 'The microphone is blocked, allow it in your browser to talk to me.';
       else if (e.error === 'no-speech') err.textContent = "I didn't catch that. Tap the mic and try again?";
       else if (e.error !== 'aborted') err.textContent = "My ears glitched. Try again, or type it.";
     };
@@ -2943,7 +2943,7 @@ const SHOVE_K = 55, SHOVE_DAMP = 0.78;
 const shove = { off: 0, vel: 0, dir: new THREE.Vector3() };
 const _shv = new THREE.Vector3();
 // what he says when he's poked again and again
-const OUCH = ['Ouch!', 'Oww!', 'Oof!', 'Ow, ow, ow!', 'Ouchie.', 'Hey! Ow!', 'Owie!', 'Okay — ow.', 'Ow! Rude.', 'Yowch!'];
+const OUCH = ['Ouch!', 'Oww!', 'Oof!', 'Ow, ow, ow!', 'Ouchie.', 'Hey! Ow!', 'Owie!', 'Okay, ow.', 'Ow! Rude.', 'Yowch!'];
 let lastOuch = -1, ouchEl = null;
 // poked in the crotch: both hands come down to cover it (two-bone IK on each arm, blended in over his pose) while he
 // shakes his head — "no" — then everything eases back
@@ -3635,9 +3635,9 @@ function compose(kind) {
   const lines = [];
   let subject;
   if (kind === 'hire') {
-    subject = `Working together — ${answers.kind || 'an opportunity'}${answers.name ? ` (${answers.name})` : ''}`;
+    subject = `Working together: ${answers.kind || 'an opportunity'}${answers.name ? ` (${answers.name})` : ''}`;
     lines.push('Hi Raunak,', '', answers.brief || '', '');
-    lines.push(`What: ${answers.kind || '—'}`);
+    lines.push(`What: ${answers.kind || '-'}`);
     if (answers.company) lines.push(`Company / team: ${answers.company}`);
   } else {
     subject = `A quick word${answers.name ? ` from ${answers.name}` : ''}`;
@@ -3645,7 +3645,7 @@ function compose(kind) {
   }
   if (answers.name) lines.push(`Name: ${answers.name}`);
   if (answers.email) lines.push(`Email: ${answers.email}`);
-  lines.push('', '— sent via Ronie on raunakpatil.com');
+  lines.push('', 'Sent via Ronie on raunakpatil.com');
   mail(`mailto:${A.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join('\n'))}`);
 }
 // a ready-to-send message (Gmail in a new tab on a computer, the mail app on a phone: see openMail in main.js)

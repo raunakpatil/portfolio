@@ -344,7 +344,7 @@
 
   /* ---------- header, nav, menu ---------- */
   function initChrome() {
-    document.title = `${D.name} — Portfolio`;
+    document.title = `${D.name} · Portfolio`;
     $('.brand-full').textContent = D.name;
     $('.brand-short').textContent = D.shortName || D.name;
 
@@ -381,7 +381,7 @@
       moveIndicator();
       window.scrollTo(0, 0);
       document.body.dataset.route = r;
-      document.title = r === 'radar' ? 'Radar — AI news, trending models and AI tools · Raunak Patil' : `${D.name} — Portfolio`;
+      document.title = r === 'radar' ? 'Radar: AI news, trending models and AI tools · Raunak Patil' : `${D.name} · Portfolio`;
       window.warmView?.(r);
       if (r === 'radar') loadRadar().then((m) => m.open());
       // Ronie (three.js + the robot) only loads when someone actually opens it
@@ -692,7 +692,7 @@
       const value = side === 'start' ? v.start : side === 'end' ? v.end : v.total;
       if (withGlitch) glitch(num, fmt(value), { percent: 0.8, duration: 700 }); else if (!num._glitchBusy) num.textContent = fmt(value);
       unit.textContent = side === 'start' ? `Hours in ${T.start.region}` : side === 'end' ? `Hours in ${T.end.region}` : T.unit;
-      todayEl.textContent = side === 'start' ? `${T.start.year} — ${T.start.year + 1}` : '';
+      todayEl.textContent = side === 'start' ? `${T.start.year} – ${T.start.year + 1}` : '';
     }
     const setSide = (s) => {
       if (s === side) return;
@@ -1908,7 +1908,7 @@
     if (!subject && !body) {
       let name = '';
       try { name = localStorage.getItem('rai-name') || ''; } catch { /* private mode */ }
-      subject = `Hello from your website${name ? ` — ${name}` : ''}`;
+      subject = `Hello from your website${name ? `, ${name}` : ''}`;
       body = ['Hi Raunak,', '', `I just came across your portfolio at ${location.host || 'raunakpatil.com'} and wanted to get in touch.`, '', '', '',
         'Best,', name].join('\n').trim() + '\n';
     }

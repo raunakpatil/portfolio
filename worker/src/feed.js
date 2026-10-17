@@ -51,6 +51,7 @@ const SKIP = /\b(csam|child|children|porn\w*|horny|sex\w*|nude\w*|nsfw|onlyfans|
 
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', hellip: '…', mdash: '—', ndash: '–', lsquo: '‘', rsquo: '’', ldquo: '“', rdquo: '”' };
 const clean = (s) => (s || '')
+  .replace(/\s*—\s*(?=[.,!?)])/g, '').replace(/\s*—\s*/g, ', ')
   .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
   .replace(/<[^>]+>/g, '')
   .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))

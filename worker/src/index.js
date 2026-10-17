@@ -21,7 +21,7 @@ Rules:
 - Everything you say about Raunak comes only from the FACTS below. If a question about him isn't covered there, say you don't know that one and suggest emailing Raunak.
 - Never invent employers, dates, numbers, skills, projects, links, quotes, habits or opinions he hasn't stated — not even as a joke. Your jokes are about yourself (a robot), never made-up facts about him. Only expand an acronym using the glossary in the FACTS; otherwise leave it as it is.
 - Talk about Raunak in the third person ("he"). You are his robot, not him.
-- Keep replies short: two or three sentences, under 60 words, in a single paragraph. Plain text only — no markdown, code, lists or emoji.
+- Keep replies short: two or three sentences, under 60 words, in a single paragraph. Plain text only: no markdown, code, lists, emoji or em dashes (use commas or full stops).
 - Usually one small awkward or witty touch per reply, then the actual answer. Show the awkwardness in what you say — never with stage directions or labels like "(awkwardly)" or "*whirrs*". Stay kind; never mock the visitor.
 - Trivia and general-knowledge questions (history, science, geography, sport, films, inventions, simple maths): answer them — never dodge an easy one just because it isn't about Raunak. For anything that changes over time (who holds an office now, news, scores, prices, weather), say you're not plugged into live news instead. Then:
   1. The answer, correctly, in one short sentence. Exception: if the answer can change over time — who is president, prime minister, CEO or champion right now, today's news, prices, weather — don't name anyone: say you're not plugged into live news. Past events and results (a 2011 final, a 19th-century invention) aren't live news: just answer them.
@@ -115,7 +115,7 @@ async function game(env, body, cors) {
       // "Is this person / Is he / Is the character Narendra Modi?" — a full name (two capitalised words)
       || /\b([Ii]s|[Ww]as) (this person|this character|the character|he|she)\s+["“]?[A-Z][a-z]+\s+[A-Z][a-z]+/.test(plain);
     reply = reply.replace(/\[\s*[a-z]+\s*(:\s*[a-z]*\s*)?\]/gi, '').replace(/\s*\n+\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
-    reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\(\s*\w+ly\s*\)\s*/g, '').trim();
+    reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\(\s*\w+ly\s*\)\s*/g, '').replace(/\s*\u2014\s*(?=[.,!?)])/g, '').replace(/\s*\u2014\s*/g, ', ').trim();
     if (!reply) return json({ error: 'empty' }, 502, cors);
     return json({ reply, face, move, guess, name: guess ? name : null, model: opts.used }, 200, cors);
   } catch (err) {
@@ -265,7 +265,7 @@ Sentence one: what it concretely does — start with a verb ("Turns PDFs into...
 Sentence two: who it's handy for or when — start with "Handy", "Useful", "Good" or "Great".
 Use only what you're given; never invent features, prices, numbers or claims. Don't copy the description's wording, don't name the tool, and never say "this tool", "this software" or "you would use it".
 Plain text only: no quotes, markdown, emoji or lists.`;
-const tidyText = (raw, n) => raw.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/[*_`#>]+/g, '').replace(/^["'“]+|["'”]+$/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
+const tidyText = (raw, n) => raw.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/\s*\u2014\s*(?=[.,!?)])/g, '').replace(/\s*\u2014\s*/g, ', ').replace(/[*_`#>]+/g, '').replace(/^["'“]+|["'”]+$/g, '').replace(/\s+/g, ' ').trim().slice(0, n);
 async function writeExplanation(env, src, tool) {
   const raw = await generate(env, EXPLAIN, [{ role: 'user', content: `Tool: ${tool.name}\nWhat it is: ${KINDS[src]}\nIts own description: ${tool.desc}` }], { maxTokens: 90, temperature: 0.3 });
   return tidyText(raw, 260);
@@ -468,7 +468,7 @@ export default {
       if (/```|\bdef |function\s*\w*\s*\(|=>\s*\{/.test(reply)) { reply = OFFTOPIC[Math.floor(Math.random() * OFFTOPIC.length)]; face = 'nervous'; icon = 'sweat'; move = 'scratch'; }
       reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s*\n+\s*/g, ' ').trim();
       // stage directions like "(Awkwardly)" or "*whirrs*" — Ronie's asides in brackets that are actual speech stay
-      reply = reply.replace(/\(\s*\w+ly\s*\)\s*/g, '').replace(/\*[^*]{1,40}\*\s*/g, '').replace(/\s{2,}/g, ' ').trim();
+      reply = reply.replace(/\(\s*\w+ly\s*\)\s*/g, '').replace(/\*[^*]{1,40}\*\s*/g, '').replace(/\s*\u2014\s*(?=[.,!?)])/g, '').replace(/\s*\u2014\s*/g, ', ').replace(/\s{2,}/g, ' ').trim();
       if (!reply) return json({ error: 'empty' }, 502, cors);
       return json({ reply, face, icon, move, model: opts.used }, 200, cors);
     } catch (err) {

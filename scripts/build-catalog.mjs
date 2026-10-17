@@ -41,7 +41,7 @@ const CATS = [
 // (its own name and description first; its tags only when those say nothing)
 const catOf = (own, tags, fallback) => (CATS.find(([, re]) => re.test(own)) || CATS.find(([, re]) => re.test(tags)) || [fallback])[0];
 const tidy = (s, n = 140) => {
-  const t = String(s || '').replace(/:[a-z0-9_+-]+:/g, '').replace(/\s+/g, ' ').trim();
+  const t = String(s || '').replace(/:[a-z0-9_+-]+:/g, '').replace(/\s*\u2014\s*(?=[.,!?)])/g, '').replace(/\s*\u2014\s*/g, ', ').replace(/\s+/g, ' ').trim();
   return t.length > n ? `${t.slice(0, n - 1).replace(/\s+\S*$/, '')}…` : t;
 };
 

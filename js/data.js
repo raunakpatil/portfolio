@@ -9,8 +9,8 @@ window.PORTFOLIO = {
   tagline: 'AI Engineer & Designer',   // under the name on the arrival screen
   timezone: 'Asia/Kolkata', // used for the live clock in the menu
   // what Ronie leads with: newer than anything else in this file, so it wins wherever they disagree
-  status: "Open to work — looking for his next role. Living in Nagpur, India right now. He's no longer at Sigma AI (he was an AI Quality Engineer there from Apr 2024).",
-  bio: 'AI Quality Engineer (LLM & Generative AI) — auditing RAG systems, evaluating LLMs and building RLHF quality frameworks, most recently at Sigma AI in London. Now based in Nagpur, India and open to work. MSc Data Science & AI, University of Liverpool.',
+  status: "Open to work, looking for his next role. Living in Nagpur, India right now. He's no longer at Sigma AI (he was an AI Quality Engineer there from Apr 2024).",
+  bio: 'AI Quality Engineer (LLM & Generative AI), auditing RAG systems, evaluating LLMs and building RLHF quality frameworks, most recently at Sigma AI in London. Now based in Nagpur, India and open to work. MSc Data Science & AI, University of Liverpool.',
 
   links: [
     { label: 'Email', href: 'mailto:raunakpatil15@gmail.com' },
@@ -95,10 +95,10 @@ window.PORTFOLIO = {
      mapBounds picks the visible region (degrees); delete it to show the whole world. */
   mapBounds: { w: -22, e: 100, n: 62, s: 2 },
   experience: [
-    { years: '2015 — 2021', org: 'BE, Electrical, Electronics & Communications Engineering', role: 'GH Raisoni University', place: 'Nagpur, IN', lat: 21.1458, lon: 79.0882 },
-    { years: 'Feb 2021 — Jan 2022', org: 'Junior Data Scientist · Zummit Infolabs', role: 'Internship — predictive maintenance ML, TensorFlow, DNNs', place: 'Bengaluru, IN', lat: 12.9716, lon: 77.5946 },
-    { years: 'Sep 2022 — Sep 2023', org: 'MSc Data Science & AI · University of Liverpool', role: 'Dissertation: Multi-Agent Reinforcement Learning (MARL)', place: 'Liverpool, UK', lat: 53.4084, lon: -2.9916 },
-    { years: 'Apr 2024 — 2026', org: 'AI Quality Engineer · Sigma AI', role: 'LLM & Generative AI — RAG auditing, RLHF, LLM QA', place: 'Hammersmith, London, UK', lat: 51.4927, lon: -0.2239 },
+    { years: '2015 – 2021', org: 'BE, Electrical, Electronics & Communications Engineering', role: 'GH Raisoni University', place: 'Nagpur, IN', lat: 21.1458, lon: 79.0882 },
+    { years: 'Feb 2021 – Jan 2022', org: 'Junior Data Scientist · Zummit Infolabs', role: 'Internship: predictive maintenance ML, TensorFlow, DNNs', place: 'Bengaluru, IN', lat: 12.9716, lon: 77.5946 },
+    { years: 'Sep 2022 – Sep 2023', org: 'MSc Data Science & AI · University of Liverpool', role: 'Dissertation: Multi-Agent Reinforcement Learning (MARL)', place: 'Liverpool, UK', lat: 53.4084, lon: -2.9916 },
+    { years: 'Apr 2024 – 2026', org: 'AI Quality Engineer · Sigma AI', role: 'LLM & Generative AI: RAG auditing, RLHF, LLM QA', place: 'Hammersmith, London, UK', lat: 51.4927, lon: -0.2239 },
   ],
 
 
@@ -109,23 +109,23 @@ window.PORTFOLIO = {
      sit in it; 16:9 and 4:3); without them the tunnel uses image / imageMobile. */
   projects: [
     {
-      title: 'Ronie — 3D AI Agent', category: 'AI Agents', year: 2026, image: 'img/projects/ronie.webp?v=5', imageMobile: 'img/projects/ronie-mobile.webp?v=2', tunnelImage: 'img/tunnel/ronie.webp?v=2', tunnelImageMobile: 'img/tunnel/ronie-mobile.webp?v=2', colors: ['#ff7a1a', '#7c5cff'],
+      title: 'Ronie: 3D AI Agent', category: 'AI Agents', year: 2026, image: 'img/projects/ronie.webp?v=5', imageMobile: 'img/projects/ronie-mobile.webp?v=2', tunnelImage: 'img/tunnel/ronie.webp?v=2', tunnelImageMobile: 'img/tunnel/ronie-mobile.webp?v=2', colors: ['#ff7a1a', '#7c5cff'],
       tags: ['three.js', 'WebGPU', 'Kokoro TTS', 'Cloudflare Workers', 'Gemini', 'Blender'],
-      description: "The 3D AI agent who lives on this website: he answers visitors' questions from real facts only, speaks in a neural voice that runs on their own GPU, reacts with 23 expressions and 23 moves I authored in Blender with Python, and plays a mind-reading game — free to run. Works with any 3D character; the code is an open template.",
+      description: "The 3D AI agent who lives on this website: he answers visitors' questions from real facts only, speaks in a neural voice that runs on their own GPU, reacts with 23 expressions and 23 moves I authored in Blender with Python, and plays a mind-reading game, free to run. Works with any 3D character; the code is an open template.",
       link: 'https://github.com/raunakpatil/ronie-3d-ai-website-agent', linkText: 'See the case study ↗',
       demo: '#assistant', demoText: 'Meet Ronie →',
     },
     {
-      title: 'Zeul — Wallpaper App', aka: ['Zeul'], category: 'App', year: 2026, image: 'img/projects/zeul.webp', imageMobile: 'img/projects/zeul-mobile.webp', tunnelImage: 'img/tunnel/zeul.webp', tunnelImageMobile: 'img/tunnel/zeul-mobile.webp', colors: ['#eb6834', '#111111'],
+      title: 'Zeul: Wallpaper App', aka: ['Zeul'], category: 'App', year: 2026, image: 'img/projects/zeul.webp', imageMobile: 'img/projects/zeul-mobile.webp', tunnelImage: 'img/tunnel/zeul.webp', tunnelImageMobile: 'img/tunnel/zeul-mobile.webp', colors: ['#eb6834', '#111111'],
       tags: ['Kotlin', 'Jetpack Compose', 'Supabase', 'Edge Functions', 'Android'],
-      description: 'A free, open-source Android wallpaper app: hand-picked HD and AMOLED wallpapers, a For You feed that learns your style, search with colour filters, community uploads with built-in moderation, and an auto wallpaper changer — in a soft, tactile UI with a hamster mascot. Open source (GPL-3.0).',
+      description: 'A free, open-source Android wallpaper app: hand-picked HD and AMOLED wallpapers, a For You feed that learns your style, search with colour filters, community uploads with built-in moderation, and an auto wallpaper changer, in a soft, tactile UI with a hamster mascot. Open source (GPL-3.0).',
       link: 'https://github.com/raunakpatil/ZeulWallpaperApp',
       demo: 'https://github.com/raunakpatil/ZeulWallpaperApp/releases/latest', demoText: 'Download the APK ↗',
     },
     {
       title: 'YouTube Agentic AI Studio', category: 'AI Agents', year: 2026, image: 'img/projects/youtube-agentic-ai-studio.webp', imageMobile: 'img/projects/youtube-agentic-ai-studio-mobile.webp', tunnelImage: 'img/tunnel/youtube-agentic-ai-studio.webp', tunnelImageMobile: 'img/tunnel/youtube-agentic-ai-studio-mobile.webp', colors: ['#c6f432', '#7c5cff'],
       tags: ['Python', 'Gemini', 'LangChain', 'Edge TTS', 'YouTube API'],
-      description: 'A 100% free AI pipeline that researches, scripts, narrates, animates and auto-uploads faceless YouTube videos — one command, zero cost per video. 96★ on GitHub.',
+      description: 'A 100% free AI pipeline that researches, scripts, narrates, animates and auto-uploads faceless YouTube videos, one command, zero cost per video. 96★ on GitHub.',
       link: 'https://github.com/raunakpatil/youtube-agentic-ai-studio',
     },
     {
@@ -150,7 +150,7 @@ window.PORTFOLIO = {
     {
       title: 'Interdimensional Cable', category: 'Website', year: 2026, image: 'img/projects/interdimensional-cable.webp', imageMobile: 'img/projects/interdimensional-cable-mobile.webp', tunnelImage: 'img/tunnel/interdimensional-cable.webp', tunnelImageMobile: 'img/tunnel/interdimensional-cable-mobile.webp', colors: ['#4ade80', '#a78bfa'],
       tags: ['Vanilla JS', 'Canvas', 'Web Audio API', 'YouTube API'],
-      description: 'A nostalgic analog-TV simulator inspired by Rick and Morty — no algorithm, no grid, just a non-stop stream of curated rabbit holes behind a CSS CRT and a 60fps canvas static engine.',
+      description: 'A nostalgic analog-TV simulator inspired by Rick and Morty, no algorithm, no grid, just a non-stop stream of curated rabbit holes behind a CSS CRT and a 60fps canvas static engine.',
       link: 'https://raunakpatil.github.io/InterdimentionalCable/',
     },
   ],
@@ -180,7 +180,7 @@ window.PORTFOLIO = {
       title: 'A QA framework that made sprints 27% more consistent', coverTitle: '27% More Consistent', year: 2024,
       spine: '#2f6fd6', ink: '#f6e27a', coverInk: '#f6e27a', colors: ['#3a78dd', '#f28c38'], cover: 'img/covers/qa-framework.webp',
       tags: ['Power BI', 'Quality', 'Agile'],
-      description: 'Built Power BI QA tracking that made reviewer output measurable sprint over sprint — and lifted consistency by 27%.',
+      description: 'Built Power BI QA tracking that made reviewer output measurable sprint over sprint, and lifted consistency by 27%.',
       link: '#',
     },
     {
@@ -214,9 +214,9 @@ window.PORTFOLIO = {
   profile: {
     // Top row: four cards, each with an icon, a short line, tags and a big title.
     traits: [
-      { icon: 'chip', title: 'Rooted in Electronics', text: 'From signals and embedded systems in Nagpur to models and data — I like understanding a system from the hardware up.', tags: ['Signal Processing', 'Embedded Systems', 'Edge AI'] },
-      { icon: 'code', title: 'Curiosity = Code', text: 'I turn ideas into working tools — free desktop apps, agent pipelines and games, shipped end to end.', tags: ['Python', 'React', 'Electron', 'Next.js'] },
-      { icon: 'shield', title: 'AI Quality Engineer', text: 'In a world of confident models, I make them trustworthy — auditing RAG systems, evaluating LLMs and building RLHF quality frameworks.', tags: ['RAG', 'RLHF', 'LLM Evaluation'] },
+      { icon: 'chip', title: 'Rooted in Electronics', text: 'From signals and embedded systems in Nagpur to models and data, I like understanding a system from the hardware up.', tags: ['Signal Processing', 'Embedded Systems', 'Edge AI'] },
+      { icon: 'code', title: 'Curiosity = Code', text: 'I turn ideas into working tools, free desktop apps, agent pipelines and games, shipped end to end.', tags: ['Python', 'React', 'Electron', 'Next.js'] },
+      { icon: 'shield', title: 'AI Quality Engineer', text: 'In a world of confident models, I make them trustworthy, auditing RAG systems, evaluating LLMs and building RLHF quality frameworks.', tags: ['RAG', 'RLHF', 'LLM Evaluation'] },
       { icon: 'people', title: 'People', text: 'I lead reviewers, work across English, Hindi and Marathi, and like making complex AI make sense to everyone.', tags: ['Team Lead', 'Multilingual', 'Communicator'] },
     ],
     // Flip card. Front: radar of self-assessed traits (0–100) + goals. Back: photo, quote, mindset.
@@ -270,17 +270,17 @@ window.PORTFOLIO = {
       intro: {
         progress: 0.05, next: 'your-name', skipIfName: 'welcome-back', face: 'happy', icon: 'sparkle',
         say: [
-          "Hi {visitor}, I'm R.O.N.I.E. — Raunak's Own Neural Intelligence Engine. Ronie, to friends.",
-          "Oh! A visitor. I'm Ronie — Raunak's Own Neural Intelligence Engine. I basically run this place.",
-          "Beep. Boop. Kidding — I'm Ronie, Raunak's Own Neural Intelligence Engine, and I'm fully awake now.",
-          "Sorry, I was in sleep mode. Very deep sleep mode. I'm Ronie — Raunak's Own Neural Intelligence Engine.",
+          "Hi {visitor}, I'm R.O.N.I.E., Raunak's Own Neural Intelligence Engine. Ronie, to friends.",
+          "Oh! A visitor. I'm Ronie, Raunak's Own Neural Intelligence Engine. I basically run this place.",
+          "Beep. Boop. Kidding, I'm Ronie, Raunak's Own Neural Intelligence Engine, and I'm fully awake now.",
+          "Sorry, I was in sleep mode. Very deep sleep mode. I'm Ronie, Raunak's Own Neural Intelligence Engine.",
           "Whoa, that was a big jump. Hi! I'm Ronie, short for Raunak's Own Neural Intelligence Engine. Long name, small robot.",
           "System check: lights on, fans spinning, dignity mostly intact. Hello, {visitor}! I'm Ronie.",
-          "Oh, hi {visitor}. You caught me napping. I'm R.O.N.I.E. — Raunak's Own Neural Intelligence Engine — and I was definitely not drooling coolant.",
+          "Oh, hi {visitor}. You caught me napping. I'm R.O.N.I.E., Raunak's Own Neural Intelligence Engine, and I was definitely not drooling coolant.",
           "Rebooting charm module… done. Hi, I'm Ronie, Raunak's Own Neural Intelligence Engine. I know everything about him. It's a little awkward.",
           "Hello! I'm Ronie. Raunak built me to talk about him, which sounds vain, but I volunteered.",
-          "Hi {visitor}! I'm Ronie — Raunak's Own Neural Intelligence Engine. Think of me as his tour guide, with more blinking.",
-          "Good timing — I just finished updating myself. Hi, I'm Ronie, Raunak's Own Neural Intelligence Engine.",
+          "Hi {visitor}! I'm Ronie, Raunak's Own Neural Intelligence Engine. Think of me as his tour guide, with more blinking.",
+          "Good timing, I just finished updating myself. Hi, I'm Ronie, Raunak's Own Neural Intelligence Engine.",
         ],
       },
       greeting: {
@@ -288,7 +288,7 @@ window.PORTFOLIO = {
         say: [
           "Finally, some company. Talking to my own logs was getting weird. What can I do for you?",
           "You have questions. I have… mostly answers. Pick one.",
-          "I've cleared my calendar. Well, I don't have one. But still — how can I help?",
+          "I've cleared my calendar. Well, I don't have one. But still, how can I help?",
           "Speak, and the model shall respond. Accurately. Raunak checks.",
           "Neural engine warm, opinions fully loaded. What brings you here?",
         ],
@@ -306,7 +306,7 @@ window.PORTFOLIO = {
         progress: 0.2, next: 'hire-name',
         say: [
           "Ooh, an opportunity. Let me grab my notepad. It's imaginary, but it's very organised.",
-          "A collaboration? Now we're talking. Raunak will be thrilled — I'll act casual.",
+          "A collaboration? Now we're talking. Raunak will be thrilled, I'll act casual.",
           "Excellent taste. Let's get you on his radar.",
         ],
       },
@@ -314,7 +314,7 @@ window.PORTFOLIO = {
         progress: 0.3, next: 'hire-post-name',
         input: { name: 'name', label: 'Your name', type: 'text' },
         say: [
-          "First things first — who am I talking to?",
+          "First things first, who am I talking to?",
           "Let's not be strangers. What's your name?",
           "Name, please. I need something to say dramatically when I tell Raunak about this.",
         ],
@@ -331,7 +331,7 @@ window.PORTFOLIO = {
         progress: 0.45, next: 'hire-type',
         input: { name: 'company', label: 'Company or team', type: 'text', optional: true },
         say: [
-          "Where are you reaching out from? Company, team, secret lab — all welcome.",
+          "Where are you reaching out from? Company, team, secret lab, all welcome.",
           "Which company or team are you with? You can skip this if it's top secret.",
         ],
       },
@@ -339,7 +339,7 @@ window.PORTFOLIO = {
         progress: 0.55,
         say: [
           "What kind of thing are we talking about?",
-          "Give it to me straight — what's the mission?",
+          "Give it to me straight, what's the mission?",
           "So what are we building? A team? A model? A miracle?",
         ],
         choices: [
@@ -353,7 +353,7 @@ window.PORTFOLIO = {
         progress: 0.7, next: 'hire-email',
         input: { name: 'brief', label: 'A few lines about it', type: 'text', multiline: true },
         say: [
-          "Tell me a little about it. A few lines is perfect — I'll do the rest.",
+          "Tell me a little about it. A few lines is perfect, I'll do the rest.",
           "What's the story? The more context, the better Raunak's reply.",
         ],
       },
@@ -362,7 +362,7 @@ window.PORTFOLIO = {
         input: { name: 'email', label: 'Your email', type: 'email' },
         say: [
           "And where should Raunak reply?",
-          "Last thing — your email, so he can get back to you.",
+          "Last thing, your email, so he can get back to you.",
           "Email, please. I promise not to sign you up for my newsletter. I don't have one. Yet.",
         ],
       },
@@ -376,7 +376,7 @@ window.PORTFOLIO = {
       'hire-completion': {
         progress: 1,
         say: [
-          "Done! Your email app should be open with everything filled in — just hit send.",
+          "Done! Your email app should be open with everything filled in, just hit send.",
           "Your email is drafted and waiting. One click on send and it's in Raunak's inbox.",
         ],
         choices: [
@@ -392,7 +392,7 @@ window.PORTFOLIO = {
         input: { name: 'message', label: 'Your message', type: 'text', multiline: true },
         say: [
           "Go on, what's on your mind?",
-          "Short and sweet — I'm all ears. Metaphorically.",
+          "Short and sweet, I'm all ears. Metaphorically.",
           "Type away. I'll pass it on word for word.",
         ],
       },
@@ -411,7 +411,7 @@ window.PORTFOLIO = {
       'word-completion': {
         progress: 1,
         say: [
-          "Your email app is open with your note — hit send and you're done.",
+          "Your email app is open with your note, hit send and you're done.",
           "Drafted and ready. Press send and Raunak's on it.",
         ],
         choices: [
@@ -439,40 +439,40 @@ window.PORTFOLIO = {
         progress: 0.15, next: 'ask', skipIfName: 'welcome-back', face: 'curious', icon: 'question',
         input: { name: 'name', label: 'Your name', type: 'text' },
         say: [
-          "Before we start — what should I call you?",
+          "Before we start, what should I call you?",
           "First things first: who am I talking to?",
           "I'm terrible with names. Mostly because nobody tells me theirs. What's yours?",
           "What's your name? I'll remember it. That's my one party trick.",
           "Quick question before the big ones: what do I call you?",
-          "Let's do introductions properly. You know my name — what's yours?",
+          "Let's do introductions properly. You know my name, what's yours?",
         ],
       },
       // a returning visitor: one line instead of the intro, then straight to the chat (it shares ask's settings)
       'welcome-back': {
         progress: 0.3, chat: true, face: 'love', icon: 'heart',
         say: [
-          "Wait — {name}? You came back! I'm… not crying. That's coolant. Ask me anything about Raunak.",
-          "{name}! Welcome back. I kept your seat warm — well, my fans did. What do you want to know about Raunak?",
+          "Wait, {name}? You came back! I'm… not crying. That's coolant. Ask me anything about Raunak.",
+          "{name}! Welcome back. I kept your seat warm, well, my fans did. What do you want to know about Raunak?",
           "Oh, hi {name}. I remembered your name. I've been practising. Ask away about Raunak.",
-          "{name}! You're back. I'd hug you, but I'm mostly sharp edges. So — what about Raunak?",
-          "Look who it is — {name}! My memory banks lit up. Literally, check my chest. Ask me anything about him.",
+          "{name}! You're back. I'd hug you, but I'm mostly sharp edges. So, what about Raunak?",
+          "Look who it is, {name}! My memory banks lit up. Literally, check my chest. Ask me anything about him.",
           "Hey {name}. I told the other robots you'd come back. There are no other robots. Still, I was right. What shall we talk about?",
-          "Welcome back, {name}. Pick up where we left off, or start fresh — ask me anything about Raunak.",
+          "Welcome back, {name}. Pick up where we left off, or start fresh, ask me anything about Raunak.",
         ],
       },
       // free chat: questions go to a small AI model (worker/), grounded only in this file's facts
       ask: {
         progress: 0.3, chat: true, face: 'happy', icon: 'speech',
         say: [
-          "Right, {name}. Ask me anything about Raunak — his work, projects, skills, or how to reach him.",
+          "Right, {name}. Ask me anything about Raunak, his work, projects, skills, or how to reach him.",
           "Okay {name}, ask me anything about him. I've read everything he's written. Twice.",
-          "So, {name} — questions about Raunak? Fire away. I'll answer as honestly as a robot can.",
-          "Alright {name}, I'm all yours. Ask me about Raunak — work, projects, skills, anything.",
+          "So, {name} – questions about Raunak? Fire away. I'll answer as honestly as a robot can.",
+          "Alright {name}, I'm all yours. Ask me about Raunak, work, projects, skills, anything.",
           "Go ahead, {name}. Ask me anything about Raunak. I promise to only overshare a little.",
           "Okay {name}, the floor is yours. What do you want to know about him?",
         ],
-        fallback: "Sorry {name}, my chat brain is taking a nap right now (free-tier robots need sleep too). Try again in a bit — or email Raunak at {email}.",
-        quota: "Okay, confession, {name}: I've talked so much today that I've used up my free brain juice. I recharge overnight — or email Raunak at {email}.",
+        fallback: "Sorry {name}, my chat brain is taking a nap right now (free-tier robots need sleep too). Try again in a bit, or email Raunak at {email}.",
+        quota: "Okay, confession, {name}: I've talked so much today that I've used up my free brain juice. I recharge overnight, or email Raunak at {email}.",
         // tap-to-ask questions under the box, for anyone who'd rather not type (shown two at a time, best first)
         suggest: [
           'What has he built?',
@@ -506,17 +506,17 @@ window.PORTFOLIO = {
       'journey-2': { progress: 0.4, story: 'journey-3', say: ["Signals and circuits by day… and a growing obsession with machine learning by night."] },
       'journey-3': { progress: 0.55, story: 'journey-4', say: ["In 2021 he joined Zummit Infolabs in Bengaluru as a Junior Data Scientist. His models cut equipment downtime by 15%."] },
       'journey-4': { progress: 0.7, story: 'journey-5', say: ["Then the UK: an MSc in Data Science & AI at the University of Liverpool, with a dissertation on multi-agent reinforcement learning."] },
-      'journey-5': { progress: 0.85, story: 'story-done', say: ["Most recently he was an AI Quality Engineer at Sigma AI in London, making large language models more trustworthy. Now he's back in Nagpur — and open to work."] },
-      'builds-1': { progress: 0.3, story: 'builds-2', say: ["He builds free tools. Like ResRescue — a desktop app that rewrites résumés to get past applicant tracking systems."] },
+      'journey-5': { progress: 0.85, story: 'story-done', say: ["Most recently he was an AI Quality Engineer at Sigma AI in London, making large language models more trustworthy. Now he's back in Nagpur, and open to work."] },
+      'builds-1': { progress: 0.3, story: 'builds-2', say: ["He builds free tools. Like ResRescue, a desktop app that rewrites résumés to get past applicant tracking systems."] },
       'builds-2': { progress: 0.5, story: 'builds-3', say: ["And a YouTube Agentic AI Studio that researches, scripts, narrates and uploads videos on its own. 96 stars on GitHub."] },
       'builds-3': { progress: 0.7, story: 'builds-4', say: ["There's TriviaFlux, an AI trivia game, and a Titanic survival predictor that explains its own decisions with SHAP."] },
-      'builds-4': { progress: 0.85, story: 'story-done', say: ["And Interdimensional Cable — a retro TV that streams random rabbit holes. The man has range."] },
+      'builds-4': { progress: 0.85, story: 'story-done', say: ["And Interdimensional Cable, a retro TV that streams random rabbit holes. The man has range."] },
       'works-1': { progress: 0.3, story: 'works-2', say: ["At Sigma AI he audited RAG systems, tracing hallucinations back to their source. Dataset accuracy went up 18%."] },
-      'works-2': { progress: 0.5, story: 'works-3', say: ["He's been data controller on 14+ multilingual LLM projects — with 100% compliance on safety and alignment guidelines."] },
+      'works-2': { progress: 0.5, story: 'works-3', say: ["He's been data controller on 14+ multilingual LLM projects, with 100% compliance on safety and alignment guidelines."] },
       'works-3': { progress: 0.7, story: 'works-4', say: ["He led a team of four reviewers on RLHF datasets, and built Power BI tracking that made the team 27% more consistent."] },
       'works-4': { progress: 0.85, story: 'story-done', say: ["His rule of thumb: the best AI system is one that knows what it doesn't know. I'm working on it."] },
       'facts-1': { progress: 0.3, story: 'facts-2', say: ["He speaks English, Hindi and Marathi. And Python. Fluently."] },
-      'facts-2': { progress: 0.5, story: 'facts-3', say: ["He's a DIAT-certified Artificial Intelligence Professional — that's the Defence Institute of Advanced Technology."] },
+      'facts-2': { progress: 0.5, story: 'facts-3', say: ["He's a DIAT-certified Artificial Intelligence Professional, that's the Defence Institute of Advanced Technology."] },
       'facts-3': { progress: 0.7, story: 'facts-4', say: ["He runs a YouTube channel, Eldritch Lore, where an AI pipeline does the heavy lifting."] },
       'facts-4': { progress: 0.85, story: 'story-done', say: ["He built this whole website. Including me. I'm still deciding how I feel about that."] },
       'story-done': {
@@ -538,10 +538,10 @@ window.PORTFOLIO = {
       first: 'Is it a real person, not a fictional character?',
       intro: [
         "Okay {name}: think of a famous person, a character, an animal or a thing. Don't tell me. I'll read your mind. With questions. Ready?",
-        "Game time! Think of someone or something famous — real or fictional. I'll guess it. Probably. Ready?",
+        "Game time! Think of someone or something famous, real or fictional. I'll guess it. Probably. Ready?",
       ],
       win: [
-        "I knew it! I mean — I calculated it. Same thing. Another round, {name}?",
+        "I knew it! I mean, I calculated it. Same thing. Another round, {name}?",
         "Yes! Mind: read. Fans: spinning with joy. Again?",
         "Got it! Don't tell Raunak, but that was my favourite part of today.",
       ],
@@ -551,7 +551,7 @@ window.PORTFOLIO = {
       ],
       reveal: [
         "{answer}! Of course. I was one question away. Probably. Rematch?",
-        "{answer}?! That's — fine. That's fine. I'm fine. Rematch?",
+        "{answer}?! That's… fine. That's fine. I'm fine. Rematch?",
       ],
       fallback: "My guessing brain just went to sleep, {name}. Let's try again in a bit.",
       quota: "I've played so much today that my free brain juice ran out, {name}. Rematch tomorrow?",

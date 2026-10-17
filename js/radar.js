@@ -10,7 +10,9 @@ const D = window.PORTFOLIO;
 const V = new URL(import.meta.url).searchParams.get('v') || '';
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+// (the site uses no em dashes; text from outside — headlines, makers' descriptions — has them turned into commas)
+const undash = (s) => String(s ?? '').replace(/\s*\u2014\s*(?=[.,!?)])/g, '').replace(/\s*\u2014\s*/g, ', ');
+const esc = (s) => undash(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const MOTION = !matchMedia('(prefers-reduced-motion: reduce)').matches;
 const view = $('.view[data-view="radar"]');
 
@@ -104,7 +106,7 @@ function renderNews(f) {
   const box = $('#tl-news');
   box.removeAttribute('aria-busy');
   if (!f.news.length) {
-    box.innerHTML = '<p class="tl-empty">The headlines couldn\'t be fetched just now — try again in a little while.</p>';
+    box.innerHTML = '<p class="tl-empty">The headlines couldn\'t be fetched just now, try again in a little while.</p>';
     return;
   }
 
@@ -268,7 +270,7 @@ function renderDirectory(T, catalogP) {
   // that fits the box as it is
   const hint = () => {
     const w = search.clientWidth, n = fmt(all.length);
-    search.placeholder = w >= 560 ? `Search ${n} AI tools — or ask Radar, e.g. “turn my podcast into short clips”`
+    search.placeholder = w >= 560 ? `Search ${n} AI tools, or ask Radar, e.g. “turn my podcast into short clips”`
       : w >= 340 ? `Search ${n} AI tools, or ask Radar what you need` : `Search ${n} tools, or ask Radar`;
   };
   if (window.ResizeObserver) new ResizeObserver(hint).observe(search);
@@ -441,7 +443,7 @@ function renderDirectory(T, catalogP) {
       : t.src === 'hf' ? `<span class="tool-pop" title="${fmt(t.pop)} likes on Hugging Face">♥ ${short(t.pop)}</span>`
       : t.src === 'ph' ? `<span class="tool-pop" title="${fmt(t.pop)} upvotes on Product Hunt">▲ ${short(t.pop)}</span>` : '';
     return `<div class="tool-card" data-i="${t.i}" style="animation-delay:${Math.min(k % STEP, 16) * 30}ms"><div class="tool-inner">
-      <div class="tool tool-front${t.src === 'pick' ? '' : ' cat'}" role="button" tabindex="0" aria-label="${esc(t.n)} — turn over for details">
+      <div class="tool tool-front${t.src === 'pick' ? '' : ' cat'}" role="button" tabindex="0" aria-label="${esc(t.n)} – turn over for details">
       <span class="tool-top">
         ${icon(t)}
         <span class="tool-flags">${rank}${t.uses ? `<span class="tool-uses">${esc(t.uses)}</span>` : ''}${isNew ? '<span class="tool-new">New</span>' : ''}${t.pick ? '<span class="tool-pick" title="One of Raunak\'s picks">★</span>' : ''}${rising.has(t.i) && S.sort !== 'rising' ? '<span class="tool-rise" title="Climbing fast right now">↑ Rising</span>' : ''}${pop}<button type="button" class="tool-save" aria-pressed="${saved.has(keyFor(t))}" aria-label="Save ${esc(t.n)}" title="Save">${HEART}</button><a class="tool-go" href="${esc(t.u)}" target="_blank" rel="noopener" aria-label="Open ${esc(t.n)} (${esc(host(t.u))})" title="Open ${esc(host(t.u))}">↗</a></span>
@@ -464,7 +466,7 @@ function renderDirectory(T, catalogP) {
       const what = rear.querySelector('.tool-back-what');
       explainOf(t).then((x) => {
         if (!what.isConnected) return;
-        if (x) { what.textContent = x; what.classList.add('in'); } else what.remove();
+        if (x) { what.textContent = undash(x); what.classList.add('in'); } else what.remove();
       });
     }
     c.classList.toggle('flipped', over);
@@ -515,9 +517,9 @@ function renderDirectory(T, catalogP) {
     const sig = `${S.view}|${asking()}|${items.slice(0, n).map((t) => t.i).join()}|${S.q}`;
     if (sig !== shownSig) {   // (the catalogue arriving under an unchanged first screen redraws nothing)
       grid.innerHTML = items.slice(0, n).map(card).join('') || (S.src === 'saved' && !saved.size
-        ? '<div class="tl-none-box"><p>Nothing saved yet — tap the ♥ on any tool to keep it here.</p></div>'
-        : askable(S.q) && S.q !== askQ ? `<div class="tl-none-box"><p>Sounds like a question — let Radar find tools for “${esc(S.q)}”.</p><button type="button" class="tl-pill tl-ask-now" id="tl-ask-now">✦ Ask Radar</button></div>`
-        : !$('#tl-answer').hidden ? '<div class="tl-none-box"><p>Radar&rsquo;s suggestions are just above — or clear the search to browse everything.</p><button type="button" class="tl-pill" id="tl-reset">Clear the search</button></div>'
+        ? '<div class="tl-none-box"><p>Nothing saved yet, tap the ♥ on any tool to keep it here.</p></div>'
+        : askable(S.q) && S.q !== askQ ? `<div class="tl-none-box"><p>Sounds like a question, let Radar find tools for “${esc(S.q)}”.</p><button type="button" class="tl-pill tl-ask-now" id="tl-ask-now">✦ Ask Radar</button></div>`
+        : !$('#tl-answer').hidden ? '<div class="tl-none-box"><p>Radar&rsquo;s suggestions are just above, or clear the search to browse everything.</p><button type="button" class="tl-pill" id="tl-reset">Clear the search</button></div>'
         : `<div class="tl-none-box"><p>Nothing matches${S.q ? ` “${esc(S.q)}”` : ''}.</p><button type="button" class="tl-pill" id="tl-reset">Clear the filters</button></div>`);
       shownN = n;
       shownSig = sig;
@@ -650,7 +652,7 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide }
     if (!askable(q)) {   // (not a question yet: say how, with a few to try)
       box.hidden = false;
       tryRow.hidden = true;
-      box.innerHTML = head('<b>✦ Ask Radar</b> — describe what you want to do, in a few words')
+      box.innerHTML = head('<b>✦ Ask Radar</b>: describe what you want to do, in a few words')
         + `<div class="tl-answer-try">${chips(EXAMPLES)}</div>`;
       search.focus();
       return;
@@ -678,11 +680,11 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide }
     show(rest, q);
     const meta = (t) => `${e(cats[t.c] || '')}${prices[t.p] ? ` · ${prices[t.p]}` : ''}`;
     box.innerHTML = (list.length
-      ? head(found.length ? `<b>✦ Radar</b> suggests, for “${e(q)}”` : `<b>✦ Radar</b> ${failed ? 'couldn’t reach its helper just now' : 'isn’t sure'} — the closest matches for “${e(q)}”`)
+      ? head(found.length ? `<b>✦ Radar</b> suggests, for “${e(q)}”` : `<b>✦ Radar</b> ${failed ? 'couldn’t reach its helper just now' : 'isn’t sure'}. Here are the closest matches for “${e(q)}”`)
         + `<ol class="tl-answer-list">${list.map(([t, why], k) => `<li><a href="${e(t.u)}" target="_blank" rel="noopener"><span class="tl-answer-n">${k + 1}</span>${icon(t)}<span class="tl-answer-t"><b>${e(t.n)}</b><span>${e(why || t.d)}</span><i>${meta(t)}</i></span><span class="ar" aria-hidden="true">↗</span></a></li>`).join('')}</ol>`
         + `<p class="tl-answer-foot">Not quite it? Add a detail and press Enter.${rest.length ? ` <button type="button" class="tl-answer-more">${fmt(rest.length)} more related tools below ↓</button>` : ''}</p>`
       : head(`<b>✦ Radar</b> found nothing for “${e(q)}”`)
-        + `<p class="tl-answer-none">Try saying what you want to make or do — for example:</p><div class="tl-answer-try">${chips(EXAMPLES.slice(0, 5))}</div>`);
+        + `<p class="tl-answer-none">Try saying what you want to make or do, for example:</p><div class="tl-answer-try">${chips(EXAMPLES.slice(0, 5))}</div>`);
   }
   function close() {
     if (box.hidden) return;
