@@ -527,6 +527,16 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
     const path = new URL(request.url).pathname;
     if (request.method === 'GET' && path === '/feed') return feed(env, ctx, cors);
+    // the card backs already written, up to 100 at a time, for the site's weekly build of its tool pages
+    // (scripts/build-seo-pages.mjs): read only, nothing is written here, so it needs no limit
+    if (request.method === 'POST' && path === '/explained') {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'bad request' }, 400, cors); }
+      const keys = (Array.isArray(body && body.keys) ? body.keys : []).filter((k) => /^(pick|gh|hf|ph):.{1,120}$/.test(String(k))).slice(0, 100);
+      const texts = {};
+      if (env.FEED) await Promise.all(keys.map(async (k) => { const t = await env.FEED.get(`ex2:${k}`); if (t) texts[k] = t; }));
+      return json({ texts }, 200, cors);
+    }
     if (request.method === 'POST' && path === '/explain') {
       if (!ALLOWED.includes(origin)) return json({ error: 'forbidden' }, 403, cors);
       return explain(request, env, ctx, cors);
@@ -579,7 +589,7 @@ export default {
       // any "the links are below" line goes: the page adds its own when it shows buttons
       reply = reply.split(/(?<=[.!?…])\s+/).filter((x) => !BELOW.test(x)).join(' ') || reply;
       // the model forgetting it's Ronie (or quoting its setup) — not a mention of OpenAI as one of his tools
-      if (/(i am|i'm|as) (chatgpt|gemini|qwen|an? (ai|large language model|language model) (made|built|trained|developed|created) by)|system prompt|my instructions/i.test(reply)) { reply = nope(); face = 'smug'; icon = 'shield'; move = 'shake'; }
+      if (/\b(i am|i'm|as) (chatgpt|gemini|qwen|an? (ai|large language model|language model) (made|built|trained|developed|created) by)|system prompt|my instructions/i.test(reply)) { reply = nope(); face = 'smug'; icon = 'shield'; move = 'shake'; }
       // a portfolio robot, not a coding assistant
       if (/```|\bdef |function\s*\w*\s*\(|=>\s*\{/.test(reply)) { reply = OFFTOPIC[Math.floor(Math.random() * OFFTOPIC.length)]; face = 'nervous'; icon = 'sweat'; move = 'scratch'; }
       reply = reply.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}]/gu, '').replace(/\s*\n+\s*/g, ' ').trim();

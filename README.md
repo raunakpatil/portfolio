@@ -88,7 +88,18 @@ AI news, trending open models and a directory of AI tools. `radar.html` sends vi
   descriptions, the model's lines) has them turned into commas as it's gathered and as it's shown.
 - **Broken links**: the Refresh Radar Action checks every hand-picked link (`scripts/check-links.mjs`) and keeps a
   GitHub issue open listing any that look broken; it closes itself once they answer again.
-- `robots.txt` and `sitemap.xml` point search engines at `/`, `/radar` and `/ronie`.
+- **Pages for search engines** (`/ai-tools`, `scripts/build-seo-pages.mjs`): plain, fast HTML built from the same
+  data, so Radar's lists can be found on Google. A hub, a "Best AI … tools" page per category, the Top 50, new, free
+  and open-source tools, "… alternatives" for each of the Top 50, and a page per tool (every hand-picked one and the
+  catalogue's best-known: 20k+ GitHub stars, 500+ Hugging Face likes or Product Hunt upvotes), with structured data,
+  breadcrumbs and links between them. Each tool page offers its makers the **Listed on Radar** badge
+  (`img/badges/listed-on-radar.svg`), linking back to it. A tool's plain-words line comes from the worker's
+  `/explained` (only what's already written), kept in `data/explained.json`. The same lists go out as open data,
+  `/ai-tools/radar.json`, which the [best-ai-tools-on-the-radar](https://github.com/raunakpatil/best-ai-tools-on-the-radar)
+  repo builds its README from. `deploy-prep` and the Refresh Radar Action rebuild them all, and the Action then tells
+  IndexNow (Bing and others) which pages changed (`scripts/indexnow.mjs`, key file `/<key>.txt`).
+- `robots.txt` points search engines at `sitemap.xml`, which lists `/`, `/radar`, `/ronie` and every `/ai-tools` page.
+  The share image is `img/radar-og.png` (`scripts/og/radar-og.html`, rendered by `scripts/build-og.mjs`).
 
 ## Ronie's surroundings
 By default Ronie stands in front of a picture (neon mountains under a colossal moon, 3:1) behind his transparent
