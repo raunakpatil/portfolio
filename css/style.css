@@ -1649,8 +1649,6 @@ html.js .tl-seo { display: none; }
 .tl-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; font: inherit; font-size: 14px; color: var(--ink); }
 .tl-search input::placeholder { color: #9a9a9a; }
 .tl-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
-.tl-search kbd { font-family: var(--mono); font-size: 11px; color: #9a9a9a; padding: 2px 8px; border-radius: 6px; box-shadow: var(--neu-out-sm); transition: opacity .2s; }
-.tl-search:focus-within kbd { opacity: 0; }
 /* the directory's three ways in (Browse all · Top 20 · Newly added), like the headline chips: the open one raised,
    the others pressed in */
 .tl-views { display: flex; gap: 8px; margin-left: auto; }
@@ -1808,11 +1806,48 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 @keyframes tl-pop { 40% { transform: scale(1.35); } }
 .tl-saved { color: #ff4f6d; }
 .tool-rise { padding: 4px 9px; border-radius: 999px; background: #e9fbe9; color: #15803d; font-family: var(--mono); font-size: 10.5px; white-space: nowrap; box-shadow: var(--neu-out-sm); }
+/* Ask Radar: a small sparkle at the end of the search box, raised and quiet; once what's typed reads as a question it
+   opens into the black key, "Ask Radar ↵" */
 .tl-ask {
-  flex: none; height: 30px; padding: 0 13px; border-radius: 999px; background: #111; color: #fff; font-size: 12.5px; white-space: nowrap;
-  box-shadow: var(--key); transition: transform .3s var(--ease), background .3s; animation: tl-in .4s cubic-bezier(.16, 1, .3, 1) both;
+  flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 0; height: 30px; min-width: 30px; padding: 0 8px;
+  border-radius: 999px; background: var(--surface); color: #8a8a8a; font-size: 12.5px; white-space: nowrap;
+  box-shadow: var(--neu-out-sm); transition: background .35s, color .35s, box-shadow .35s, gap .35s var(--ease), padding .35s var(--ease);
 }
-.tl-ask:hover { background: #222; transform: translateY(-1px); }
+.tl-ask svg { width: 14px; height: 14px; fill: currentColor; flex: none; transition: transform .6s var(--ease); }
+.tl-ask span { max-width: 0; overflow: hidden; opacity: 0; transition: max-width .4s var(--ease), opacity .3s; }
+.tl-ask:hover, .tl-ask:focus-visible { color: #111; box-shadow: var(--neu-out); }
+.tl-ask:hover svg { transform: rotate(90deg); }
+.tl-ask.ready { gap: 6px; padding: 0 13px 0 11px; background: #111; color: #fff; box-shadow: var(--key); }
+.tl-ask.ready span { max-width: 120px; opacity: 1; }
+.tl-ask.ready span::after { content: " ↵"; opacity: .55; }
+.tl-ask.ready:hover { background: #222; color: #fff; }
+/* examples to try: under the box while it's empty and in use, and in the panel */
+.tl-try { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 10px 0; animation: tl-in .35s cubic-bezier(.16, 1, .3, 1) both; }
+.tl-try[hidden] { display: none; }
+.tl-try > span { margin-right: 4px; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #9a9a9a; }
+.tl-try-chip {
+  padding: 6px 12px; border-radius: 999px; background: var(--surface); font-size: 12.5px; color: #444;
+  box-shadow: var(--neu-in-sm); transition: box-shadow .25s, color .25s;
+}
+.tl-try-chip::before { content: "✦ "; color: #b0b0b0; }
+.tl-try-chip:hover, .tl-try-chip:focus-visible { color: #111; box-shadow: var(--neu-out-sm); }
+.tl-answer-try { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+/* while it reads: three cards shimmering in the shape of the answer */
+.tl-answer-list.wait li { display: block; }
+.tl-answer-skel { display: flex; align-items: center; gap: 12px; height: 64px; padding: 0 12px; border-radius: 12px; background: #fafafa; box-shadow: 0 0 0 1px rgba(0, 0, 0, .05); }
+.tl-answer-skel i, .tl-answer-skel b {
+  display: block; border-radius: 10px; background: linear-gradient(90deg, #eee, #e3e3e3, #eee) 0 0 / 200% 100%; animation: tl-shimmer 1.4s linear infinite;
+}
+.tl-answer-skel i { width: 40px; height: 40px; flex: none; }
+.tl-answer-skel b { height: 12px; flex: 1; border-radius: 6px; }
+/* the answer: numbered, each with why it fits, and its category and price */
+.tl-answer-n { flex: none; width: 18px; font-family: var(--mono); font-size: 11px; color: #a5a5a5; }
+.tl-answer-t i { font-style: normal; font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; color: #9a9a9a; text-transform: uppercase; }
+.tl-answer-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; margin-top: 12px; font-size: 12.5px; color: #8a8a8a; }
+.tl-answer-more { font-size: 12.5px; color: #333; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #ccc; }
+.tl-answer-more:hover { color: #111; }
+.tl-ask-now { display: inline-block; margin-top: 4px; background: #111; color: #fff; box-shadow: var(--key); }
+.tl-ask-now:hover { background: #222; box-shadow: var(--key); }
 .tl-ask[hidden] { display: none; }
 .tl-answer { margin: 16px 10px 0; padding: 16px 18px 12px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--neu-out-sm); animation: tl-in .5s cubic-bezier(.16, 1, .3, 1) both; }
 .tl-answer[hidden] { display: none; }
@@ -1837,11 +1872,6 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 .tl-answer-t span { font-size: 12.5px; line-height: 1.4; color: #6b6b6b; }
 .tl-answer-list .ar { color: #a5a5a5; transition: transform .3s var(--ease), color .3s; }
 .tl-answer-list a:hover .ar { transform: translate(2px, -2px); color: #111; }
-.tl-answer-wait { display: flex; gap: 6px; padding: 18px 2px 8px; }
-.tl-answer-wait i { width: 7px; height: 7px; border-radius: 50%; background: #bbb; animation: tl-dots 1.2s ease-in-out infinite; }
-.tl-answer-wait i:nth-child(2) { animation-delay: .15s; }
-.tl-answer-wait i:nth-child(3) { animation-delay: .3s; }
-@keyframes tl-dots { 0%, 80%, 100% { opacity: .3; transform: none; } 40% { opacity: 1; transform: translateY(-3px); } }
 .tl-answer-none { padding: 12px 2px 6px; font-size: 13px; color: #777; }
 .tl-more { margin-top: 22px; }
 .tl-none-box { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 64px 0; color: #777; }
@@ -1896,8 +1926,11 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
   .tl-dd-btn .k { display: none; }
   .tl-dd-menu, .tl-dd-menu.left { position: fixed; top: auto; left: 12px; right: 12px; bottom: 12px; max-height: 62vh; border-radius: 20px; transform: translateY(16px); }
   .tl-dd-menu [role="option"] { padding: 12px 14px; font-size: 14px; }
-  .tl-search kbd { display: none; }
   .tl-answer { margin: 14px 0 0; padding: 14px; }
+  .tl-try { margin: 10px 0 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .tl-try::-webkit-scrollbar { display: none; }
+  .tl-try-chip { flex: none; }
+  .tl-answer-foot { justify-content: flex-start; }
   .tool-rise { display: none; }   /* (no room beside the name; the Rising sort still has them) */
   .tl-answer-list { grid-template-columns: minmax(0, 1fr); }
   .tl-grid { grid-template-columns: minmax(0, 1fr); }

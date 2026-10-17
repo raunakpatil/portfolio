@@ -496,21 +496,27 @@ function renderDirectory(T, catalogP) {
     }
   });
   let items = [], shownN = 0, shownSig = '';
+  // after Ask Radar answers, the grid holds the other likely tools for the question (the filters still apply)
+  let askRest = null, askQ = '';
+  const asking = () => askRest && S.view === 'all' && S.q === askQ;
   function draw() {
     const top = S.view === 'top';
-    items = top ? pool() : pool().filter((t) => matches(t));
+    items = top ? pool() : asking() ? askRest.filter((t) => matches(t, 'q')) : pool().filter((t) => matches(t));
     items = top ? items.sort((a, b) => a.i - b.i)
       : S.view === 'new' ? items.sort((a, b) => b.rel.localeCompare(a.rel) || a.i - b.i)
+      : asking() && S.sort === 'picks' ? items
       : S.sort === 'az' ? items.sort((a, b) => a.n.localeCompare(b.n))
       : S.sort === 'rising' ? items.sort((a, b) => (a.riseRank ?? 2) - (b.riseRank ?? 2) || a.i - b.i)
       : S.sort === 'new' ? items.sort((a, b) => (b.added || '').localeCompare(a.added || '') || a.i - b.i)
       : items.sort((a, b) => (a.src === 'pick' && b.src === 'pick' ? (b.pick ? 1 : 0) - (a.pick ? 1 : 0) : 0) || a.i - b.i);
-    count.textContent = top ? `Raunak's top ${items.length} · ${day(T.updated)}` : S.view === 'new' ? `${fmt(items.length)} new releases · newest first` : `${fmt(items.length)} of ${fmt(all.length)}`;
+    count.textContent = top ? `Raunak's top ${items.length} · ${day(T.updated)}` : S.view === 'new' ? `${fmt(items.length)} new releases · newest first`
+      : asking() ? `${fmt(items.length)} more tools related to “${S.q}”` : `${fmt(items.length)} of ${fmt(all.length)}`;
     const n = Math.min(items.length, S.limit);
-    const sig = `${S.view}|${items.slice(0, n).map((t) => t.i).join()}|${S.q}`;
+    const sig = `${S.view}|${asking()}|${items.slice(0, n).map((t) => t.i).join()}|${S.q}`;
     if (sig !== shownSig) {   // (the catalogue arriving under an unchanged first screen redraws nothing)
       grid.innerHTML = items.slice(0, n).map(card).join('') || (S.src === 'saved' && !saved.size
         ? '<div class="tl-none-box"><p>Nothing saved yet — tap the ♥ on any tool to keep it here.</p></div>'
+        : askable(S.q) && S.q !== askQ ? `<div class="tl-none-box"><p>Sounds like a question — let Radar find tools for “${esc(S.q)}”.</p><button type="button" class="tl-pill tl-ask-now" id="tl-ask-now">✦ Ask Radar</button></div>`
         : !$('#tl-answer').hidden ? '<div class="tl-none-box"><p>Radar&rsquo;s suggestions are just above — or clear the search to browse everything.</p><button type="button" class="tl-pill" id="tl-reset">Clear the search</button></div>'
         : `<div class="tl-none-box"><p>Nothing matches${S.q ? ` “${esc(S.q)}”` : ''}.</p><button type="button" class="tl-pill" id="tl-reset">Clear the filters</button></div>`);
       shownN = n;
@@ -526,14 +532,14 @@ function renderDirectory(T, catalogP) {
     S.limit += STEP;
     grid.insertAdjacentHTML('beforeend', items.slice(from, S.limit).map(card).join(''));
     shownN = Math.min(items.length, S.limit);
-    shownSig = `${S.view}|${items.slice(0, shownN).map((t) => t.i).join()}|${S.q}`;
+    shownSig = `${S.view}|${asking()}|${items.slice(0, shownN).map((t) => t.i).join()}|${S.q}`;
     more.hidden = items.length <= S.limit;
     more.textContent = `Show more · ${fmt(shownN)} of ${fmt(items.length)}`;
   });
   const set = (k, v) => { S[k] = v; S.limit = 24; draw(); toURL(k !== 'q'); };
   const reset = () => { Object.assign(S, { q: '', src: 'all', price: 'all', cat: 'all', limit: 24 }); search.value = ''; draw(); toURL(true); };
   // a view of the directory is a link: raunakpatil.com/radar?view=new&cat=video&price=free — and back steps back
-  const PARAMS = { view: 'all', q: '', src: 'all', price: 'all', cat: 'all', sort: 'picks' };
+  const PARAMS = { view: 'all', q: '', src: 'all', price: 'all', cat: 'all', sort: 'picks', ask: '' };
   const onRadar = () => /^\/radar(\.html)?\/?$/.test(location.pathname);
   function fromURL() {
     const u = new URLSearchParams(location.search);
@@ -543,7 +549,8 @@ function renderDirectory(T, catalogP) {
     if (S.price !== 'all' && !PRICES[S.price]) S.price = 'all';
     if (S.cat !== 'all' && !T.categories[S.cat]) S.cat = 'all';
     if (!SORTS[S.sort]) S.sort = 'picks';
-    S.q = S.q.toLowerCase().slice(0, 80);
+    S.ask = S.ask === '1' ? '1' : '';
+    S.q = S.q.toLowerCase().slice(0, 200);
     search.value = S.q;
     $$('[data-v]', views).forEach((x) => x.setAttribute('aria-selected', String(x.dataset.v === S.view)));
     $('.tl-bar').classList.toggle('top', S.view === 'top');
@@ -567,18 +574,24 @@ function renderDirectory(T, catalogP) {
     e.preventDefault();
     search.focus();
   });
-  grid.addEventListener('click', (e) => { if (e.target.closest('#tl-reset')) reset(); });
+  grid.addEventListener('click', (e) => { if (e.target.closest('#tl-reset')) reset(); if (e.target.closest('#tl-ask-now')) askApi.ask(); });
   hint();
   rankAll();
   fromURL();
   drawViews();
   draw();
-  initAsk({ all: () => all, keyFor, icon, esc, onAnswer: () => { shownSig = ''; draw(); } });
+  const askApi = initAsk({
+    all: () => all, keyFor, icon, esc, cats: T.categories, prices: PRICES, loaded: catalogP,
+    show(rest, q) { askRest = rest; askQ = q.trim().toLowerCase(); S.q = askQ; S.ask = '1'; S.limit = 24; draw(); toURL(false); },
+    hide() { askRest = null; askQ = ''; if (S.ask) { S.ask = ''; draw(); toURL(false); } },
+  });
+  if (S.ask && askable(S.q)) askApi.ask(); else S.ask = '';
 }
 
 /* ---------- Ask Radar ---------- */
-// Describe what you need ("something to turn my podcast into clips") and Radar suggests a few tools. The page picks the
-// likeliest few dozen by their words; Ronie's worker (POST /ask) reads those and chooses, saying why for each.
+// Describe what you need ("turn my podcast into short clips") and Radar suggests a few tools, saying why. The page picks
+// the likeliest few dozen by their words; Ronie's worker (POST /ask) reads those and chooses. The rest of the likely
+// ones fill the grid below, so there's always more to look through.
 const ASK_URL = (D.assistant?.chatUrl || '').replace(/\/chat$/, '/ask');
 const STOP = new Set('a an and any app apps are best can could do does find for from get give good great help how i if in into is it its like make me my need of on or please recommend something some suggest that the thing this to tool tools use using want way what which with without would you your ai an'.split(' '));
 const ALSO = {
@@ -591,16 +604,30 @@ const ALSO = {
   chat: ['assistant', 'chatbot'], research: ['papers', 'search'], papers: ['research'], pdf: ['document', 'documents'], pdfs: ['pdf', 'document'],
   translate: ['translation', 'language'], logo: ['brand', 'design'], website: ['site', 'web'], '3d': ['model', 'mesh'],
   email: ['inbox', 'mail'], emails: ['email', 'inbox'], resume: ['cv', 'job'], transcribe: ['transcription', 'speech'],
+  background: ['remove', 'photo'], summarise: ['summary', 'summarize'], summarize: ['summary', 'summarise'],
 };
+const EXAMPLES = [
+  'Turn my podcast into short clips', 'Remove the background from product photos', 'Summarise long PDFs for me',
+  'Build a website without writing code', 'Clone my voice for narration', 'Take notes in my meetings',
+  'Make background music for my videos', 'Write code from plain English',
+];
 const words = (q) => q.toLowerCase().split(/[^a-z0-9+#]+/).filter((w) => w.length > 1 && !STOP.has(w));
+// (a question, rather than a search: three words or more, two of them meaningful)
+const askable = (q) => words(q).length >= 2 && q.trim().split(/\s+/).length >= 3;
 
-function initAsk({ all, keyFor, icon, esc: e, onAnswer }) {
-  const search = $('#tl-search'), btn = $('#tl-ask'), box = $('#tl-answer');
-  if (!btn || !box || !ASK_URL) return;
-  const ready = () => words(search.value).length >= 2 && search.value.trim().split(/\s+/).length >= 3;
-  const toggle = () => { btn.hidden = !ready(); };
-  search.addEventListener('input', toggle);
-  toggle();
+function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide }) {
+  const search = $('#tl-search'), btn = $('#tl-ask'), box = $('#tl-answer'), tryRow = $('#tl-try');
+  if (!btn || !box || !ASK_URL) return { ask() {} };
+  btn.hidden = false;
+  const state = () => { btn.classList.toggle('ready', askable(search.value)); };
+  // examples to try, while the box is empty and in use
+  const chips = (list) => list.map((x) => `<button type="button" class="tl-try-chip" data-q="${e(x)}">${e(x)}</button>`).join('');
+  tryRow.innerHTML = `<span>Try asking</span>${chips(EXAMPLES.slice(0, 4))}`;
+  const showTry = () => { tryRow.hidden = !!search.value.trim() || !box.hidden; };
+  search.addEventListener('focus', showTry);
+  search.addEventListener('blur', () => setTimeout(() => { if (!tryRow.contains(document.activeElement)) tryRow.hidden = true; }, 150));
+  search.addEventListener('input', () => { state(); showTry(); if (!search.value.trim()) close(); });
+  state();
   // the likeliest few dozen, by their own words (a word's ending is let go, so "podcasts" finds "podcast"): room for
   // the 16 best of the hand-picked tools and the 20 best of the catalogue, so a polished product isn't crowded out
   const likely = (q) => {
@@ -613,36 +640,72 @@ function initAsk({ all, keyFor, icon, esc: e, onAnswer }) {
       if (s) s += t.src === 'pick' ? (t.pick ? 2 : 1) : 1 - (t.rank || 0);
       return [s, t];
     }).filter(([s]) => s > 0).sort((a, b) => b[0] - a[0]).map(([, t]) => t);
-    return [...scored.filter((t) => t.src === 'pick').slice(0, 16), ...scored.filter((t) => t.src !== 'pick').slice(0, 20)];
+    return { top: [...scored.filter((t) => t.src === 'pick').slice(0, 16), ...scored.filter((t) => t.src !== 'pick').slice(0, 20)], all: scored.slice(0, 120) };
   };
+  const head = (html) => `<div class="tl-answer-head"><span>${html}</span><button type="button" class="tl-answer-x" aria-label="Close Radar's suggestions" title="Close (Esc)">×</button></div>`;
   let asked = 0;
-  async function ask() {
+  async function ask(text) {
+    if (typeof text === 'string') { search.value = text; search.dispatchEvent(new Event('input')); }
     const q = search.value.trim().slice(0, 200);
-    if (!ready()) return;
+    if (!askable(q)) {   // (not a question yet: say how, with a few to try)
+      box.hidden = false;
+      tryRow.hidden = true;
+      box.innerHTML = head('<b>✦ Ask Radar</b> — describe what you want to do, in a few words')
+        + `<div class="tl-answer-try">${chips(EXAMPLES)}</div>`;
+      search.focus();
+      return;
+    }
     const n = ++asked;
     box.hidden = false;
-    box.innerHTML = `<div class="tl-answer-head"><span><b>✦ Radar</b> is looking for “${e(q)}”…</span><button type="button" class="tl-answer-x" aria-label="Close">×</button></div><div class="tl-answer-wait"><i></i><i></i><i></i></div>`;
+    tryRow.hidden = true;
+    box.innerHTML = head(`<b>✦ Radar</b> is reading the directory for “${e(q)}”…`)
+      + `<ul class="tl-answer-list wait">${'<li><span class="tl-answer-skel"><i></i><b></b></span></li>'.repeat(3)}</ul>`;
+    await loaded;   // (the whole catalogue, not just the first screen's)
     const pool = likely(q);
-    const byKey = new Map(pool.map((t) => [keyFor(t), t]));
-    let picks = [];
-    if (pool.length) {
+    const byKey = new Map(pool.top.map((t) => [keyFor(t), t]));
+    let picks = [], failed = false;
+    if (pool.top.length) {
       try {
         const r = await fetch(ASK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ q, keys: [...byKey.keys()] }), signal: AbortSignal.timeout(20000) });
-        picks = r.ok ? ((await r.json()).picks || []) : [];
-      } catch { picks = []; }
+        if (r.ok) picks = (await r.json()).picks || []; else failed = true;
+      } catch { failed = true; }
     }
     if (n !== asked) return;   // (a newer question took over)
-    onAnswer?.();
     const found = picks.map((p) => [byKey.get(p.key), p.why]).filter(([t]) => t);
     // (if the model can't be reached, the best word matches still help)
-    const list = found.length ? found : pool.slice(0, 4).map((t) => [t, '']);
-    box.innerHTML = `<div class="tl-answer-head"><span><b>✦ Radar</b> suggests, for “${e(q)}”</span><button type="button" class="tl-answer-x" aria-label="Close">×</button></div>`
-      + (list.length ? `<ul class="tl-answer-list">${list.map(([t, why]) => `<li><a href="${e(t.u)}" target="_blank" rel="noopener">${icon(t)}<span class="tl-answer-t"><b>${e(t.n)}</b><span>${e(why || t.d)}</span></span><span class="ar" aria-hidden="true">↗</span></a></li>`).join('')}</ul>`
-        : '<p class="tl-answer-none">Nothing close in the directory — try describing it another way.</p>');
+    const list = found.length ? found : pool.top.slice(0, 4).map((t) => [t, '']);
+    const rest = pool.all.filter((t) => !list.some(([x]) => x === t));
+    show(rest, q);
+    const meta = (t) => `${e(cats[t.c] || '')}${prices[t.p] ? ` · ${prices[t.p]}` : ''}`;
+    box.innerHTML = (list.length
+      ? head(found.length ? `<b>✦ Radar</b> suggests, for “${e(q)}”` : `<b>✦ Radar</b> ${failed ? 'couldn’t reach its helper just now' : 'isn’t sure'} — the closest matches for “${e(q)}”`)
+        + `<ol class="tl-answer-list">${list.map(([t, why], k) => `<li><a href="${e(t.u)}" target="_blank" rel="noopener"><span class="tl-answer-n">${k + 1}</span>${icon(t)}<span class="tl-answer-t"><b>${e(t.n)}</b><span>${e(why || t.d)}</span><i>${meta(t)}</i></span><span class="ar" aria-hidden="true">↗</span></a></li>`).join('')}</ol>`
+        + `<p class="tl-answer-foot">Not quite it? Add a detail and press Enter.${rest.length ? ` <button type="button" class="tl-answer-more">${fmt(rest.length)} more related tools below ↓</button>` : ''}</p>`
+      : head(`<b>✦ Radar</b> found nothing for “${e(q)}”`)
+        + `<p class="tl-answer-none">Try saying what you want to make or do — for example:</p><div class="tl-answer-try">${chips(EXAMPLES.slice(0, 5))}</div>`);
   }
-  btn.addEventListener('click', ask);
-  search.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && ready()) { ev.preventDefault(); ask(); } });
-  box.addEventListener('click', (ev) => { if (ev.target.closest('.tl-answer-x')) { asked++; box.hidden = true; box.innerHTML = ''; onAnswer?.(); } });
+  function close() {
+    if (box.hidden) return;
+    asked++;
+    box.hidden = true;
+    box.innerHTML = '';
+    hide();
+  }
+  btn.addEventListener('click', () => ask());
+  search.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter' && askable(search.value)) { ev.preventDefault(); ask(); }
+    if (ev.key === 'Escape' && !search.value && !box.hidden) { ev.stopPropagation(); close(); }
+  });
+  const pickChip = (ev) => { const c = ev.target.closest('.tl-try-chip'); if (c) { ev.preventDefault(); ask(c.dataset.q); } };
+  tryRow.addEventListener('mousedown', pickChip);   // (before the box loses focus and the row hides)
+  tryRow.addEventListener('click', pickChip);
+  box.addEventListener('click', (ev) => {
+    if (ev.target.closest('.tl-answer-x')) { close(); search.focus(); return; }
+    if (ev.target.closest('.tl-answer-more')) { $('#tl-count').scrollIntoView({ behavior: 'smooth', block: 'start' }); return; }
+    pickChip(ev);
+  });
+  box.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') { close(); search.focus(); } });
+  return { ask };
 }
 
 /* ---------- wiring ---------- */

@@ -343,7 +343,8 @@ async function prewarm(env) {
 const ASK = `You help people find the right AI tool. You get a request and a numbered list of tools, each with what it does.
 Choose up to 4 tools from the list that best fit the request, the best first. Only choose from the list; if none really fit, choose none.
 Prefer ready-to-use products and apps over code projects, unless the request is about building, coding or self-hosting.
-Reply with JSON only, no other text: [{"n": <its number>, "why": "<one short sentence, under 16 words, on why it fits this request>"}]`;
+For "why", say how it helps with this person's request in their terms (e.g. "Pulls the best moments from your episodes as vertical clips") — don't just restate what the tool is.
+Reply with JSON only, no other text: [{"n": <its number>, "why": "<one short sentence, under 16 words>"}]`;
 async function askRadar(request, env, cors) {
   let body;
   try { body = await request.json(); } catch { return json({ error: 'bad request' }, 400, cors); }
