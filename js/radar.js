@@ -636,8 +636,8 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
   };
   const state = () => { btn.classList.toggle('ready', askable(search.value) && search.value.trim().toLowerCase() !== askedQ); };
   const chips = (list) => list.map((x) => `<button type="button" class="tl-try-chip" data-q="${e(x)}">${e(x)}</button>`).join('');
-  // one way in, however it's opened (the empty search box in use, or the mark): the panel, with examples to try.
-  // Opened with the mark, it stays until it's closed; opened by the box, it goes when the box is left or typed in
+  // one way in, however it's opened (the empty search box in use, or the mark): the panel, with examples to try. It
+  // goes the same way too: a click anywhere else, typing, ×, Esc, or the mark again
   let mode = '', pinned = false, holding = false;
   const intro = (byHand) => {
     mode = 'intro';
@@ -651,6 +651,9 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
     if (mode === 'intro' && !pinned && !holding && !box.contains(document.activeElement) && document.activeElement !== btn) close();
   }, 150));
   box.addEventListener('pointerdown', () => { holding = true; setTimeout(() => { holding = false; }, 400); });
+  document.addEventListener('pointerdown', (ev) => {
+    if (mode === 'intro' && !box.contains(ev.target) && !btn.contains(ev.target) && ev.target !== search) close();
+  });
   search.addEventListener('input', () => {
     state();
     if (search.value.trim()) { if (mode === 'intro') close(); return; }
@@ -677,7 +680,7 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
     if (typeof text === 'string') { search.value = text; search.dispatchEvent(new Event('input')); }
     const q = search.value.trim().slice(0, 200);
     if (!askable(q)) {   // (not a question yet: say how, with a few to try)
-      intro(true);
+      intro(false);
       search.focus();
       return;
     }
