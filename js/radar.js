@@ -211,6 +211,8 @@ const SOURCES = {
   ph: ['Product Hunt', '<span class="tl-ph" aria-hidden="true">P</span>'],
 };
 const SORTS = { picks: 'Featured', rising: 'Rising', az: 'A–Z', new: 'Newest' };
+// Radar's mark (also in index.html, on the Ask button)
+const MARK = '<svg class="tl-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle class="in" cx="12" cy="12" r="4.6"/><path class="sweep" d="M12 12 18.4 5.6"/><circle class="blip" cx="15.6" cy="15.2" r="1.4"/></svg>';
 const HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/></svg>';
 const GRAD = { red: '#fda4af', yellow: '#fde68a', green: '#86efac', blue: '#93c5fd', indigo: '#a5b4fc', purple: '#d8b4fe', pink: '#f9a8d4', gray: '#e5e7eb' };
 const fmt = (n) => n.toLocaleString('en-US');
@@ -518,7 +520,7 @@ function renderDirectory(T, catalogP) {
     if (sig !== shownSig) {   // (the catalogue arriving under an unchanged first screen redraws nothing)
       grid.innerHTML = items.slice(0, n).map(card).join('') || (S.src === 'saved' && !saved.size
         ? '<div class="tl-none-box"><p>Nothing saved yet, tap the ♥ on any tool to keep it here.</p></div>'
-        : askable(S.q) && S.q !== askQ ? `<div class="tl-none-box"><p>Sounds like a question, let Radar find tools for “${esc(S.q)}”.</p><button type="button" class="tl-pill tl-ask-now" id="tl-ask-now">✦ Ask Radar</button></div>`
+        : askable(S.q) && S.q !== askQ ? `<div class="tl-none-box"><p>Sounds like a question, let Radar find tools for “${esc(S.q)}”.</p><button type="button" class="tl-pill tl-ask-now" id="tl-ask-now">${MARK}Ask Radar</button></div>`
         : !$('#tl-answer').hidden ? '<div class="tl-none-box"><p>Radar&rsquo;s suggestions are just above, or clear the search to browse everything.</p><button type="button" class="tl-pill" id="tl-reset">Clear the search</button></div>'
         : `<div class="tl-none-box"><p>Nothing matches${S.q ? ` “${esc(S.q)}”` : ''}.</p><button type="button" class="tl-pill" id="tl-reset">Clear the filters</button></div>`);
       shownN = n;
@@ -659,7 +661,7 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide }
     if (!askable(q)) {   // (not a question yet: say how, with a few to try)
       box.hidden = false;
       tryRow.hidden = true;
-      box.innerHTML = head('<b>✦ Ask Radar</b>: describe what you want to do, in a few words')
+      box.innerHTML = head(`${MARK}<b>Ask Radar</b>: describe what you want to do, in a few words`)
         + `<div class="tl-answer-try">${chips(EXAMPLES)}</div>`;
       setOpen(true);
       search.focus();
@@ -671,7 +673,7 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide }
     setOpen(true);
     box.hidden = false;
     tryRow.hidden = true;
-    box.innerHTML = head(`<b>✦ Radar</b> is reading the directory for “${e(q)}”…`)
+    box.innerHTML = head(`${MARK}<b>Radar</b> is reading the directory for “${e(q)}”…`)
       + `<ul class="tl-answer-list wait">${'<li><span class="tl-answer-skel"><i></i><b></b></span></li>'.repeat(3)}</ul>`;
     await loaded;   // (the whole catalogue, not just the first screen's)
     const pool = likely(q);
@@ -691,10 +693,10 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide }
     show(rest, q);
     const meta = (t) => `${e(cats[t.c] || '')}${prices[t.p] ? ` · ${prices[t.p]}` : ''}`;
     box.innerHTML = (list.length
-      ? head(found.length ? `<b>✦ Radar</b> suggests, for “${e(q)}”` : `<b>✦ Radar</b> ${failed ? 'couldn’t reach its helper just now' : 'isn’t sure'}. Here are the closest matches for “${e(q)}”`)
+      ? head(found.length ? `${MARK}<b>Radar</b> suggests, for “${e(q)}”` : `${MARK}<b>Radar</b> ${failed ? 'couldn’t reach its helper just now' : 'isn’t sure'}. Here are the closest matches for “${e(q)}”`)
         + `<ol class="tl-answer-list">${list.map(([t, why], k) => `<li><a href="${e(t.u)}" target="_blank" rel="noopener"><span class="tl-answer-n">${k + 1}</span>${icon(t)}<span class="tl-answer-t"><b>${e(t.n)}</b><span>${e(why || t.d)}</span><i>${meta(t)}</i></span><span class="ar" aria-hidden="true">↗</span></a></li>`).join('')}</ol>`
         + `<p class="tl-answer-foot">Not quite it? Add a detail and press Enter.${rest.length ? ` <button type="button" class="tl-answer-more">${fmt(rest.length)} more related tools below ↓</button>` : ''}</p>`
-      : head(`<b>✦ Radar</b> found nothing for “${e(q)}”`)
+      : head(`${MARK}<b>Radar</b> found nothing for “${e(q)}”`)
         + `<p class="tl-answer-none">Try saying what you want to make or do, for example:</p><div class="tl-answer-try">${chips(EXAMPLES.slice(0, 5))}</div>`);
   }
   function close() {

@@ -1806,24 +1806,28 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 @keyframes tl-pop { 40% { transform: scale(1.35); } }
 .tl-saved { color: #ff4f6d; }
 .tool-rise { padding: 4px 9px; border-radius: 999px; background: #e9fbe9; color: #15803d; font-family: var(--mono); font-size: 10.5px; white-space: nowrap; box-shadow: var(--neu-out-sm); }
-/* Ask Radar: a small sparkle at the end of the search box, raised and quiet; once what's typed reads as a question it
-   opens into the black key, "Ask Radar ↵" */
+/* Ask Radar: the radar mark at the end of the search box, raised and quiet; once what's typed reads as a question it
+   opens into the black key, "Ask Radar" */
 .tl-ask {
   flex: none; display: inline-flex; align-items: center; justify-content: center; gap: 0; height: 30px; min-width: 30px; padding: 0 8px;
   border-radius: 999px; background: var(--surface); color: #8a8a8a; font-size: 12.5px; white-space: nowrap;
   box-shadow: var(--neu-out-sm); transition: background .35s, color .35s, box-shadow .35s, gap .35s var(--ease), padding .35s var(--ease);
 }
-.tl-ask svg { width: 14px; height: 14px; fill: currentColor; flex: none; transition: transform .6s var(--ease); }
+/* Radar's mark: a little dial — a ring, an inner ring, a sweep and a blip; the sweep turns on hover and while it's open */
+.tl-mark { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; overflow: visible; }
+.tl-mark .in { opacity: .45; }
+.tl-mark .blip { fill: currentColor; stroke: none; }
+.tl-mark .sweep { transform-box: view-box; transform-origin: 12px 12px; }
+@keyframes tl-sweep { to { transform: rotate(360deg); } }
 .tl-ask span { max-width: 0; overflow: hidden; opacity: 0; transition: max-width .4s var(--ease), opacity .3s; }
 .tl-ask:hover, .tl-ask:focus-visible { color: #111; box-shadow: var(--neu-out); }
-.tl-ask:hover svg { transform: rotate(90deg); }
+.tl-ask:hover .sweep { animation: tl-sweep 1.8s linear infinite; }
 .tl-ask.ready { gap: 6px; padding: 0 13px 0 11px; background: #111; color: #fff; box-shadow: var(--key); }
 .tl-ask.ready span { max-width: 120px; opacity: 1; }
-.tl-ask.ready span::after { content: " ↵"; opacity: .55; }
 .tl-ask.ready:hover { background: #222; color: #fff; }
-/* the sparkle while Radar is open: pressed in, turned a quarter — pressed again, it closes */
+/* the mark while Radar is open: pressed in, its sweep turning; pressed again, it closes */
 .tl-ask.open { color: #111; box-shadow: var(--neu-in-sm); }
-.tl-ask.open svg { transform: rotate(45deg); }
+.tl-ask.open .sweep { animation: tl-sweep 2.6s linear infinite; }
 .tl-ask.open.ready { background: #111; color: #fff; box-shadow: var(--key); }
 /* examples to try: under the box while it's empty and in use, and in the panel */
 .tl-try { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 12px 10px 0; animation: tl-in .35s cubic-bezier(.16, 1, .3, 1) both; }
@@ -1833,7 +1837,10 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
   padding: 6px 12px; border-radius: 999px; background: var(--surface); font-size: 12.5px; color: #444;
   box-shadow: var(--neu-in-sm); transition: box-shadow .25s, color .25s;
 }
-.tl-try-chip::before { content: "✦ "; color: #b0b0b0; }
+.tl-try-chip::before {          /* (a tiny dial before each one) */
+  content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; vertical-align: 1px; border: 1.4px solid #b5b5b5; border-radius: 50%;
+  background: radial-gradient(circle, #b5b5b5 0 1.3px, transparent 1.7px);
+}
 .tl-try-chip:hover, .tl-try-chip:focus-visible { color: #111; box-shadow: var(--neu-out-sm); }
 .tl-answer-try { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 /* while it reads: three cards shimmering in the shape of the answer */
@@ -1858,7 +1865,7 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 .tl-answer-x:hover { color: #111; }
 .tl-answer-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin-top: 12px; }
 .tl-answer-list a {
-  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #fafafa;
+  display: flex; flex: 1; align-items: flex-start; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #fafafa;
   box-shadow: 0 0 0 1px rgba(0, 0, 0, .05); transition: box-shadow .3s, transform .35s var(--ease); animation: rise .5s var(--ease) both;
 }
 .tl-answer-list li:nth-child(2) a { animation-delay: 60ms; }
@@ -1874,6 +1881,17 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 .tl-answer-list .ar { color: #a5a5a5; transition: transform .3s var(--ease), color .3s; }
 .tl-answer-list a:hover .ar { transform: translate(2px, -2px); color: #111; }
 .tl-answer-none { padding: 12px 2px 6px; font-size: 13px; color: #777; }
+/* (every card in a row the same height: the cards fill their cells, everything lines up from the top, the reason
+   keeps to three lines and the category and price sit at the foot) */
+.tl-answer-list li { display: flex; }
+.tl-answer-list .tl-answer-n { padding-top: 12px; }
+.tl-answer-t { align-self: stretch; }
+.tl-answer-t span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.tl-answer-t i { margin-top: auto; padding-top: 4px; }
+.tl-answer-list .ar { padding-top: 2px; }
+.tl-answer-head .tl-mark { width: 15px; height: 15px; margin-right: 6px; vertical-align: -3px; color: #111; }
+.tl-answer:has(.wait) .tl-mark .sweep { animation: tl-sweep 1.1s linear infinite; }   /* (while it looks) */
+.tl-ask-now .tl-mark { width: 14px; height: 14px; margin-right: 6px; vertical-align: -2px; }
 .tl-ask-now { display: inline-block; margin-top: 4px; background: #111; color: #fff; box-shadow: var(--key); }
 .tl-ask-now:hover { background: #222; box-shadow: var(--key); }
 .tl-ask[hidden] { display: none; }
