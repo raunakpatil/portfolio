@@ -201,6 +201,7 @@ const SOURCES = {
   pick: ['Hand-picked', ''],
   gh: ['GitHub', GH_SVG],
   hf: ['Hugging Face', '<span aria-hidden="true">🤗</span>'],
+  ph: ['Product Hunt', '<span class="tl-ph" aria-hidden="true">P</span>'],
 };
 const SORTS = { picks: 'Featured', az: 'A–Z', new: 'Newest' };
 const GRAD = { red: '#fda4af', yellow: '#fde68a', green: '#86efac', blue: '#93c5fd', indigo: '#a5b4fc', purple: '#d8b4fe', pink: '#f9a8d4', gray: '#e5e7eb' };
@@ -258,7 +259,7 @@ function renderDirectory(T, catalogP) {
   const STEP = 48;
   const grid = $('#tl-grid'), more = $('#tl-more'), count = $('#tl-count'), search = $('#tl-search'), clear = $('#tl-clear');
   $('#tl-updated').textContent = day(T.updated);
-  const keyOf = (t) => `${t.n} ${t.d} ${T.categories[t.c]} ${PRICES[t.p]} ${t.uses || ''} ${t.by || ''}`.toLowerCase();
+  const keyOf = (t) => `${t.n} ${t.d} ${T.categories[t.c]} ${PRICES[t.p] || ''} ${t.uses || ''} ${t.by || ''}`.toLowerCase();
 
   const curated = T.tools.map((t, i) => ({ ...t, src: 'pick', i, date: t.added }));
   let all = curated.map((t) => ({ ...t, key: keyOf(t) }));
@@ -279,8 +280,11 @@ function renderDirectory(T, catalogP) {
     const hf = take(C.hf || [], ([n, id, d, likes, c, emoji, from, to, date]) => ({ n, u: `https://huggingface.co/spaces/${id}`, d, c, p: 'free', src: 'hf', pop: likes, emoji, from, to, by: id.split('/')[0], date }));
     // in turns: the nth-most-popular GitHub project sits by the nth-most-liked Space
     gh.forEach((t, k) => { t.rank = k / gh.length; });
+    // (Product Hunt's price label, where it gives one: otherwise "price on site")
+    const ph = take(C.ph || [], ([n, slug, d, votes, c, thumb, p, link, date]) => ({ n, u: link, d, c, p: p || 'na', src: 'ph', pop: votes, thumb, by: 'Product Hunt', date }));
     hf.forEach((t, k) => { t.rank = (k + 0.5) / hf.length; });
-    const extra = [...gh, ...hf].sort((a, b) => a.rank - b.rank).map((t, k) => ({ ...t, i: curated.length + k }));
+    ph.forEach((t, k) => { t.rank = (k + 0.25) / ph.length; });
+    const extra = [...gh, ...hf, ...ph].sort((a, b) => a.rank - b.rank).map((t, k) => ({ ...t, i: curated.length + k }));
     all = [...all, ...extra.map((t) => ({ ...t, key: keyOf(t) }))];
     rankAll();
     $('#tl-total').textContent = fmt(all.length);
@@ -344,6 +348,10 @@ function renderDirectory(T, catalogP) {
   const icon = (t) => {
     if (t.src === 'gh') return `<span class="tool-icon" data-l="${esc(t.n[0])}"><img class="av" src="https://avatars.githubusercontent.com/u/${+t.oid}?s=64&amp;v=4" alt="" loading="lazy" width="64" height="64" onerror="this.remove()"></span>`;
     if (t.src === 'hf') return `<span class="tool-icon emo" style="--g1:${GRAD[t.from] || GRAD.gray};--g2:${GRAD[t.to] || GRAD.gray}">${esc(firstGlyph(t.emoji))}</span>`;
+    if (t.src === 'ph') {
+      const src = /^https:\/\//.test(t.thumb || '') ? `${t.thumb.split('?')[0]}?auto=format&fit=crop&w=96&h=96` : '';
+      return `<span class="tool-icon" data-l="${esc(t.n[0])}">${src ? `<img class="av" src="${esc(src)}" alt="" loading="lazy" width="64" height="64" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span>`;
+    }
     return `<span class="tool-icon" data-l="${esc(t.n[0])}">${t.icon === false ? '' : `<img src="img/tools/${slug(t.n)}.webp" alt="" loading="lazy" width="64" height="64" onerror="this.remove()">`}</span>`;
   };
   // each card has two sides. A tap anywhere on it turns it over (and back); only its ↗ goes to the tool's page.
@@ -353,6 +361,7 @@ function renderDirectory(T, catalogP) {
     pick: { free: 'Free to use on {host}.', freemium: 'Start free on {host}; pay for more as you go.', paid: 'Paid plans on {host}, usually with a trial.', open: 'Open source: download it and run it yourself.' },
     gh: 'Open source on GitHub: clone it, run it on your own machine, change it as you like.',
     hf: 'Runs right in the browser on Hugging Face Spaces: nothing to install or sign up for.',
+    ph: 'Launched on Product Hunt — its site has the plans, and often a free trial.',
   };
   // where each one stands in its category (the order the directory lists them in)
   let standing = new Map(), leaders = {}, byI = new Map();
@@ -372,7 +381,7 @@ function renderDirectory(T, catalogP) {
     const how = t.src === 'pick' ? HOW.pick[t.p].replace('{host}', esc(host(t.u))) : HOW[t.src];
     const kicker = t.src === 'pick'
       ? (t.pick ? `★ Raunak's top ${all.filter((x) => x.pick).length} · No. ${curatedTop.indexOf(t.n) + 1}` : 'Hand-picked by Raunak')
-      : t.src === 'gh' ? 'Open-source project' : 'Hugging Face Space';
+      : t.src === 'gh' ? 'Open-source project' : t.src === 'ph' ? `Product Hunt launch · ▲ ${fmt(t.pop)}` : 'Hugging Face Space';
     // its neighbours in its category's ranking: the ones just above and below it
     const list = leaders[t.c] || [], at = (standing.get(t) || 1) - 1;
     const from = Math.max(0, Math.min(at - 1, list.length - 4));
@@ -393,7 +402,8 @@ function renderDirectory(T, catalogP) {
     const rank = S.view === 'top' ? `<span class="tool-rank">${String(k + 1).padStart(2, '0')}</span>` : '';
     const when = S.view === 'new' && t.date ? ` · ${ago(t.date, true)}` : '';
     const pop = t.src === 'gh' ? `<span class="tool-pop" title="${fmt(t.pop)} stars on GitHub">★ ${short(t.pop)}</span>`
-      : t.src === 'hf' ? `<span class="tool-pop" title="${fmt(t.pop)} likes on Hugging Face">♥ ${short(t.pop)}</span>` : '';
+      : t.src === 'hf' ? `<span class="tool-pop" title="${fmt(t.pop)} likes on Hugging Face">♥ ${short(t.pop)}</span>`
+      : t.src === 'ph' ? `<span class="tool-pop" title="${fmt(t.pop)} upvotes on Product Hunt">▲ ${short(t.pop)}</span>` : '';
     return `<div class="tool-card" data-i="${t.i}" style="animation-delay:${Math.min(k % STEP, 16) * 30}ms"><div class="tool-inner">
       <div class="tool tool-front${t.src === 'pick' ? '' : ' cat'}" role="button" tabindex="0" aria-label="${esc(t.n)} — turn over for details">
       <span class="tool-top">
@@ -401,9 +411,9 @@ function renderDirectory(T, catalogP) {
         <span class="tool-flags">${rank}${t.uses ? `<span class="tool-uses">${esc(t.uses)}</span>` : ''}${isNew ? '<span class="tool-new">New</span>' : ''}${t.pick ? '<span class="tool-pick" title="One of Raunak\'s picks">★</span>' : ''}${pop}<a class="tool-go" href="${esc(t.u)}" target="_blank" rel="noopener" aria-label="Open ${esc(t.n)} (${esc(host(t.u))})" title="Open ${esc(host(t.u))}">↗</a></span>
       </span>
       <h3>${esc(t.n)}</h3>
-      ${t.by ? `<span class="tool-by">${t.src === 'gh' ? 'GitHub' : 'Hugging Face'} · ${esc(t.by)}${when}</span>` : when ? `<span class="tool-by">Added${when}</span>` : ''}
+      ${t.src === 'ph' ? `<span class="tool-by">Product Hunt${when}</span>` : t.by ? `<span class="tool-by">${t.src === 'gh' ? 'GitHub' : 'Hugging Face'} · ${esc(t.by)}${when}</span>` : when ? `<span class="tool-by">Added${when}</span>` : ''}
       <p>${esc(t.d)}</p>
-      <span class="tool-bot"><span class="tool-cat">${esc(T.categories[t.c])}</span><span class="tool-price"><span class="tl-dot p-${t.p}"></span>${PRICES[t.p]}</span></span>
+      <span class="tool-bot"><span class="tool-cat">${esc(T.categories[t.c])}</span><span class="tool-price"><span class="tl-dot p-${t.p}"></span>${PRICES[t.p] || 'Price on site'}</span></span>
       </div>
       <div class="tool tool-back" role="button" tabindex="-1" aria-label="Turn ${esc(t.n)} back over" inert></div>
     </div></div>`;

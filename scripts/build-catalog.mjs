@@ -1,6 +1,7 @@
 // Builds data/catalog.json — the long tail of Radar's directory of AI tools, beside the hand-picked data/tools.json:
-//  - open-source AI projects on GitHub (the most-starred under a set of AI topics), and
-//  - AI apps on Hugging Face Spaces (the most-liked ones that are up and running).
+//  - open-source AI projects on GitHub (the most-starred under a set of AI topics),
+//  - AI apps on Hugging Face Spaces (the most-liked ones that are up and running), and
+//  - AI products launched on Product Hunt (the most upvoted; with a PRODUCTHUNT_TOKEN).
 // Each gets one of the directory's categories from its own words, and the day it joined Radar (for "Newly added"):
 // kept from the last catalogue, today's date for a newcomer. Nothing is listed twice — not a tool already hand-picked,
 // not two entries with the same name or the same description (the most popular one stays), not a copied Space.
@@ -107,6 +108,55 @@ async function spaces(max = 4500) {
   return out;
 }
 
+/* ---------- Product Hunt ---------- */
+// AI products launched on Product Hunt in the last couple of years, most upvoted first — where the paid and freemium
+// apps come from. Needs a Product Hunt developer token (PRODUCTHUNT_TOKEN, a GitHub secret for the Action); without
+// one, the last catalogue's list is kept as it was.
+const PH_TOKEN = process.env.PRODUCTHUNT_TOKEN || '';
+async function gql(query, variables = {}) {
+  for (let tries = 0; tries < 4; tries++) {
+    const r = await fetch('https://api.producthunt.com/v2/api/graphql', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${PH_TOKEN}`, 'Content-Type': 'application/json', Accept: 'application/json', 'User-Agent': 'raunakpatil.com radar' },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (r.status === 429) { await sleep(60000); continue; }   // (its limit resets every 15 minutes; a minute's wait is usually enough)
+    const j = await r.json();
+    if (j.errors?.length) throw new Error(`Product Hunt: ${j.errors[0].message}`);
+    return j.data;
+  }
+  throw new Error('Product Hunt kept refusing');
+}
+// its labels for price, in the directory's words
+const PH_PRICE = (v) => (/free_?options|freemium/i.test(v || '') ? 'freemium' : /payment|paid/i.test(v || '') ? 'paid' : /free/i.test(v || '') ? 'free' : '');
+async function producthunt() {
+  // (whether its posts carry a price label is checked first, so the query only asks for fields that exist)
+  const fields = (await gql('{ __type(name: "Post") { fields { name } } }')).__type.fields.map((f) => f.name);
+  const extra = ['pricingType'].filter((f) => fields.includes(f)).join(' ');
+  const after = new Date(Date.now() - 730 * 864e5).toISOString();
+  const out = [];
+  let cursor = null;
+  for (let page = 0; page < 60; page++) {
+    const d = await gql(`query($after: DateTime, $cursor: String) {
+      posts(topic: "artificial-intelligence", order: VOTES, postedAfter: $after, first: 20, after: $cursor) {
+        pageInfo { endCursor hasNextPage }
+        edges { node { name tagline slug website votesCount createdAt thumbnail { url } topics(first: 6) { edges { node { slug } } } ${extra} } }
+      } }`, { after, cursor });
+    for (const { node: p } of d.posts.edges) {
+      const tags = p.topics.edges.map((e) => e.node.slug).join(' ');
+      if (!p.tagline || p.votesCount < 150 || SKIP.test(`${p.name} ${p.tagline} ${tags}`) || notTool(p.name, p.tagline)) continue;
+      out.push([tidy(p.name, 60), p.slug, tidy(p.tagline), p.votesCount, catOf(`${p.name} ${p.tagline}`, tags.replace(/-/g, ' '), 'work'),
+        p.thumbnail?.url || '', PH_PRICE(p.pricingType), p.website || `https://www.producthunt.com/posts/${p.slug}`, (p.createdAt || '').slice(0, 10)]);
+    }
+    process.stdout.write(`\rProduct Hunt: ${out.length} kept after ${page + 1} pages        `);
+    if (!d.posts.pageInfo.hasNextPage) break;
+    cursor = d.posts.pageInfo.endCursor;
+    await sleep(1500);
+  }
+  console.log();
+  return out.sort((a, b) => b[3] - a[3]);
+}
+
 /* ---------- once each, and since when ---------- */
 const FILE = new URL('../data/catalog.json', import.meta.url);
 const today = new Date().toISOString().slice(0, 10);
@@ -116,6 +166,7 @@ const joined = new Map();
 if (prev?.v === 2) {
   for (const r of prev.gh || []) joined.set(`gh:${r[1]}`, r[6]);
   for (const r of prev.hf || []) joined.set(`hf:${r[1]}`, r[8]);
+  for (const r of prev.ph || []) joined.set(`ph:${r[1]}`, r[8]);
 }
 const since = (key, published) => joined.get(key) || (prev?.v === 2 ? today : published || today);
 
@@ -134,10 +185,13 @@ const once = (url, name, desc) => {
 };
 
 const [hfAll, ghAll] = [await spaces(), await github()];
+const phAll = PH_TOKEN ? await producthunt() : (console.log('Product Hunt: no PRODUCTHUNT_TOKEN — keeping the last list'), prev?.ph || []);
 const repos = ghAll.filter((r) => once(`https://github.com/${r[1]}`, r[0], r[2])).map((r) => [...r.slice(0, 6), since(`gh:${r[1]}`, r[6])]);
 const hf = hfAll.filter((r) => once(`https://huggingface.co/spaces/${r[1]}`, r[0], r[2])).map((r) => [...r.slice(0, 8), since(`hf:${r[1]}`, r[8])]);
-const added = [...repos.map((r) => r[6]), ...hf.map((r) => r[8])].filter((d) => d === today).length;
+const ph = phAll.filter((r) => once(r[7], r[0], r[2])).map((r) => [...r.slice(0, 8), since(`ph:${r[1]}`, r[8])]);
+const added = [...repos.map((r) => r[6]), ...hf.map((r) => r[8]), ...ph.map((r) => r[8])].filter((d) => d === today).length;
 // one entry to a line, so each week's change is a small diff
 const lines = (rows) => rows.map((r) => `    ${JSON.stringify(r)}`).join(',\n');
-writeFileSync(FILE, `{\n  "v": 2,\n  "updated": "${today}",\n  "gh": [\n${lines(repos)}\n  ],\n  "hf": [\n${lines(hf)}\n  ]\n}\n`);
-console.log(`data/catalog.json: ${repos.length} GitHub projects, ${hf.length} Hugging Face spaces (${ghAll.length + hfAll.length - repos.length - hf.length} repeats and look-alikes dropped, ${added} new today)`);
+writeFileSync(FILE, `{\n  "v": 2,\n  "updated": "${today}",\n  "gh": [\n${lines(repos)}\n  ],\n  "hf": [\n${lines(hf)}\n  ],\n  "ph": [\n${lines(ph)}\n  ]\n}\n`);
+const kept = repos.length + hf.length + ph.length, seen = ghAll.length + hfAll.length + phAll.length;
+console.log(`data/catalog.json: ${repos.length} GitHub projects, ${hf.length} Hugging Face spaces, ${ph.length} Product Hunt launches (${seen - kept} repeats and look-alikes dropped, ${added} new today)`);

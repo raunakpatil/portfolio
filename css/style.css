@@ -1704,6 +1704,8 @@ main { padding: 0 var(--gap) var(--gap); }
 .p-freemium { background: #3b82f6; }
 .p-paid { background: #ff7a1a; }
 .p-open { background: #7c5cff; }
+.p-na { background: #c4c4c4; }   /* (Product Hunt didn't say) */
+.tl-ph { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; background: #da552f; color: #fff; font-size: 9px; font-weight: 700; }
 .tl-star { color: #ff7a1a; margin-right: -2px; }
 .tl-count { padding: 20px 10px 10px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #9a9a9a; }
 

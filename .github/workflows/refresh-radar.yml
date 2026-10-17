@@ -1,6 +1,7 @@
-# Radar (raunakpatil.com/radar): twice a week (Mondays and Thursdays), gather the catalogue of AI tools again — open-source projects on GitHub
-# and apps on Hugging Face Spaces (scripts/build-catalog.mjs) — and save a fresh snapshot of the news feed
-# (scripts/build-feed.mjs). Commits only when something changed. Can also be started by hand from the Actions tab.
+# Radar (raunakpatil.com/radar): twice a week (Mondays and Thursdays), gather the catalogue of AI tools again —
+# open-source projects on GitHub, apps on Hugging Face Spaces and launches on Product Hunt (scripts/build-catalog.mjs;
+# Product Hunt needs the PRODUCTHUNT_TOKEN secret) — and save a fresh snapshot of the news feed (scripts/build-feed.mjs).
+# Commits only when something changed. Can also be started by hand from the Actions tab.
 name: Refresh Radar
 on:
   schedule:
@@ -22,6 +23,7 @@ jobs:
       - name: Gather the catalogue
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRODUCTHUNT_TOKEN: ${{ secrets.PRODUCTHUNT_TOKEN }}
         run: node scripts/build-catalog.mjs
       - name: Save the news snapshot
         run: node scripts/build-feed.mjs || true

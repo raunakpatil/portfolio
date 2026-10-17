@@ -55,8 +55,9 @@ AI news, trending open models and a directory of AI tools. `radar.html` sends vi
   `updated` too. Icons: `python -I scripts/tool-icons.py` fetches any missing ones into `img/tools/` (`icon` names
   another domain to take the icon from; `"icon": false` shows the tool's first letter instead).
 - **AI Tools, the catalogue** is `data/catalog.json`, thousands more: the most-starred open-source AI projects on GitHub
-  (1,000+ stars) and the most-liked running apps on Hugging Face Spaces, in their makers' own words, with a category
-  guessed from them (`scripts/build-catalog.mjs`). Each is listed once: nothing already hand-picked, no two with the
+  (1,000+ stars), the most-liked running apps on Hugging Face Spaces, and the most upvoted AI launches on Product Hunt
+  (150+ votes, with its price label — this part needs a Product Hunt developer token saved as the `PRODUCTHUNT_TOKEN`
+  repository secret), in their makers' own words, with a category guessed from them (`scripts/build-catalog.mjs`). Each is listed once: nothing already hand-picked, no two with the
   same name or description (the most popular stays), no copied Spaces, and no lists, courses or templates. Each entry
   ends with the day it joined, which drives **Newly added** (the last 90 days). The **Refresh Radar** GitHub Action
   rebuilds it on Mondays and Thursdays and commits it — so pull before pushing.
