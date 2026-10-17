@@ -138,30 +138,16 @@ function renderNews(f) {
 
   const strip = $('#tl-models');
   if (!f.models?.length) { strip.closest('.tl-models').hidden = true; return; }
-  // each model its own colour, sweeping the skill matrix's spectrum along the strip, and its own wave of bars, lit as
-  // far as it ranks (the first, all of them)
+  // each model its own colour, sweeping the skill matrix's spectrum along the strip
   const count = f.models.length;
   const tile = (m, i, copy) => `<a class="tl-model" href="${esc(m.link)}" target="_blank" rel="noopener"${copy ? ' aria-hidden="true" tabindex="-1"' : ''} draggable="false" style="--h:${Math.round((((75 - i * (330 / count)) % 360) + 360) % 360)}">
       <span class="tl-model-top"><span>${esc(m.maker)}</span><span class="tl-rank">${String(i + 1).padStart(2, '0')}</span></span>
       <span class="tl-model-name">${esc(m.name)}</span>
       <span class="tl-model-bot"><span class="tl-task">${esc(m.task)}</span><span class="tl-stats"><span title="Likes">♥ ${short(m.likes)}</span><span title="Downloads last month">↓ ${short(m.downloads)}</span></span></span>
-      ${waveBars(m.id, 1 - i / (count + 2))}
     </a>`;
   // one row that drifts along by itself — twice over, so it runs on without a seam — and can be swiped or dragged
   strip.innerHTML = f.models.map((m, i) => tile(m, i)).join('') + (MOTION ? f.models.map((m, i) => tile(m, i, true)).join('') : '');
   if (MOTION) drift(strip);
-}
-
-// a strip of bars like the skill matrix's: a wave of its own (seeded by a name), lit along to `lit` (0–1), the rest dim
-const seedOf = (s) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) / 4294967296); };
-function waveBars(name, lit) {
-  const rnd = seedOf(name), n = 40, ph1 = rnd() * 6.3, f1 = 0.16 + rnd() * 0.2, ph2 = rnd() * 6.3;
-  let r = '';
-  for (let k = 0; k < n; k++) {
-    const h = 6 + 12 * (0.55 + 0.45 * Math.sin(k * f1 + ph1)) * (0.7 + 0.3 * Math.sin(k * 0.5 + ph2)) + rnd() * 2;
-    r += `<rect x="${k * 4}" y="${(22 - h).toFixed(1)}" width="2.4" height="${h.toFixed(1)}" rx="1.2"${k / n < lit ? ` style="--k:${k}"` : ' class="off"'}/>`;
-  }
-  return `<svg class="tl-bars" viewBox="0 0 160 22" preserveAspectRatio="none" aria-hidden="true">${r}</svg>`;
 }
 
 // the trending strip's drift: ~30 px a second, held while the pointer is on it (or a finger, or the keyboard), and for
