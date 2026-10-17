@@ -226,6 +226,67 @@ async function google(env, g, system, messages, opts) {
 // Workers AI's free daily allowance is used up (error 4006) — resets at 00:00 UTC
 const quotaGone = (err) => /4006|daily free allocation/i.test(String(err && err.message || err));
 
+// Radar's card backs: what a tool does, in plain words — written by the model the first time anyone turns that card
+// over, then kept in KV for everyone. The page only sends which tool; its name and description are looked up in the
+// site's own data (one entry to a line there, so a text search finds it without reading the whole file).
+const SITE = 'https://raunakpatil.com';
+const KINDS = { pick: 'an AI product', gh: 'an open-source project on GitHub', hf: 'an app on Hugging Face Spaces', ph: 'a product launched on Product Hunt' };
+async function siteFile(path) {
+  const r = await fetch(`${SITE}/${path}`, { cf: { cacheTtl: 3600, cacheEverything: true } });
+  if (!r.ok) throw new Error(`${path}: ${r.status}`);
+  return r.text();
+}
+async function lookUp(src, id) {
+  if (src === 'pick') {
+    const text = await siteFile('data/tools.json');
+    const at = text.indexOf(`"n": ${JSON.stringify(id)},`);
+    if (at < 0) return null;
+    const line = text.slice(text.lastIndexOf('\n', at) + 1, text.indexOf('\n', at)).trim().replace(/,$/, '');
+    const t = JSON.parse(line);
+    return { name: t.n, desc: t.d };
+  }
+  const text = await siteFile('data/catalog.json');
+  const from = text.indexOf(`"${src}": [`);
+  if (from < 0) return null;
+  const at = text.indexOf(`,${JSON.stringify(id)},`, from);
+  if (at < 0) return null;
+  const row = JSON.parse(text.slice(text.lastIndexOf('\n', at) + 1, text.indexOf('\n', at)).trim().replace(/,$/, ''));
+  return { name: row[0], desc: row[2] };
+}
+const EXPLAIN = `You explain AI tools to people new to them, in plain, friendly words.
+Write exactly two short sentences, under 34 words in all.
+Sentence one: what it concretely does — start with a verb ("Turns PDFs into...", "Lets you chat with...", "Generates..."), naming the actual thing it works on.
+Sentence two: who it's handy for or when — start with "Handy", "Useful", "Good" or "Great".
+Use only what you're given; never invent features, prices, numbers or claims. Don't copy the description's wording, don't name the tool, and never say "this tool", "this software" or "you would use it".
+Plain text only: no quotes, markdown, emoji or lists.`;
+async function explain(request, env, ctx, cors) {
+  let body;
+  try { body = await request.json(); } catch { return json({ error: 'bad request' }, 400, cors); }
+  const m = /^(pick|gh|hf|ph):(.{1,120})$/.exec(String(body && body.key || ''));
+  if (!m) return json({ error: 'bad request' }, 400, cors);
+  const [, src, id] = m;
+  const kvKey = `ex2:${src}:${id}`;
+  const kept = env.FEED ? await env.FEED.get(kvKey) : null;
+  if (kept) return json({ text: kept }, 200, cors);
+  if (env.LIMITER) {
+    const { success } = await env.LIMITER.limit({ key: `ex:${request.headers.get('CF-Connecting-IP') || 'anon'}` });
+    if (!success) return json({ error: 'slow down' }, 429, cors);
+  }
+  let tool;
+  try { tool = await lookUp(src, id); } catch { return json({ error: 'unavailable' }, 503, cors); }
+  if (!tool) return json({ error: 'not found' }, 404, cors);
+  try {
+    const opts = { maxTokens: 90, temperature: 0.3 };
+    const raw = await generate(env, EXPLAIN, [{ role: 'user', content: `Tool: ${tool.name}\nWhat it is: ${KINDS[src]}\nIts own description: ${tool.desc}` }], opts);
+    const text = raw.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/[*_`#>]+/g, '').replace(/^["'“]+|["'”]+$/g, '').replace(/\s+/g, ' ').trim().slice(0, 260);
+    if (!text) return json({ error: 'empty' }, 502, cors);
+    if (env.FEED) ctx.waitUntil(env.FEED.put(kvKey, text).catch(() => {}));
+    return json({ text }, 200, cors);
+  } catch (err) {
+    return json({ error: quotaGone(err) ? 'quota' : 'unavailable' }, 503, cors);
+  }
+}
+
 // the Tools page's headlines and trending models (feed.js): rebuilt every half hour by the cron trigger into KV
 // (FEED), so /feed is a quick read; each copy of the worker also keeps the last one in memory for a few minutes
 const FEED_KEY = 'feed-v1';
@@ -260,6 +321,10 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { headers: cors });
     const path = new URL(request.url).pathname;
     if (request.method === 'GET' && path === '/feed') return feed(env, ctx, cors);
+    if (request.method === 'POST' && path === '/explain') {
+      if (!ALLOWED.includes(origin)) return json({ error: 'forbidden' }, 403, cors);
+      return explain(request, env, ctx, cors);
+    }
     if (request.method !== 'POST' || !['/chat', '/pick'].includes(path)) return json({ error: 'not found' }, 404, cors);
     if (!ALLOWED.includes(origin)) return json({ error: 'forbidden' }, 403, cors);
 

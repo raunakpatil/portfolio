@@ -281,13 +281,13 @@ function renderDirectory(T, catalogP) {
     // in turns: the nth-most-popular GitHub project sits by the nth-most-liked Space
     gh.forEach((t, k) => { t.rank = k / gh.length; });
     // (Product Hunt's price label, where it gives one: otherwise "price on site")
-    const ph = take(C.ph || [], ([n, slug, d, votes, c, thumb, p, link, date]) => ({ n, u: link, d, c, p: p || 'na', src: 'ph', pop: votes, thumb, by: 'Product Hunt', date }));
+    const ph = take(C.ph || [], ([n, slug, d, votes, c, thumb, p, link, date]) => ({ n, u: link, d, c, p: p || 'na', src: 'ph', pop: votes, thumb, slug, by: 'Product Hunt', date }));
     hf.forEach((t, k) => { t.rank = (k + 0.5) / hf.length; });
     ph.forEach((t, k) => { t.rank = (k + 0.25) / ph.length; });
     const extra = [...gh, ...hf, ...ph].sort((a, b) => a.rank - b.rank).map((t, k) => ({ ...t, i: curated.length + k }));
     all = [...all, ...extra.map((t) => ({ ...t, key: keyOf(t) }))];
     rankAll();
-    $('#tl-total').textContent = fmt(all.length);
+    search.placeholder = `Search ${fmt(all.length)} AI tools`;
     drawViews();
     draw();
   });
@@ -355,13 +355,27 @@ function renderDirectory(T, catalogP) {
     return `<span class="tool-icon" data-l="${esc(t.n[0])}">${t.icon === false ? '' : `<img src="img/tools/${slug(t.n)}.webp" alt="" loading="lazy" width="64" height="64" onerror="this.remove()">`}</span>`;
   };
   // each card has two sides. A tap anywhere on it turns it over (and back); only its ↗ goes to the tool's page.
-  // The back only says what the front doesn't: how to get going with it, when it joined, where it ranks
-  // in its category, and what else is like it.
-  const HOW = {
-    pick: { free: 'Free to use on {host}.', freemium: 'Start free on {host}; pay for more as you go.', paid: 'Paid plans on {host}, usually with a trial.', open: 'Open source: download it and run it yourself.' },
-    gh: 'Open source on GitHub: clone it, run it on your own machine, change it as you like.',
-    hf: 'Runs right in the browser on Hugging Face Spaces: nothing to install or sign up for.',
-    ph: 'Launched on Product Hunt — its site has the plans, and often a free trial.',
+  // The back only says what the front doesn't: what it does in plain words (written for each tool by Ronie's worker,
+  // /explain, the first time anyone turns it over), how to get it, when it joined, where it ranks, what's like it.
+  // Each category has a colour from the dashboard's skill-matrix spectrum, and at the foot of each card a strip of
+  // bars in it (its own wave), lit as far as the tool is popular in its own place.
+  const CAT_HUE = { chat: 75, research: 48, code: 22, agents: 355, image: 328, video: 300, voice: 272, music: 246, writing: 218, work: 190, design: 162, build: 134 };
+  const GET = {
+    pick: { free: 'Free on {host}', freemium: 'Free plan on {host}', paid: 'Paid plans on {host}', open: 'Free and open source' },
+    gh: 'Clone it from GitHub', hf: 'Use it in the browser, nothing to install', ph: 'Plans on its own site',
+  };
+  const keyFor = (t) => (t.src === 'pick' ? `pick:${t.n}` : t.src === 'gh' ? `gh:${t.u.replace('https://github.com/', '')}`
+    : t.src === 'hf' ? `hf:${t.u.replace('https://huggingface.co/spaces/', '')}` : `ph:${t.slug}`);
+  const EX = new Map();
+  const EX_URL = (D.assistant?.chatUrl || '').replace(/\/chat$/, '/explain');
+  const explainOf = (t) => {
+    const k = keyFor(t);
+    if (!EX.has(k)) {
+      EX.set(k, !EX_URL ? Promise.resolve('') : fetch(EX_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key: k }), signal: AbortSignal.timeout(15000) })
+        .then((r) => (r.ok ? r.json() : {})).then((j) => j.text || '').catch(() => ''));
+      EX.get(k).then((x) => { if (!x) EX.delete(k); });   // (a miss can be tried again later)
+    }
+    return EX.get(k);
   };
   // where each one stands in its category (the order the directory lists them in)
   let standing = new Map(), leaders = {}, byI = new Map();
@@ -377,8 +391,21 @@ function renderDirectory(T, catalogP) {
     }
     rankAll.size = seen;
   };
+  // the strip of bars: a wave of its own (seeded by its name), lit up to how popular it is where it lives
+  const seedOf = (s) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619); return () => ((h = Math.imul(h ^ (h >>> 15), 2246822507) >>> 0) / 4294967296); };
+  const bars = (t) => {
+    const rnd = seedOf(t.n), n = 34, lit = t.src === 'pick' ? (t.pick ? 1 : 0.82) : Math.max(0.12, 1 - (t.rank || 0));
+    const ph1 = rnd() * 6.3, f1 = 0.18 + rnd() * 0.22, ph2 = rnd() * 6.3;
+    let r = '';
+    for (let k = 0; k < n; k++) {
+      const h = 5 + 9 * (0.55 + 0.45 * Math.sin(k * f1 + ph1)) * (0.7 + 0.3 * Math.sin(k * 0.5 + ph2)) + rnd() * 2;
+      const on = k / n < lit;
+      r += `<rect x="${k * 4}" y="${(18 - h).toFixed(1)}" width="2.4" height="${h.toFixed(1)}" rx="1.2"${on ? ` style="--k:${k}"` : ' class="off"'}/>`;
+    }
+    return `<svg class="tool-bars" viewBox="0 0 136 18" preserveAspectRatio="none" aria-hidden="true">${r}</svg>`;
+  };
   const back = (t) => {
-    const how = t.src === 'pick' ? HOW.pick[t.p].replace('{host}', esc(host(t.u))) : HOW[t.src];
+    const get = t.src === 'pick' ? GET.pick[t.p].replace('{host}', esc(host(t.u))) : GET[t.src];
     const kicker = t.src === 'pick'
       ? (t.pick ? `★ Raunak's top ${all.filter((x) => x.pick).length} · No. ${curatedTop.indexOf(t.n) + 1}` : 'Hand-picked by Raunak')
       : t.src === 'gh' ? 'Open-source project' : t.src === 'ph' ? `Product Hunt launch · ▲ ${fmt(t.pop)}` : 'Hugging Face Space';
@@ -387,14 +414,14 @@ function renderDirectory(T, catalogP) {
     const from = Math.max(0, Math.min(at - 1, list.length - 4));
     const like = list.slice(from, from + 4).filter((x) => x !== t).slice(0, 3).map((x) => esc(x.n)).join(', ');
     const rows = [
-      t.date ? ['Added', `${day(t.date)} <i>· ${ago(t.date, true)}</i>`] : null,
+      ['Get it', get],
+      t.date ? ['Added', `${day(t.date)} <i>· ${ago(t.date, true)}</i>`, 'r-added'] : null,
       standing.get(t) ? ['Ranks', `No. ${fmt(standing.get(t))} of ${fmt(rankAll.size[t.c])} in ${esc(T.categories[t.c])}`] : null,
       like ? ['Similar', like] : null,
     ].filter(Boolean);
     return `<span class="tool-back-head">${icon(t)}<span class="tool-back-kicker">${kicker}</span></span>
-      <p class="tool-back-how">${how}</p>
-      <dl>${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
-      <span class="tool-back-hint">Tap to turn back</span>`;
+      <p class="tool-back-what"><span class="tl-skel-line"></span><span class="tl-skel-line short"></span></p>
+      <dl>${rows.map(([k, v, cls]) => `<div${cls ? ` class="${cls}"` : ''}><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>`;
   };
   const curatedTop = curated.filter((t) => t.pick).map((t) => t.n);
   const card = (t, k) => {
@@ -404,7 +431,7 @@ function renderDirectory(T, catalogP) {
     const pop = t.src === 'gh' ? `<span class="tool-pop" title="${fmt(t.pop)} stars on GitHub">★ ${short(t.pop)}</span>`
       : t.src === 'hf' ? `<span class="tool-pop" title="${fmt(t.pop)} likes on Hugging Face">♥ ${short(t.pop)}</span>`
       : t.src === 'ph' ? `<span class="tool-pop" title="${fmt(t.pop)} upvotes on Product Hunt">▲ ${short(t.pop)}</span>` : '';
-    return `<div class="tool-card" data-i="${t.i}" style="animation-delay:${Math.min(k % STEP, 16) * 30}ms"><div class="tool-inner">
+    return `<div class="tool-card" data-i="${t.i}" style="--h:${CAT_HUE[t.c] ?? 75};animation-delay:${Math.min(k % STEP, 16) * 30}ms"><div class="tool-inner">
       <div class="tool tool-front${t.src === 'pick' ? '' : ' cat'}" role="button" tabindex="0" aria-label="${esc(t.n)} — turn over for details">
       <span class="tool-top">
         ${icon(t)}
@@ -414,14 +441,24 @@ function renderDirectory(T, catalogP) {
       ${t.src === 'ph' ? `<span class="tool-by">Product Hunt${when}</span>` : t.by ? `<span class="tool-by">${t.src === 'gh' ? 'GitHub' : 'Hugging Face'} · ${esc(t.by)}${when}</span>` : when ? `<span class="tool-by">Added${when}</span>` : ''}
       <p>${esc(t.d)}</p>
       <span class="tool-bot"><span class="tool-cat">${esc(T.categories[t.c])}</span><span class="tool-price"><span class="tl-dot p-${t.p}"></span>${PRICES[t.p] || 'Price on site'}</span></span>
+      ${bars(t)}
       </div>
       <div class="tool tool-back" role="button" tabindex="-1" aria-label="Turn ${esc(t.n)} back over" inert></div>
     </div></div>`;
   };
-  // (the back is written as it turns, so its ranks and look-alikes are always the current ones)
+  // (the back is written as it turns, so its ranks and look-alikes are always the current ones; its plain-words line
+  // arrives a moment later the first time, then straight away)
   const turn = (c, over) => {
     const [front, rear] = c.querySelectorAll('.tool');
-    if (over) rear.innerHTML = back(byI.get(+c.dataset.i));
+    if (over) {
+      const t = byI.get(+c.dataset.i);
+      rear.innerHTML = back(t);
+      const what = rear.querySelector('.tool-back-what');
+      explainOf(t).then((x) => {
+        if (!what.isConnected) return;
+        if (x) { what.textContent = x; what.classList.add('in'); } else what.remove();
+      });
+    }
     c.classList.toggle('flipped', over);
     front.inert = over;
     rear.inert = !over;
@@ -485,7 +522,7 @@ function renderDirectory(T, catalogP) {
     search.focus();
   });
   grid.addEventListener('click', (e) => { if (e.target.closest('#tl-reset')) reset(); });
-  $('#tl-total').textContent = fmt(all.length);
+  search.placeholder = `Search ${fmt(all.length)} AI tools`;
   rankAll();
   drawViews();
   draw();
