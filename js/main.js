@@ -359,12 +359,12 @@
       ind.style.width = `${a.offsetWidth}px`;
       ind.style.transform = `translateX(${a.offsetLeft}px)`;
     };
-    // Ronie and the Tools page have their own addresses, raunakpatil.com/ronie and /tools (ronie.html and tools.html
-    // send visitors in); every other page is /#page
-    const PATHS = { assistant: '/ronie', tools: '/tools' };
+    // Ronie and Radar have their own addresses, raunakpatil.com/ronie and /radar (ronie.html and radar.html send
+    // visitors in); every other page is /#page
+    const PATHS = { assistant: '/ronie', radar: '/radar' };
     const onPath = () => Object.keys(PATHS).find((k) => new RegExp(`^${PATHS[k]}/?$`).test(location.pathname));
-    // old addresses that still work: the Case Study page is now the Library
-    const RENAMED = { 'case-study': 'library' };
+    // old addresses that still work: the Case Study page is now the Library, and Tools is Radar
+    const RENAMED = { 'case-study': 'library', tools: 'radar' };
     const go = () => {
       let h = location.hash.slice(1);
       if (RENAMED[h]) { h = RENAMED[h]; history.replaceState(null, '', `#${h}`); }
@@ -382,7 +382,7 @@
       window.scrollTo(0, 0);
       document.body.dataset.route = r;
       window.warmView?.(r);
-      if (r === 'tools') loadTools().then((m) => m.open());
+      if (r === 'radar') loadRadar().then((m) => m.open());
       // Ronie (three.js + the robot) only loads when someone actually opens it
       if (r === 'assistant') {
         bootScreen();
@@ -393,11 +393,11 @@
         });
       }
     };
-    // the Tools page's script (js/tools.js) comes once someone heads that way; it fetches the latest headlines itself
-    let toolsMod = null;
-    function loadTools() {
-      toolsMod ||= import(`./tools.js${ASSET_V ? `?v=${ASSET_V}` : ''}`).catch((err) => { toolsMod = null; console.error('Tools failed to load', err); return { open() {} }; });
-      return toolsMod;
+    // Radar's script (js/radar.js) comes once someone heads that way; it fetches the latest headlines itself
+    let radarMod = null;
+    function loadRadar() {
+      radarMod ||= import(`./radar.js${ASSET_V ? `?v=${ASSET_V}` : ''}`).catch((err) => { radarMod = null; console.error('Radar failed to load', err); return { open() {} }; });
+      return radarMod;
     }
     addEventListener('hashchange', go);
     addEventListener('resize', moveIndicator);
@@ -412,7 +412,7 @@
     function warm(r) {
       if (!r || warmed.has(r)) return;
       warmed.add(r);
-      if (r === 'tools') loadTools();
+      if (r === 'radar') loadRadar();
       const v = $(`.view[data-view="${r}"]`);
       if (!v) return;
       $$('[data-src]', v).forEach((n) => { n.src = n.dataset.src; n.removeAttribute('data-src'); });

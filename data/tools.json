@@ -17,7 +17,7 @@
   "tools": [
     { "n": "ChatGPT", "u": "https://chatgpt.com", "c": "chat", "p": "freemium", "pick": true, "d": "OpenAI's everyday assistant: chat, files, pictures, voice and agents that browse and act for you." },
     { "n": "Claude", "u": "https://claude.ai", "c": "chat", "p": "freemium", "pick": true, "d": "Anthropic's assistant — careful writing, long documents and serious coding help." },
-    { "n": "Gemini", "u": "https://gemini.google.com", "c": "chat", "p": "freemium", "d": "Google's assistant, plugged into Search, Gmail, Docs and your Android phone.", "uses": "In Raunak's stack" },
+    { "n": "Gemini", "u": "https://gemini.google.com", "c": "chat", "p": "freemium", "pick": true, "d": "Google's assistant, plugged into Search, Gmail, Docs and your Android phone.", "uses": "In Raunak's stack" },
     { "n": "Grok", "u": "https://grok.com", "c": "chat", "p": "freemium", "d": "xAI's assistant, with what people are posting on X right now in reach." },
     { "n": "Microsoft Copilot", "u": "https://copilot.microsoft.com", "icon": "copilot.com", "c": "chat", "p": "freemium", "d": "Microsoft's assistant across Windows, Edge and the Office apps." },
     { "n": "Meta AI", "u": "https://www.meta.ai", "c": "chat", "p": "free", "d": "Meta's assistant inside WhatsApp, Instagram and Messenger, or on its own." },
@@ -45,7 +45,7 @@
     { "n": "Gemini CLI", "u": "https://github.com/google-gemini/gemini-cli", "icon": "gemini.google.com", "c": "code", "p": "open", "d": "Google's open-source coding agent for the terminal, with a generous free tier." },
     { "n": "Jules", "u": "https://jules.google", "c": "code", "p": "freemium", "d": "Google's asynchronous coding agent: give it an issue, get back a pull request." },
     { "n": "Replit", "u": "https://replit.com", "c": "code", "p": "freemium", "d": "Describe an app and its agent builds, hosts and deploys it in the browser." },
-    { "n": "Lovable", "u": "https://lovable.dev", "c": "code", "p": "freemium", "d": "Full-stack web apps from a conversation, with a real database behind them." },
+    { "n": "Lovable", "u": "https://lovable.dev", "c": "code", "p": "freemium", "pick": true, "d": "Full-stack web apps from a conversation, with a real database behind them." },
     { "n": "Bolt", "u": "https://bolt.new", "c": "code", "p": "freemium", "d": "Prompt, run, edit and deploy full-stack apps without leaving the browser tab." },
     { "n": "v0", "u": "https://v0.app", "c": "code", "p": "freemium", "d": "Vercel's builder for polished React interfaces and apps from a prompt or a sketch." },
     { "n": "Cline", "u": "https://cline.bot", "c": "code", "p": "open", "d": "An open-source coding agent for VS Code that asks before every step it takes." },
@@ -78,7 +78,7 @@
     { "n": "Freepik", "u": "https://www.freepik.com/ai", "c": "image", "p": "freemium", "d": "An AI suite of the latest image and video models next to a huge stock library." },
 
     { "n": "Runway", "u": "https://runwayml.com", "c": "video", "p": "freemium", "pick": true, "d": "Video generation and editing tools for filmmakers, from text, images or footage." },
-    { "n": "Veo · Flow", "u": "https://labs.google/flow", "c": "video", "p": "freemium", "d": "Google's Veo video model in a filmmaking tool, with sound generated alongside." },
+    { "n": "Veo · Flow", "u": "https://labs.google/flow", "c": "video", "p": "freemium", "pick": true, "d": "Google's Veo video model in a filmmaking tool, with sound generated alongside." },
     { "n": "Sora", "u": "https://sora.chatgpt.com", "c": "video", "p": "freemium", "d": "OpenAI's video model, with sound — and an app for remixing each other's clips." },
     { "n": "Kling", "u": "https://klingai.com", "c": "video", "p": "freemium", "d": "Kuaishou's video generator, strong on realistic motion." },
     { "n": "Luma Dream Machine", "u": "https://lumalabs.ai", "c": "video", "p": "freemium", "d": "Video from text and images, with camera moves you can direct." },
@@ -114,7 +114,7 @@
 
     { "n": "Gamma", "u": "https://gamma.app", "c": "work", "p": "freemium", "pick": true, "d": "Presentations, documents and simple sites, designed for you from an outline." },
     { "n": "Notion AI", "u": "https://www.notion.com/product/ai", "c": "work", "p": "paid", "d": "Writing, search and meeting notes across your whole Notion workspace." },
-    { "n": "Granola", "u": "https://www.granola.ai", "c": "work", "p": "freemium", "d": "Meeting notes without a bot joining the call — your notes, filled in by AI." },
+    { "n": "Granola", "u": "https://www.granola.ai", "c": "work", "p": "freemium", "pick": true, "d": "Meeting notes without a bot joining the call — your notes, filled in by AI." },
     { "n": "Otter", "u": "https://otter.ai", "c": "work", "p": "freemium", "d": "Live transcripts and summaries of meetings and lectures." },
     { "n": "Fathom", "u": "https://www.fathom.ai", "c": "work", "p": "freemium", "d": "Records, transcribes and summarises your video calls, free for one person." },
     { "n": "Fireflies", "u": "https://fireflies.ai", "c": "work", "p": "freemium", "d": "A meeting assistant that records, transcribes and searches your calls." },

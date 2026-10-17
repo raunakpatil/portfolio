@@ -1,0 +1,38 @@
+# Radar (raunakpatil.com/radar): twice a week (Mondays and Thursdays), gather the catalogue of AI tools again — open-source projects on GitHub
+# and apps on Hugging Face Spaces (scripts/build-catalog.mjs) — and save a fresh snapshot of the news feed
+# (scripts/build-feed.mjs). Commits only when something changed. Can also be started by hand from the Actions tab.
+name: Refresh Radar
+on:
+  schedule:
+    - cron: '17 3 * * 1,4'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pages: write
+concurrency: refresh-radar
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Gather the catalogue
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/build-catalog.mjs
+      - name: Save the news snapshot
+        run: node scripts/build-feed.mjs || true
+      - name: Commit
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git add data/catalog.json data/feed.json
+          if git diff --cached --quiet; then echo "Nothing new."; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Radar: newly added AI tools"
+          git push
+          gh api -X POST "repos/${{ github.repository }}/pages/builds" || true

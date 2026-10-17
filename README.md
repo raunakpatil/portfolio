@@ -40,19 +40,29 @@ window shows `photo` (a picture in `img/certs/`) or, failing that, `logo` (an is
 and NIELIT's emblems, used to identify who issued a certificate). Opening a book shows `brief`, the skills, the
 credential `id` and a link to `url`.
 
-## Tools page (raunakpatil.com/tools)
-`tools.html` sends visitors to `/#tools`, and the site keeps `/tools` in the address bar (like `/ronie`). The page itself
-is `js/tools.js`, loaded once someone heads that way.
-- **Latest in AI** (headlines and trending open models) comes live from Ronie's worker, `GET /feed`
-  (`worker/src/feed.js`): a cron trigger rebuilds it every 30 minutes into the `FEED` KV namespace. Only headlines,
-  sources, dates and links are kept; stories on crime, adult content or party politics are left out, and trending
-  models are only shown from the makers listed in `MAKERS`. If the worker doesn't answer, the page shows the snapshot
-  in `data/feed.json` — refresh it now and then with `node scripts/build-feed.mjs`.
-- **AI Tools** is `data/tools.json`: `n` name, `u` link, `d` one line about it, `c` category (a key of `categories`),
-  `p` price (`free`, `freemium`, `paid` or `open`), `pick` for Raunak's picks, `uses` for a badge ("Ronie's voice"),
-  `added` (YYYY-MM-DD) on new ones — they show as New for a month and turn on the New sort. Update `updated` too.
-  Icons: `python -I scripts/tool-icons.py` fetches any missing ones into `img/tools/` (`icon` names another domain to
-  take the icon from; `"icon": false` shows the tool's first letter instead).
+## Radar (raunakpatil.com/radar)
+AI news, trending open models and a directory of AI tools. `radar.html` sends visitors to `/#radar` and the site keeps
+`/radar` in the address bar (like `/ronie`); the page's first address, `/tools`, still works. The page itself is
+`js/radar.js`, loaded once someone heads that way.
+- **Latest in AI** (headlines with their pictures, and trending open models) comes live from Ronie's worker,
+  `GET /feed` (`worker/src/feed.js`): a cron trigger rebuilds it every 30 minutes into the `FEED` KV namespace. Only
+  headlines, sources, dates, links and each story's preview picture are kept; stories on crime, adult content or party
+  politics are left out, and trending models are only shown from the makers listed in `MAKERS`. If the worker doesn't
+  answer, the page shows the snapshot in `data/feed.json` (`node scripts/build-feed.mjs`).
+- **AI Tools, hand-picked** is `data/tools.json`: `n` name, `u` link, `d` one line about it, `c` category (a key of
+  `categories`), `p` price (`free`, `freemium`, `paid` or `open`), `pick` for Raunak's picks, `uses` for a badge
+  ("Ronie's voice"), `added` (YYYY-MM-DD) on new ones — they show as New for a month and turn on the New sort. Update
+  `updated` too. Icons: `python -I scripts/tool-icons.py` fetches any missing ones into `img/tools/` (`icon` names
+  another domain to take the icon from; `"icon": false` shows the tool's first letter instead).
+- **AI Tools, the catalogue** is `data/catalog.json`, thousands more: the most-starred open-source AI projects on GitHub
+  (1,000+ stars) and the most-liked running apps on Hugging Face Spaces, in their makers' own words, with a category
+  guessed from them (`scripts/build-catalog.mjs`). Each is listed once: nothing already hand-picked, no two with the
+  same name or description (the most popular stays), no copied Spaces, and no lists, courses or templates. Each entry
+  ends with the day it joined, which drives **Newly added** (the last 90 days). The **Refresh Radar** GitHub Action
+  rebuilds it on Mondays and Thursdays and commits it — so pull before pushing.
+- The page's three views: **Top 20** (the `pick`s, in the order they're listed), **Browse all** (search, then Source,
+  Price, Category and Sort), **Newly added**. A tap turns a card over to its details (how to start, when it was added,
+  where it ranks, what else is like it); only its ↗ opens the page.
 
 ## Ronie's surroundings
 By default Ronie stands in front of a picture (neon mountains under a colossal moon, 3:1) behind his transparent

@@ -2541,7 +2541,7 @@ const PLACES = [
   { label: 'GitHub', href: () => linkOf('GitHub'), test: /git\s?hub/i },
   { label: 'YouTube channel', href: () => linkOf('YouTube'), test: /youtube channel|eldritch lore/i },
   { label: 'Instagram', href: () => linkOf('Instagram'), test: /instagram/i },
-  { label: 'AI news & tools', href: () => '#tools', test: /tools page|ai news|latest (ai )?(news|headlines)|\/tools\b|(directory|list) of (ai )?tools/i },
+  { label: 'Radar: AI news & tools', href: () => '#radar', test: /\bradar\b|tools page|ai news|latest (ai )?(news|headlines)|\/tools\b|(directory|list) of (ai )?tools/i },
 ];
 function linksFor(reply) {
   const out = [];

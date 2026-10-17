@@ -18,7 +18,7 @@ if (D.status) add(`Current status (the newest information — wherever anything 
 add(`Summary: ${clean(D.bio)}`);
 add(`Email: ${A.email}`);
 add(`Links: ${D.links.map((l) => `${l.label}: ${l.href.replace('mailto:', '')}`).join(' | ')}`);
-add('Pages on this website: Dashboard, Projects, Library (case studies and certificates), and Tools (raunakpatil.com/tools) — the latest AI news headlines, open models trending on Hugging Face, and a directory of AI tools Raunak picked and keeps up to date.');
+add('Pages on this website: Dashboard, Projects, Library (case studies and certificates), and Radar (raunakpatil.com/radar) — the latest AI news headlines, open models trending on Hugging Face, and a directory of AI tools Raunak picked and keeps up to date.');
 add(`Time spent in AI/ML: ${D.time.hours}+ hours since ${D.time.start.year} (started in ${D.time.start.city}).`);
 add();
 add('Experience and education (oldest first):');
