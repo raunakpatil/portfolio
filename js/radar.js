@@ -205,6 +205,7 @@ const SOURCES = {
   all: ['Everything', ''],
   star: ["Raunak's picks", '<span class="tl-star" aria-hidden="true">★</span>'],
   saved: ['Saved', '<span class="tl-saved" aria-hidden="true">♥</span>'],
+  mine: ['By Raunak', ''],
   pick: ['Hand-picked', ''],
   gh: ['GitHub', GH_SVG],
   hf: ['Hugging Face', '<span aria-hidden="true">🤗</span>'],
@@ -317,7 +318,7 @@ function renderDirectory(T, catalogP) {
     draw();
   });
 
-  const inSrc = (t, s) => s === 'all' || (s === 'star' ? t.pick : s === 'saved' ? saved.has(keyFor(t)) : t.src === s);
+  const inSrc = (t, s) => s === 'all' || (s === 'star' ? t.pick : s === 'saved' ? saved.has(keyFor(t)) : s === 'mine' ? t.mine : t.src === s);
   const matches = (t, skip) => (skip === 'q' || !S.q || S.q.split(/\s+/).every((w) => t.key.includes(w)))
     && (skip === 'src' || inSrc(t, S.src))
     && (skip === 'price' || S.price === 'all' || t.p === S.price)
@@ -381,7 +382,8 @@ function renderDirectory(T, catalogP) {
       const src = /^https:\/\//.test(t.thumb || '') ? `${t.thumb.split('?')[0]}?auto=format&fit=crop&w=96&h=96` : '';
       return `<span class="tool-icon" data-l="${esc(t.n[0])}">${src ? `<img class="av" src="${esc(src)}" alt="" loading="lazy" width="64" height="64" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span>`;
     }
-    return `<span class="tool-icon" data-l="${esc(t.n[0])}">${t.icon === false ? '' : `<img src="img/tools/${slug(t.n)}.webp" alt="" loading="lazy" width="64" height="64" onerror="this.remove()">`}</span>`;
+    // (Raunak's own projects: their own artwork, edge to edge)
+    return `<span class="tool-icon" data-l="${esc(t.n[0])}">${t.icon === false ? '' : `<img${t.full ? ' class="av"' : ''} src="img/tools/${slug(t.n)}.webp" alt="" loading="lazy" width="64" height="64" onerror="this.remove()">`}</span>`;
   };
   // each card has two sides. A tap anywhere on it turns it over (and back); only its ↗ goes to the tool's page.
   // The back only says what the front doesn't: what it does in plain words (written for each tool by Ronie's worker,
@@ -420,7 +422,7 @@ function renderDirectory(T, catalogP) {
   const back = (t) => {
     const get = t.src === 'pick' ? GET.pick[t.p].replace('{host}', esc(host(t.u))) : GET[t.src];
     const kicker = t.src === 'pick'
-      ? (t.pick ? `★ Raunak's top ${all.filter((x) => x.pick).length} · No. ${curatedTop.indexOf(t.n) + 1}` : 'Hand-picked by Raunak')
+      ? (t.mine ? 'Built by Raunak' : t.pick ? `★ Raunak's top ${all.filter((x) => x.pick).length} · No. ${curatedTop.indexOf(t.n) + 1}` : 'Hand-picked by Raunak')
       : t.src === 'gh' ? 'Open-source project' : t.src === 'ph' ? `Product Hunt launch · ▲ ${fmt(t.pop)}` : 'Hugging Face Space';
     // its neighbours in its category's ranking: the ones just above and below it
     const list = leaders[t.c] || [], at = (standing.get(t) || 1) - 1;

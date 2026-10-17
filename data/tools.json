@@ -15,6 +15,10 @@
     "build": "Build with AI"
   },
   "tools": [
+    { "n": "YouTube Agentic AI Studio", "u": "https://github.com/raunakpatil/youtube-agentic-ai-studio", "c": "video", "p": "open", "mine": true, "full": true, "uses": "Built by Raunak", "d": "YAAS: a free agent pipeline that researches, scripts, narrates, animates and uploads faceless YouTube videos, with one command and no cost per video." },
+    { "n": "Ronie: 3D AI Website Agent", "u": "https://github.com/raunakpatil/ronie-3d-ai-website-agent", "c": "agents", "p": "open", "mine": true, "full": true, "uses": "Built by Raunak", "d": "A free 3D AI agent for any website: grounded answers, an on-device neural voice, expressions, moves and games. An open template you can reuse." },
+    { "n": "ResRescue", "u": "https://github.com/raunakpatil/Resrescue-ats-resume-optimizer", "c": "work", "p": "open", "mine": true, "full": true, "uses": "Built by Raunak", "d": "A free desktop app that finds jobs and rewrites your résumé to get past applicant tracking systems, spots skill gaps and writes cover letters." },
+
     { "n": "ChatGPT", "u": "https://chatgpt.com", "c": "chat", "p": "freemium", "pick": true, "d": "OpenAI's everyday assistant: chat, files, pictures, voice and agents that browse and act for you." },
     { "n": "Claude", "u": "https://claude.ai", "c": "chat", "p": "freemium", "pick": true, "d": "Anthropic's assistant, careful writing, long documents and serious coding help." },
     { "n": "Gemini", "u": "https://gemini.google.com", "c": "chat", "p": "freemium", "pick": true, "d": "Google's assistant, plugged into Search, Gmail, Docs and your Android phone.", "uses": "In Raunak's stack" },
