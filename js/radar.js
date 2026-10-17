@@ -692,7 +692,9 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
     mode = 'intro';
     pinned = byHand;
     box.hidden = false;
-    box.innerHTML = head(`${MARK}<b>Ask Radar</b>: describe what you want to do, in a few words`) + `<div class="tl-answer-try">${chips(EXAMPLES)}</div>`;
+    // (one line: the name, a few to try, and ×)
+    box.classList.add('is-intro');
+    box.innerHTML = `<div class="tl-intro"><span class="tl-intro-k">${MARK}<b>Ask Radar</b></span><span class="tl-intro-try">${chips(EXAMPLES.slice(0, 5))}</span><button type="button" class="tl-answer-x" aria-label="Close Ask Radar" title="Close (Esc)">×</button></div>`;
     setOpen(true);
   };
   search.addEventListener('focus', () => { if (!search.value.trim() && box.hidden) intro(false); });
@@ -743,6 +745,7 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
     }
     const n = ++asked;
     mode = 'answer';
+    box.classList.remove('is-intro');
     askedQ = q.toLowerCase();
     state();
     setOpen(true);
@@ -774,6 +777,7 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
         + `<p class="tl-answer-none">Try saying what you want to make or do, for example:</p><div class="tl-answer-try">${chips(EXAMPLES.slice(0, 5))}</div>`);
   }
   function close() {
+    box.classList.remove('is-intro');
     mode = '';
     pinned = false;
     askedQ = '';

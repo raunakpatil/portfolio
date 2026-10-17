@@ -1572,7 +1572,9 @@ html.js .tl-seo { display: none; }
 .tl-wire-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 0 10px 10px; }
 .tl-wire-head h2, .tl-sec-head h2 { font-size: 12px; font-weight: 500; letter-spacing: .07em; text-transform: uppercase; color: #8a8a8a; }
 .tl-wire-head .chips { margin-left: auto; }
-.tl-wire-head .chip { padding: 4px 12px; font-size: 12px; }
+.tl-wire-head .chip { padding: 4px 12px; font-size: 12px; box-shadow: var(--neu-out-sm); }   /* (on Radar: raised until chosen) */
+.tl-wire-head .chip:hover { box-shadow: var(--neu-out); }
+.tl-wire-head .chip[aria-pressed="true"], .tl-wire-head .chip:active { box-shadow: var(--neu-in); }
 .tl-wire-list {       /* all the headlines, scrolled inside the card; they fade out at its foot */
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 4px 18px;
   scrollbar-width: thin; scrollbar-color: #cfcfcf transparent;
@@ -1649,17 +1651,17 @@ html.js .tl-seo { display: none; }
 .tl-search input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: none; font: inherit; font-size: 14px; color: var(--ink); }
 .tl-search input::placeholder { color: #9a9a9a; }
 .tl-search input::-webkit-search-cancel-button { -webkit-appearance: none; }
-/* the directory's three ways in (Browse all · Top 20 · Newly added), like the headline chips: the open one raised,
-   the others pressed in */
+/* the directory's three ways in (Browse all · Top 50 · New releases): on Radar, everything not chosen stands raised
+   and the chosen one is pressed in */
 .tl-views { display: flex; gap: 8px; margin-left: auto; }
 .tl-views button {
   display: flex; flex-direction: column; gap: 2px; min-width: 196px; padding: 11px 16px 12px; border-radius: 14px; text-align: left;
-  background: var(--surface); box-shadow: var(--neu-in-sm); transition: background .3s, color .3s, box-shadow .3s;
+  background: var(--surface); box-shadow: var(--neu-out-sm); transition: background .3s, color .3s, box-shadow .3s;
 }
-.tl-views button:hover { box-shadow: var(--neu-in); }
+.tl-views button:hover { box-shadow: var(--neu-out); }
 .tl-view-t { font-size: 14px; font-weight: 500; letter-spacing: -.01em; }
 .tl-views small { font-size: 12px; color: #8a8a8a; transition: color .3s; }
-.tl-views [aria-selected="true"], .tl-views [aria-selected="true"]:hover { box-shadow: var(--neu-out-sm); }
+.tl-views [aria-selected="true"], .tl-views [aria-selected="true"]:hover, .tl-views button:active { box-shadow: var(--neu-in); }
 .tl-views [aria-selected="true"] small { color: #6b6b6b; }
 
 /* search, then the filters as small pills that open menus — one row */
@@ -1671,15 +1673,15 @@ html.js .tl-seo { display: none; }
 .tl-dd { position: relative; }
 .tl-dd-btn {
   display: inline-flex; align-items: center; gap: 7px; height: 42px; padding: 0 13px 0 16px; border-radius: 999px; white-space: nowrap;
-  background: var(--surface); box-shadow: var(--neu-in-sm); font-size: 13px; transition: background .3s, color .3s, box-shadow .3s;
+  background: var(--surface); box-shadow: var(--neu-out-sm); font-size: 13px; transition: background .3s, color .3s, box-shadow .3s;
 }
-.tl-dd-btn:hover { box-shadow: var(--neu-in); }
+.tl-dd-btn:hover { box-shadow: var(--neu-out); }
 .tl-dd-btn .k { color: #9a9a9a; font-size: 12px; }
 .tl-dd-btn .v { display: inline-flex; align-items: center; gap: 6px; color: #111; transition: color .3s; }
 .tl-dd-btn .v svg { width: 13px; height: 13px; fill: currentColor; }
 .tl-dd-chev { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; color: #9a9a9a; transition: transform .35s var(--ease); }
 .tl-dd.open .tl-dd-chev { transform: rotate(180deg); }
-.tl-dd.set .tl-dd-btn, .tl-dd.open .tl-dd-btn { box-shadow: var(--neu-out-sm); }   /* (like the views: chosen = raised) */
+.tl-dd.set .tl-dd-btn, .tl-dd.open .tl-dd-btn, .tl-dd-btn:active { box-shadow: var(--neu-in); }   /* (like the views: chosen = pressed in) */
 .tl-dd.set .tl-dd-btn .v { font-weight: 500; }
 .tl-dd-menu {
   position: absolute; top: calc(100% + 8px); left: 0; z-index: 40; min-width: 240px; max-height: min(380px, 60vh); overflow-y: auto;
@@ -1701,8 +1703,9 @@ html.js .tl-seo { display: none; }
 .tl-dd-menu [aria-selected="true"] { font-weight: 500; }
 .tl-dd-menu [aria-selected="true"]::after { content: "✓"; margin-left: 4px; font-size: 12px; color: #111; }
 .tl-dd-menu [role="option"]:disabled { opacity: .38; cursor: default; }
-.tl-clear { height: 42px; padding: 0 12px; font-size: 13px; color: #777; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #ccc; }
-.tl-clear:hover { color: #111; }
+.tl-clear { height: 42px; padding: 0 16px; border-radius: 999px; background: var(--surface); font-size: 13px; color: #777; box-shadow: var(--neu-out-sm); transition: color .3s, box-shadow .3s; }
+.tl-clear:hover { color: #111; box-shadow: var(--neu-out); }
+.tl-clear:active { box-shadow: var(--neu-in-sm); }
 .tl-clear[hidden] { display: none; }
 .tool-rank { font-family: var(--mono); font-size: 12px; color: #9a9a9a; padding: 0 4px; }
 .tl-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; flex: none; }
@@ -1735,7 +1738,7 @@ html.js .tl-seo { display: none; }
 .tool-new { padding: 4px 9px; border-radius: 999px; background: #111; color: #fff; font-family: var(--mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; box-shadow: var(--key); }
 .tool-go {
   display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; font-size: 12px; color: #a5a5a5;
-  box-shadow: var(--neu-in-sm); transition: color .3s, box-shadow .3s, transform .4s var(--ease);
+  box-shadow: var(--neu-out-sm); transition: color .3s, box-shadow .3s, transform .4s var(--ease);
 }
 .tool:hover .tool-go, .tool:focus-visible .tool-go { color: #111; box-shadow: var(--neu-out-sm); transform: translate(1px, -1px); }
 .tool h3 { font-size: 17px; font-weight: 500; letter-spacing: -.01em; line-height: 1.2; }
@@ -1796,12 +1799,12 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 /* saving a tool (♥), climbing ones (↑ Rising), and Ask Radar */
 .tool-save {
   position: relative; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #b5b5b5;
-  box-shadow: var(--neu-in-sm); transition: color .25s, box-shadow .25s, transform .3s var(--ease);
+  box-shadow: var(--neu-out-sm); transition: color .25s, box-shadow .25s, transform .3s var(--ease);
 }
 .tool-save::after { content: ""; position: absolute; inset: -6px; }   /* (a bigger target than it looks) */
 .tool-save svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; transition: fill .25s, transform .35s var(--ease); }
-.tool-save:hover { color: #ff4f6d; box-shadow: var(--neu-out-sm); }
-.tool-save[aria-pressed="true"] { color: #ff4f6d; box-shadow: var(--neu-out-sm); }
+.tool-save:hover { color: #ff4f6d; box-shadow: var(--neu-out); }
+.tool-save[aria-pressed="true"], .tool-save:active { color: #ff4f6d; box-shadow: var(--neu-in-sm); }   /* (saved: pressed in) */
 .tool-save[aria-pressed="true"] svg { fill: currentColor; animation: tl-pop .4s var(--ease); }
 @keyframes tl-pop { 40% { transform: scale(1.35); } }
 .tl-saved { color: #ff4f6d; }
@@ -1826,19 +1829,20 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 .tl-ask.ready span { max-width: 120px; opacity: 1; }
 .tl-ask.ready:hover { background: #222; color: #fff; }
 /* the mark while Radar is open: pressed in, its sweep turning; pressed again, it closes */
-.tl-ask.open { color: #111; box-shadow: var(--neu-in-sm); }
+.tl-ask.open, .tl-ask:active { color: #111; box-shadow: var(--neu-in-sm); }
 .tl-ask.open .sweep { animation: tl-sweep 2.6s linear infinite; }
 .tl-ask.open.ready { background: #111; color: #fff; box-shadow: var(--key); }
 /* examples to try, in the panel */
 .tl-try-chip {
   padding: 6px 12px; border-radius: 999px; background: var(--surface); font-size: 12.5px; color: #444;
-  box-shadow: var(--neu-in-sm); transition: box-shadow .25s, color .25s;
+  box-shadow: var(--neu-out-sm); transition: box-shadow .25s, color .25s;
 }
 .tl-try-chip::before {          /* (a tiny dial before each one) */
   content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 7px; vertical-align: 1px; border: 1.4px solid #b5b5b5; border-radius: 50%;
   background: radial-gradient(circle, #b5b5b5 0 1.3px, transparent 1.7px);
 }
-.tl-try-chip:hover, .tl-try-chip:focus-visible { color: #111; box-shadow: var(--neu-out-sm); }
+.tl-try-chip:hover, .tl-try-chip:focus-visible { color: #111; box-shadow: var(--neu-out); }
+.tl-try-chip:active { box-shadow: var(--neu-in-sm); }
 .tl-answer-try { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
 /* while it reads: three cards shimmering in the shape of the answer */
 .tl-answer-list.wait li { display: block; }
@@ -1852,14 +1856,16 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 .tl-answer-n { flex: none; width: 18px; font-family: var(--mono); font-size: 11px; color: #a5a5a5; }
 .tl-answer-t i { font-style: normal; font-family: var(--mono); font-size: 10.5px; letter-spacing: .04em; color: #9a9a9a; text-transform: uppercase; }
 .tl-answer-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 16px; margin-top: 12px; font-size: 12.5px; color: #8a8a8a; }
-.tl-answer-more { font-size: 12.5px; color: #333; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #ccc; }
-.tl-answer-more:hover { color: #111; }
+.tl-answer-more { padding: 6px 12px; border-radius: 999px; background: var(--surface); font-size: 12.5px; color: #333; box-shadow: var(--neu-out-sm); transition: box-shadow .25s, color .25s; }
+.tl-answer-more:hover { color: #111; box-shadow: var(--neu-out); }
+.tl-answer-more:active { box-shadow: var(--neu-in-sm); }
 .tl-answer { margin: 16px 10px 0; padding: 16px 18px 12px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--neu-out-sm); animation: tl-in .5s cubic-bezier(.16, 1, .3, 1) both; }
 .tl-answer[hidden] { display: none; }
 .tl-answer-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: #6b6b6b; }
 .tl-answer-head b { color: #111; font-weight: 500; }
-.tl-answer-x { width: 28px; height: 28px; border-radius: 50%; font-size: 18px; line-height: 1; color: #888; box-shadow: var(--neu-in-sm); }
-.tl-answer-x:hover { color: #111; }
+.tl-answer-x { width: 28px; height: 28px; border-radius: 50%; background: var(--surface); font-size: 18px; line-height: 1; color: #888; box-shadow: var(--neu-out-sm); transition: box-shadow .25s, color .25s; }
+.tl-answer-x:hover { color: #111; box-shadow: var(--neu-out); }
+.tl-answer-x:active { box-shadow: var(--neu-in-sm); }
 .tl-answer-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; margin-top: 12px; }
 .tl-answer-list a {
   display: flex; flex: 1; align-items: flex-start; gap: 12px; padding: 10px 12px; border-radius: 12px; background: #fafafa;
@@ -1892,6 +1898,19 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 .tl-asking p { display: inline-flex; align-items: center; gap: 8px; }
 .tl-asking .tl-mark { width: 15px; height: 15px; color: #111; }
 .tl-asking .tl-mark .sweep { animation: tl-sweep 1.1s linear infinite; }   /* (while it looks) */
+/* the examples, before anything's asked: one line — the name, a few to try (cut off softly if the line runs out), and × */
+.tl-answer.is-intro { padding: 8px 8px 8px 16px; }
+.tl-intro { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.tl-intro-k { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.tl-intro-k b { font-weight: 500; }
+.tl-intro-k .tl-mark { width: 15px; height: 15px; }
+.tl-intro-try {
+  flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 4px 2px;
+  -webkit-mask-image: linear-gradient(90deg, #000 92%, transparent); mask-image: linear-gradient(90deg, #000 92%, transparent);
+}
+.tl-intro-try::-webkit-scrollbar { display: none; }
+.tl-intro-try .tl-try-chip { flex: none; white-space: nowrap; }
+.tl-intro .tl-answer-x { flex: none; }
 .tl-ask-now { display: inline-block; margin-top: 4px; background: #111; color: #fff; box-shadow: var(--key); }
 .tl-ask-now:hover { background: #222; box-shadow: var(--key); }
 .tl-ask[hidden] { display: none; }
