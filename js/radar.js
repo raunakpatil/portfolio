@@ -312,13 +312,53 @@ function renderDirectory(T, catalogP) {
     rising = new Set(extra.filter((t) => t.rise > 0).sort((a, b) => a.riseRank - b.riseRank).slice(0, 24).map((t) => t.i));
     all = [...all, ...extra.map((t) => ({ ...t, key: keyOf(t) }))];
     rankAll();
+    learn();
     hint();
     drawViews();
     draw();
   });
 
   const inSrc = (t, s) => s === 'all' || (s === 'star' ? t.pick : s === 'saved' ? saved.has(keyFor(t)) : t.src === s);
-  const matches = (t, skip) => (skip === 'q' || !S.q || S.q.split(/\s+/).every((w) => t.key.includes(w)))
+  // misspellings: every word in the directory's names and descriptions is known (with how often it's used), and a
+  // word that isn't one of them is read as the nearest that is — "trancribe audeo" searches for "transcribe audio"
+  let vocab = new Map(), byLen = new Map(), effQ = '';
+  const learn = () => {
+    vocab = new Map();
+    for (const t of all) for (const w of t.key.split(/[^a-z0-9]+/)) if (w.length > 2) vocab.set(w, (vocab.get(w) || 0) + 1);
+    byLen = new Map();
+    for (const w of vocab.keys()) { if (!byLen.has(w.length)) byLen.set(w.length, []); byLen.get(w.length).push(w); }
+  };
+  const near = (a, b, max) => {   // (edit distance, with swapped letters as one step; gives up past max)
+    let prev2 = null, prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const cur = [i];
+      let low = i;
+      for (let j = 1; j <= b.length; j++) {
+        let v = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+        if (prev2 && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) v = Math.min(v, prev2[j - 2] + 1);
+        cur.push(v);
+        if (v < low) low = v;
+      }
+      if (low > max) return max + 1;
+      prev2 = prev; prev = cur;
+    }
+    return prev[b.length];
+  };
+  const fixWord = (w) => {
+    if (w.length < 4 || /\d/.test(w) || vocab.has(w) || STOP.has(w)) return w;
+    const max = w.length <= 5 ? 1 : w.length <= 9 ? 2 : 3;
+    let best = w, bestD = max + 1, bestN = 0;
+    for (let L = w.length - max; L <= w.length + max; L++) {
+      for (const v of byLen.get(L) || []) {
+        const d = near(w, v, Math.min(max, bestD));
+        const n = vocab.get(v);
+        if (d < bestD || (d === bestD && n > bestN)) { best = v; bestD = d; bestN = n; }
+      }
+    }
+    return bestD <= max ? best : w;
+  };
+  const fixQ = (q) => q.split(/\s+/).map(fixWord).join(' ');
+  const matches = (t, skip) => (skip === 'q' || !effQ || effQ.split(/\s+/).every((w) => t.key.includes(w)))
     && (skip === 'src' || inSrc(t, S.src))
     && (skip === 'price' || S.price === 'all' || t.p === S.price)
     && (skip === 'cat' || S.cat === 'all' || t.c === S.cat);
@@ -506,7 +546,14 @@ function renderDirectory(T, catalogP) {
   const asking = () => askRest && S.view === 'all' && S.q === askQ;
   function draw() {
     const top = S.view === 'top';
+    effQ = S.q;
     items = top ? pool() : asking() ? askRest.filter((t) => matches(t, 'q')) : pool().filter((t) => matches(t));
+    // (nothing for what was typed: what it most likely meant, said so above the results)
+    let fixed = '';
+    if (!top && !asking() && !items.length && S.q) {
+      const f = fixQ(S.q);
+      if (f !== S.q) { effQ = f; items = pool().filter((t) => matches(t)); if (items.length) fixed = f; else effQ = S.q; }
+    }
     items = top ? items.sort((a, b) => a.i - b.i)
       : S.view === 'new' ? items.sort((a, b) => b.rel.localeCompare(a.rel) || a.i - b.i)
       : asking() && S.sort === 'picks' ? items
@@ -515,7 +562,8 @@ function renderDirectory(T, catalogP) {
       : S.sort === 'new' ? items.sort((a, b) => (b.added || '').localeCompare(a.added || '') || a.i - b.i)
       : items.sort((a, b) => (a.src === 'pick' && b.src === 'pick' ? (b.pick ? 1 : 0) - (a.pick ? 1 : 0) : 0) || a.i - b.i);
     count.textContent = top ? `Raunak's top ${items.length} · ${day(T.updated)}` : S.view === 'new' ? `${fmt(items.length)} new releases · newest first`
-      : asking() ? `${fmt(items.length)} more tools related to “${S.q}”` : `${fmt(items.length)} of ${fmt(all.length)}`;
+      : asking() ? `${fmt(items.length)} more tools related to “${S.q}”`
+      : fixed ? `Showing ${fmt(items.length)} for “${fixed}” · you typed “${S.q}”` : `${fmt(items.length)} of ${fmt(all.length)}`;
     const n = Math.min(items.length, S.limit);
     const sig = `${S.view}|${asking()}|${items.slice(0, n).map((t) => t.i).join()}|${S.q}`;
     if (sig !== shownSig) {   // (the catalogue arriving under an unchanged first screen redraws nothing)
@@ -582,11 +630,12 @@ function renderDirectory(T, catalogP) {
   grid.addEventListener('click', (e) => { if (e.target.closest('#tl-reset')) reset(); if (e.target.closest('#tl-ask-now')) askApi.ask(); });
   hint();
   rankAll();
+  learn();
   fromURL();
   drawViews();
   draw();
   const askApi = initAsk({
-    all: () => all, keyFor, icon, esc, cats: T.categories, prices: PRICES, loaded: catalogP,
+    all: () => all, keyFor, icon, esc, cats: T.categories, prices: PRICES, loaded: catalogP, fix: (q) => fixQ(q.toLowerCase()),
     show(rest, q) { askRest = rest; askQ = q.trim().toLowerCase(); S.q = askQ; S.ask = '1'; S.limit = 24; draw(); toURL(false); },
     hide() { askRest = null; askQ = ''; if (S.ask) { S.ask = ''; draw(); toURL(false); } },
     // (closing Radar clears the question too: back to the whole directory)
@@ -622,7 +671,7 @@ const words = (q) => q.toLowerCase().split(/[^a-z0-9+#]+/).filter((w) => w.lengt
 // (a question, rather than a search: three words or more, two of them meaningful)
 const askable = (q) => words(q).length >= 2 && q.trim().split(/\s+/).length >= 3;
 
-function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, clear }) {
+function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, clear, fix }) {
   const search = $('#tl-search'), btn = $('#tl-ask'), box = $('#tl-answer');
   if (!btn || !box || !ASK_URL) return { ask() {} };
   btn.hidden = false;
@@ -673,7 +722,7 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
   // the 16 best of the hand-picked tools and the 20 best of the catalogue, so a polished product isn't crowded out
   const likely = (q) => {
     const stem = (w) => (w.length > 5 ? w.slice(0, -2) : w.length > 3 ? w.replace(/s$/, '') : w);
-    const terms = [...new Set(words(q).flatMap((w) => [w, ...(ALSO[w] || [])]).map(stem))];
+    const terms = [...new Set([...words(q), ...words(fix(q))].flatMap((w) => [w, ...(ALSO[w] || [])]).map(stem))];
     const scored = all().map((t) => {
       const name = t.n.toLowerCase();
       let s = 0;

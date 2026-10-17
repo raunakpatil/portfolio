@@ -81,6 +81,9 @@ AI news, trending open models and a directory of AI tools. `radar.html` sends vi
   few dozen tools by their words and Ronie's worker (`POST /ask`) chooses the best few, saying how each helps; the
   other likely ones fill the grid below. A question is part of the link (`/radar?q=…&ask=1`) and is asked again when
   it's opened. Card backs are also written ahead of time by the worker's cron, a few each half hour.
+- **Misspellings**: every word in the directory's names and descriptions is known; a search word that isn't one of
+  them is read as the nearest that is ("trancribe" → "transcribe"), and the count above the results says so. Ask Radar
+  picks its candidates the same way.
 - **No em dashes**: the site's own text uses commas, colons and en dashes; outside text (headlines, makers'
   descriptions, the model's lines) has them turned into commas as it's gathered and as it's shown.
 - **Broken links**: the Refresh Radar Action checks every hand-picked link (`scripts/check-links.mjs`) and keeps a
