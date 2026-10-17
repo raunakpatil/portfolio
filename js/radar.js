@@ -118,23 +118,41 @@ function renderNews(f) {
   const topics = ['All', ...new Set(rest.map((n) => n.topic).filter(Boolean))];
   const chips = $('#tl-topics');
   chips.innerHTML = topics.length > 2 ? topics.map((t) => `<button class="chip" type="button" data-topic="${esc(t)}" aria-pressed="${t === 'All'}">${esc(t)}</button>`).join('') : '';
-  // every headline is in the list; the card stays its size and the list scrolls inside it
-  let topic = 'All';
+  // every headline is in the list; the card stays its size and the list scrolls inside it. Stacked (phones, tablets)
+  // nothing scrolls inside the card, where a swipe down the page would get caught: the first few sit in the page, and
+  // the rest are a tap away
+  let topic = 'All', more = false;
+  const FEW = 6, stacked = matchMedia('(max-width: 1180px)');
   const list = $('#tl-wire-list');
-  const draw = () => {
+  const draw = (still = 0) => {
     const items = rest.filter((n) => topic === 'All' || n.topic === topic);
-    list.innerHTML = items.map((n, i) => `<li><a class="tl-row" href="${esc(n.link)}" target="_blank" rel="noopener" style="animation-delay:${Math.min(i, 10) * 35}ms">
+    const shown = stacked.matches && !more ? items.slice(0, FEW) : items;
+    list.innerHTML = shown.map((n, i) => `<li><a class="tl-row" href="${esc(n.link)}" target="_blank" rel="noopener" style="${i < still ? 'animation:none' : `animation-delay:${Math.min(i - still, 10) * 35}ms`}">
         <span class="tl-ago">${esc(ago(n.date))}</span>
         <span class="tl-thumb" data-l="${esc(n.source[0])}">${n.image ? `<img src="${esc(n.image)}" ${imgAttrs} loading="lazy" onerror="this.remove()">` : ''}</span>
         <span class="tl-h">${esc(n.title)}</span>
         <span class="tl-src">${esc(n.source)}</span>
         <span class="ar" aria-hidden="true">↗</span></a></li>`).join('') || '<li class="tl-none">No stories on that today.</li>';
+    if (stacked.matches && items.length > FEW) list.insertAdjacentHTML('beforeend', `<li class="tl-wire-more"><button type="button" class="tl-pill" aria-expanded="${more}">${more ? 'Show fewer' : `Show all ${items.length} headlines`}</button></li>`);
     list.scrollTop = 0;
   };
+  list.addEventListener('click', (e) => {
+    const b = e.target.closest('.tl-wire-more button');
+    if (!b) return;
+    more = !more;
+    if (more) { draw(FEW); return; }
+    // (folding them away keeps the button under the finger, rather than leaving the reader further down the page)
+    const y = b.getBoundingClientRect().top;
+    draw(FEW);
+    const nb = $('.tl-wire-more button', list);
+    if (nb) scrollBy(0, nb.getBoundingClientRect().top - y);
+  });
+  stacked.addEventListener('change', () => draw());
   chips.onclick = (e) => {
     const b = e.target.closest('.chip');
     if (!b) return;
     topic = b.dataset.topic;
+    more = false;
     $$('.chip', chips).forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
     draw();
   };
@@ -444,19 +462,28 @@ function renderDirectory(T, catalogP) {
     }
     return EX.get(k);
   };
-  // where each one stands in its category (the order the directory lists them in)
+  // where each one stands in its category (the order the directory lists them in). Raunak's own projects aren't put
+  // with his picks at the head of it: each stands in the middle of its category's hand-picked tools, well placed but
+  // not leading
   let standing = new Map(), leaders = {}, byI = new Map();
   const rankAll = () => {
     byI = new Map(all.map((t) => [t.i, t]));
     standing = new Map();
     leaders = {};
-    const seen = {};
-    for (const t of [...all].sort((a, b) => (a.src === 'pick' && b.src === 'pick' ? (b.pick ? 1 : 0) - (a.pick ? 1 : 0) : 0) || a.i - b.i)) {
-      seen[t.c] = (seen[t.c] || 0) + 1;
-      standing.set(t, seen[t.c]);
-      (leaders[t.c] ||= []).push(t);
+    const lead = (t) => (t.pick && !t.mine ? 1 : 0);
+    for (const t of [...all].sort((a, b) => (a.src === 'pick' && b.src === 'pick' ? lead(b) - lead(a) : 0) || a.i - b.i)) {
+      if (!t.mine) (leaders[t.c] ||= []).push(t);
     }
-    rankAll.size = seen;
+    for (const t of all) {
+      if (!t.mine) continue;
+      const list = (leaders[t.c] ||= []);
+      list.splice(Math.ceil(list.filter((x) => x.src === 'pick').length / 2), 0, t);
+    }
+    rankAll.size = {};
+    for (const [c, list] of Object.entries(leaders)) {
+      list.forEach((t, k) => standing.set(t, k + 1));
+      rankAll.size[c] = list.length;
+    }
   };
   const back = (t) => {
     const get = t.src === 'pick' ? GET.pick[t.p].replace('{host}', esc(host(t.u))) : GET[t.src];
@@ -509,7 +536,9 @@ function renderDirectory(T, catalogP) {
       const what = rear.querySelector('.tool-back-what');
       explainOf(t).then((x) => {
         if (!what.isConnected) return;
-        if (x) { what.textContent = undash(x); what.classList.add('in'); } else what.remove();
+        // (if the plain-words line can't be had just now, its own description stands in, so no back is left without one)
+        const line = x || t.d;
+        if (line) { what.textContent = undash(line); what.classList.add('in'); } else what.remove();
       });
     }
     c.classList.toggle('flipped', over);
@@ -829,6 +858,20 @@ $('#tl-lead-bars').addEventListener('click', (e) => {
 });
 $('#tl-lead-prev').addEventListener('click', () => showLead(leadI - 1));
 $('#tl-lead-next').addEventListener('click', () => showLead(leadI + 1));
+// on a touch screen a swipe across the story turns it, left for the next; up and down still scroll the page
+let swipe = null;
+leadBox.addEventListener('touchstart', (e) => { const t = e.touches[0]; swipe = e.touches.length === 1 ? { x: t.clientX, y: t.clientY } : null; }, { passive: true });
+leadBox.addEventListener('touchend', (e) => {
+  if (!swipe) return;
+  const t = e.changedTouches[0], dx = t.clientX - swipe.x, dy = t.clientY - swipe.y;
+  swipe = null;
+  if (Math.abs(dx) > 45 && Math.abs(dx) > 1.6 * Math.abs(dy)) showLead(leadI + (dx < 0 ? 1 : -1));
+}, { passive: true });
+// stacked, the news and models come first: a pill at the foot of the screen skips straight to the tools, until
+// they're reached
+const jump = $('#tl-jump'), dirBox = $('.tl-dir');
+new IntersectionObserver(([en]) => jump.classList.toggle('on', !en.isIntersecting && en.boundingClientRect.top > 0)).observe(dirBox);
+jump.addEventListener('click', () => dirBox.scrollIntoView({ behavior: MOTION ? 'smooth' : 'auto', block: 'start' }));
 
 export function open() {
   ready.then(() => {

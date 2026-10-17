@@ -1479,14 +1479,15 @@ main { padding: 0 var(--gap) var(--gap); }
 .social-links a:hover { box-shadow: var(--neu-out); color: #111; }              /* lifts a little more */
 .social-links a:active { box-shadow: var(--neu-in-sm); }                         /* and presses in when clicked */
 
-/* projects: filters and the grid / list switch */
-.chip { box-shadow: var(--neu-in-sm); background: var(--surface); transition: box-shadow .3s, background .25s; }
-.chip:hover { background: var(--surface); box-shadow: var(--neu-in); }
-.chip[aria-pressed="true"] { background: var(--surface); box-shadow: var(--neu-out-sm); }
+/* projects: filters and the grid / list switch: raised until chosen, the chosen one pressed in (as on Radar) */
+.chip { box-shadow: var(--neu-out-sm); background: var(--surface); transition: box-shadow .3s, background .25s; }
+.chip:hover { background: var(--surface); box-shadow: var(--neu-out); }
+.chip[aria-pressed="true"], .chip:active { background: var(--surface); box-shadow: var(--neu-in); }
 .chip b { box-shadow: var(--neu-in-sm); }
 .chip[aria-pressed="true"] b { box-shadow: var(--key); }
-.viewby button { box-shadow: var(--neu-in-sm); transition: box-shadow .3s, color .3s; }
-.viewby button[aria-pressed="true"] { box-shadow: var(--neu-out-sm); }
+.viewby button { box-shadow: var(--neu-out-sm); transition: box-shadow .3s, color .3s; }
+.viewby button:hover { box-shadow: var(--neu-out); }
+.viewby button[aria-pressed="true"], .viewby button:active { box-shadow: var(--neu-in-sm); }
 .plist button:hover { box-shadow: var(--neu-out-sm); border-radius: 12px; }
 
 /* on the dark cards: the skill counts pressed in, the lit skill raised; the hover pill raised */
@@ -1572,9 +1573,7 @@ html.js .tl-seo { display: none; }
 .tl-wire-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 0 10px 10px; }
 .tl-wire-head h2, .tl-sec-head h2 { font-size: 12px; font-weight: 500; letter-spacing: .07em; text-transform: uppercase; color: #8a8a8a; }
 .tl-wire-head .chips { margin-left: auto; }
-.tl-wire-head .chip { padding: 4px 12px; font-size: 12px; box-shadow: var(--neu-out-sm); }   /* (on Radar: raised until chosen) */
-.tl-wire-head .chip:hover { box-shadow: var(--neu-out); }
-.tl-wire-head .chip[aria-pressed="true"], .tl-wire-head .chip:active { box-shadow: var(--neu-in); }
+.tl-wire-head .chip { padding: 4px 12px; font-size: 12px; }
 .tl-wire-list {       /* all the headlines, scrolled inside the card; they fade out at its foot */
   flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 4px 18px;
   scrollbar-width: thin; scrollbar-color: #cfcfcf transparent;
@@ -1925,13 +1924,30 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 .tl-skel { display: block; height: 28px; margin-top: 12px; border-radius: 8px; background: linear-gradient(90deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .13), rgba(255, 255, 255, .05)) 0 0 / 200% 100%; animation: tl-shimmer 1.4s linear infinite; }
 .tl-skel.w80 { width: 82%; }
 .tl-skel.w60 { width: 58%; }
+/* stacked: the headlines sit in the page (no scrolling inside the card), the first few, then a button for the rest */
+.tl-wire-more { display: none; }
+/* and a pill at the foot of the screen that skips the news, until the tools are reached */
+.tl-jump { display: none; }
+.tl-dir { scroll-margin-top: calc(var(--bar) + 6px); }
+.tl-lead { touch-action: pan-y; }   /* (a sideways swipe turns the story, see radar.js) */
 .tl-skel-row { height: 52px; margin: 6px 10px; border-radius: 10px; background: linear-gradient(90deg, #efefef, #e6e6e6, #efefef) 0 0 / 200% 100%; animation: tl-shimmer 1.4s linear infinite; }
 @keyframes tl-shimmer { to { background-position: -200% 0; } }
 
 @media (max-width: 1180px) {
   .tl-news { grid-template-columns: minmax(0, 1fr); }
   .tl-lead { height: auto; min-height: 270px; }
-  .tl-wire { height: 400px; }
+  .tl-wire { height: auto; padding-bottom: 8px; }
+  .tl-wire-list { overflow: visible; -webkit-mask-image: none; mask-image: none; padding-bottom: 0; }
+  .tl-wire-more { display: block; padding: 6px 0 4px; }
+  .tl-wire-more .tl-pill { margin: 0 auto; }
+  .tl-jump {
+    position: fixed; left: 50%; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 45; display: inline-flex; align-items: center; gap: 7px;
+    height: 40px; padding: 0 18px; border-radius: 999px; background: #111; color: #fff; font-size: 13.5px; box-shadow: var(--key), 0 10px 26px rgba(0, 0, 0, .18);
+    opacity: 0; visibility: hidden; transform: translate(-50%, 14px); transition: opacity .3s, transform .4s var(--ease), visibility 0s .4s;
+  }
+  .tl-jump.on { opacity: 1; visibility: visible; transform: translate(-50%, 0); transition: opacity .3s, transform .4s var(--ease), visibility 0s; }
+  .tl-jump:active { transform: translate(-50%, 1px) scale(.97); }
+  .tl-jump b { font-weight: 400; }
   .tl-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 900px) {
@@ -1941,10 +1957,15 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
   .tl .page-head { gap: 6px 14px; }
   .tl-lead { min-height: 250px; padding: 16px 16px 18px; }
   .tl-lead h2 { font-size: 22px; }
-  .tl-wire { height: 420px; }
   .tl-lead-foot { flex-wrap: wrap; }
   .tl-wire { padding: 14px 4px 8px; }
-  .tl-wire-head .chips { margin-left: 0; }
+  /* (the topics on one line that scrolls sideways, rather than rows of them) */
+  .tl-wire-head .chips {
+    flex-wrap: nowrap; margin: 0 -10px; padding: 4px 10px 8px; width: calc(100% + 20px); overflow-x: auto; scrollbar-width: none;
+    -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent);
+  }
+  .tl-wire-head .chips::-webkit-scrollbar { display: none; }
+  .tl-wire-head .chip { flex: none; }
   .tl-row { grid-template-columns: 26px minmax(0, 1fr) 64px; grid-template-areas: "ago h th" ". src th"; gap: 5px 12px; padding: 10px 8px; }
   .tl-thumb { grid-area: th; width: 64px; height: 48px; }
   .tl-row .ar { display: none; }
