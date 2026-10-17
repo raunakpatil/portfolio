@@ -260,7 +260,6 @@ function renderDirectory(T, catalogP) {
   const NEW_DAYS = 90;
   const STEP = 48;
   const grid = $('#tl-grid'), more = $('#tl-more'), count = $('#tl-count'), search = $('#tl-search'), clear = $('#tl-clear');
-  $('#tl-updated').textContent = day(T.updated);
   const keyOf = (t) => `${t.n} ${t.d} ${T.categories[t.c]} ${PRICES[t.p] || ''} ${t.uses || ''} ${t.by || ''}`.toLowerCase();
 
   const curated = T.tools.map((t, i) => ({ ...t, src: 'pick', i, date: t.added }));
@@ -278,12 +277,12 @@ function renderDirectory(T, catalogP) {
       known.add(k); known.add(u);
       return true;
     });
-    const gh = take(C.gh || [], ([n, full, d, stars, c, oid, date]) => ({ n, u: `https://github.com/${full}`, d, c, p: 'open', src: 'gh', pop: stars, oid, by: full.split('/')[0], date }));
-    const hf = take(C.hf || [], ([n, id, d, likes, c, emoji, from, to, date]) => ({ n, u: `https://huggingface.co/spaces/${id}`, d, c, p: 'free', src: 'hf', pop: likes, emoji, from, to, by: id.split('/')[0], date }));
+    const gh = take(C.gh || [], ([n, full, d, stars, c, oid, date, rel]) => ({ n, u: `https://github.com/${full}`, d, c, p: 'open', src: 'gh', pop: stars, oid, by: full.split('/')[0], date, rel }));
+    const hf = take(C.hf || [], ([n, id, d, likes, c, emoji, from, to, date, rel]) => ({ n, u: `https://huggingface.co/spaces/${id}`, d, c, p: 'free', src: 'hf', pop: likes, emoji, from, to, by: id.split('/')[0], date, rel }));
     // in turns: the nth-most-popular GitHub project sits by the nth-most-liked Space
     gh.forEach((t, k) => { t.rank = k / gh.length; });
     // (Product Hunt's price label, where it gives one: otherwise "price on site")
-    const ph = take(C.ph || [], ([n, slug, d, votes, c, thumb, p, link, date]) => ({ n, u: link, d, c, p: p || 'na', src: 'ph', pop: votes, thumb, slug, by: 'Product Hunt', date }));
+    const ph = take(C.ph || [], ([n, slug, d, votes, c, thumb, p, link, date, rel]) => ({ n, u: link, d, c, p: p || 'na', src: 'ph', pop: votes, thumb, slug, by: 'Product Hunt', date, rel: rel || date }));
     hf.forEach((t, k) => { t.rank = (k + 0.5) / hf.length; });
     ph.forEach((t, k) => { t.rank = (k + 0.25) / ph.length; });
     const extra = [...gh, ...hf, ...ph].sort((a, b) => a.rank - b.rank).map((t, k) => ({ ...t, i: curated.length + k }));
@@ -299,8 +298,9 @@ function renderDirectory(T, catalogP) {
     && (skip === 'src' || inSrc(t, S.src))
     && (skip === 'price' || S.price === 'all' || t.p === S.price)
     && (skip === 'cat' || S.cat === 'all' || t.c === S.cat);
-  // the three ways in: Raunak's top 20, everything, or what's new (added to the directory in the last NEW_DAYS days)
-  const isFresh = (t) => t.date && Date.now() - Date.parse(t.date) < NEW_DAYS * 864e5;
+  // the three ways in: Raunak's top 20, everything, or what's newly released (in the last NEW_DAYS days)
+  // (new releases: released — the project or Space created, the product launched — in the last NEW_DAYS days)
+  const isFresh = (t) => t.rel && Date.now() - Date.parse(t.rel) < NEW_DAYS * 864e5;
   const pool = () => (S.view === 'top' ? all.filter((t) => t.pick) : S.view === 'new' ? all.filter(isFresh) : all);
   const tally = (skip, test) => pool().reduce((n, t) => n + (matches(t, skip) && test(t) ? 1 : 0), 0);
   const views = $('#tl-views');
@@ -308,7 +308,7 @@ function renderDirectory(T, catalogP) {
     const n = { top: all.filter((t) => t.pick).length, all: all.length, new: all.filter(isFresh).length };
     $('[data-v="top"] .tl-view-t', views).textContent = `Top ${n.top} AI tools`;
     $('[data-v="all"] small', views).textContent = `Search all ${fmt(n.all)} in the directory`;
-    $('[data-v="new"] small', views).textContent = n.new ? `${fmt(n.new)} added in the last ${NEW_DAYS} days` : 'The latest arrivals';
+    $('[data-v="new"] small', views).textContent = n.new ? `${fmt(n.new)} released in the last ${NEW_DAYS} days` : 'The latest releases';
   };
   views.addEventListener('click', (e) => {
     const b = e.target.closest('[data-v]');
@@ -401,7 +401,7 @@ function renderDirectory(T, catalogP) {
     const like = list.slice(from, from + 4).filter((x) => x !== t).slice(0, 3).map((x) => esc(x.n)).join(', ');
     const rows = [
       ['Get it', get],
-      t.date ? ['Added', `${day(t.date)} <i>· ${ago(t.date, true)}</i>`, 'r-added'] : null,
+      t.rel ? ['Released', `${day(t.rel)} <i>· ${ago(t.rel, true)}</i>`, 'r-added'] : null,
       standing.get(t) ? ['Ranks', `No. ${fmt(standing.get(t))} of ${fmt(rankAll.size[t.c])} in ${esc(T.categories[t.c])}`] : null,
       like ? ['Similar', like] : null,
     ].filter(Boolean);
@@ -413,7 +413,7 @@ function renderDirectory(T, catalogP) {
   const card = (t, k) => {
     const isNew = t.added && Date.now() - Date.parse(t.added) < 30 * 864e5;
     const rank = S.view === 'top' ? `<span class="tool-rank">${String(k + 1).padStart(2, '0')}</span>` : '';
-    const when = S.view === 'new' && t.date ? ` · ${ago(t.date, true)}` : '';
+    const when = S.view === 'new' && t.rel ? ` · ${ago(t.rel, true)}` : '';
     const pop = t.src === 'gh' ? `<span class="tool-pop" title="${fmt(t.pop)} stars on GitHub">★ ${short(t.pop)}</span>`
       : t.src === 'hf' ? `<span class="tool-pop" title="${fmt(t.pop)} likes on Hugging Face">♥ ${short(t.pop)}</span>`
       : t.src === 'ph' ? `<span class="tool-pop" title="${fmt(t.pop)} upvotes on Product Hunt">▲ ${short(t.pop)}</span>` : '';
@@ -468,11 +468,11 @@ function renderDirectory(T, catalogP) {
     const top = S.view === 'top';
     items = top ? pool() : pool().filter((t) => matches(t));
     items = top ? items.sort((a, b) => a.i - b.i)
-      : S.view === 'new' ? items.sort((a, b) => b.date.localeCompare(a.date) || a.i - b.i)
+      : S.view === 'new' ? items.sort((a, b) => b.rel.localeCompare(a.rel) || a.i - b.i)
       : S.sort === 'az' ? items.sort((a, b) => a.n.localeCompare(b.n))
       : S.sort === 'new' ? items.sort((a, b) => (b.added || '').localeCompare(a.added || '') || a.i - b.i)
       : items.sort((a, b) => (a.src === 'pick' && b.src === 'pick' ? (b.pick ? 1 : 0) - (a.pick ? 1 : 0) : 0) || a.i - b.i);
-    count.textContent = top ? `Raunak's top ${items.length} · ${day(T.updated)}` : S.view === 'new' ? `${fmt(items.length)} new · newest first` : `${fmt(items.length)} of ${fmt(all.length)}`;
+    count.textContent = top ? `Raunak's top ${items.length} · ${day(T.updated)}` : S.view === 'new' ? `${fmt(items.length)} new releases · newest first` : `${fmt(items.length)} of ${fmt(all.length)}`;
     const n = Math.min(items.length, S.limit);
     const sig = `${S.view}|${items.slice(0, n).map((t) => t.i).join()}|${S.q}`;
     if (sig !== shownSig) {   // (the catalogue arriving under an unchanged first screen redraws nothing)

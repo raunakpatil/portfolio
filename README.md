@@ -59,11 +59,12 @@ AI news, trending open models and a directory of AI tools. `radar.html` sends vi
   (150+ votes, with its price label — this part needs a Product Hunt developer token saved as the `PRODUCTHUNT_TOKEN`
   repository secret), in their makers' own words, with a category guessed from them (`scripts/build-catalog.mjs`).
   Each is listed once: nothing already hand-picked, no two with the same name or description (the most popular
-  stays), no copied Spaces, and no lists, courses or templates. Each entry
-  ends with the day it joined, which drives **Newly added** (the last 90 days). The **Refresh Radar** GitHub Action
-  rebuilds it on Mondays and Thursdays and commits it — so pull before pushing.
+  stays), no copied Spaces, and no lists, courses or templates. Each entry ends with two dates: the day it joined
+  Radar, and the day it was released (the project or Space created, the product launched), which drives **New
+  releases** (the last 90 days). The **Refresh Radar** GitHub Action rebuilds it on Mondays and Thursdays and commits
+  it — so pull before pushing.
 - The page's three views: **Browse all** (search, then Source, Price, Category and Sort; the default), **Top 20** (the
-  `pick`s, in the order they're listed), **Newly added**. A tap turns a card over to its details: what it does in
+  `pick`s, in the order they're listed), **New releases**. A tap turns a card over to its details: what it does in
   plain words (written once per tool by Ronie's worker, `POST /explain`, which looks the tool up in the site's own data
   and keeps the answer in KV), how to get it, when it was added, where it ranks and what's like it; only its ↗ opens
   the page. The trending models each take a colour along the skill matrix's spectrum.

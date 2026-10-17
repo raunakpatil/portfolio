@@ -1795,7 +1795,9 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 .tl-more { margin-top: 22px; }
 .tl-none-box { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 64px 0; color: #777; }
 .tl-empty { grid-column: 1 / -1; padding: 48px 20px; text-align: center; color: #777; }
-.tl-foot { max-width: 620px; margin: 36px auto 14px; padding: 0 16px; text-align: center; font-size: 12.5px; line-height: 1.6; color: #8a8a8a; }
+.tl-foot { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 44px auto 18px; font-size: 13px; color: #8a8a8a; }
+.tl-heart { width: 15px; height: 15px; fill: #ff4f6d; animation: tl-beat 2.4s ease-in-out infinite; }
+@keyframes tl-beat { 0%, 60%, 100% { transform: scale(1); } 10%, 30% { transform: scale(1.18); } 20% { transform: scale(.96); } }
 
 /* while the first fetch is out */
 .tl-skel { display: block; height: 28px; margin-top: 12px; border-radius: 8px; background: linear-gradient(90deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .13), rgba(255, 255, 255, .05)) 0 0 / 200% 100%; animation: tl-shimmer 1.4s linear infinite; }
