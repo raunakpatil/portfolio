@@ -264,6 +264,14 @@ function renderDirectory(T, catalogP) {
   const NEW_DAYS = 90;
   const STEP = 48;
   const grid = $('#tl-grid'), more = $('#tl-more'), count = $('#tl-count'), search = $('#tl-search'), clear = $('#tl-clear');
+  // the search box says how to use it: search the directory, or describe a need and ask Radar — the longest wording
+  // that fits the box as it is
+  const hint = () => {
+    const w = search.clientWidth, n = fmt(all.length);
+    search.placeholder = w >= 560 ? `Search ${n} AI tools — or ask Radar, e.g. “turn my podcast into short clips”`
+      : w >= 340 ? `Search ${n} AI tools, or ask Radar what you need` : `Search ${n} tools, or ask Radar`;
+  };
+  if (window.ResizeObserver) new ResizeObserver(hint).observe(search);
   const keyOf = (t) => `${t.n} ${t.d} ${T.categories[t.c]} ${PRICES[t.p] || ''} ${t.uses || ''} ${t.by || ''}`.toLowerCase();
 
   const curated = T.tools.map((t, i) => ({ ...t, src: 'pick', i }));
@@ -300,7 +308,7 @@ function renderDirectory(T, catalogP) {
     rising = new Set(extra.filter((t) => t.rise > 0).sort((a, b) => a.riseRank - b.riseRank).slice(0, 24).map((t) => t.i));
     all = [...all, ...extra.map((t) => ({ ...t, key: keyOf(t) }))];
     rankAll();
-    search.placeholder = `Search ${fmt(all.length)} AI tools`;
+    hint();
     drawViews();
     draw();
   });
@@ -560,7 +568,7 @@ function renderDirectory(T, catalogP) {
     search.focus();
   });
   grid.addEventListener('click', (e) => { if (e.target.closest('#tl-reset')) reset(); });
-  search.placeholder = `Search ${fmt(all.length)} AI tools`;
+  hint();
   rankAll();
   fromURL();
   drawViews();
