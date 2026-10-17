@@ -112,7 +112,7 @@ function renderNews(f) {
   $('#tl-lead-bars').innerHTML = lead.map((n, k) => `<button type="button" aria-label="Story ${k + 1}: ${esc(n.title)}"><b></b></button>`).join('');
   showLead(0, false);
 
-  const rest = f.news.slice(LEAD_N);
+  const rest = f.news;   // (the list has every story, newest first — the lead card turns through its first five)
   const topics = ['All', ...new Set(rest.map((n) => n.topic).filter(Boolean))];
   const chips = $('#tl-topics');
   chips.innerHTML = topics.length > 2 ? topics.map((t) => `<button class="chip" type="button" data-topic="${esc(t)}" aria-pressed="${t === 'All'}">${esc(t)}</button>`).join('') : '';
