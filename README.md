@@ -95,7 +95,7 @@ AI news, trending open models and a directory of AI tools. `radar.html` sends vi
   breadcrumbs and links between them. Each tool page offers its makers the **Listed on Radar** badge
   (`img/badges/listed-on-radar.svg`), linking back to it. A tool's plain-words line comes from the worker's
   `/explained` (only what's already written), kept in `data/explained.json`. The same lists go out as open data,
-  `/ai-tools/radar.json`, which the [best-ai-tools-on-the-radar](https://github.com/raunakpatil/best-ai-tools-on-the-radar)
+  `/ai-tools/radar.json`, which the [best-ai-tools](https://github.com/raunakpatil/best-ai-tools)
   repo builds its README from. `deploy-prep` and the Refresh Radar Action rebuild them all, and the Action then tells
   IndexNow (Bing and others) which pages changed (`scripts/indexnow.mjs`, key file `/<key>.txt`).
 - `robots.txt` points search engines at `sitemap.xml`, which lists `/`, `/radar`, `/ronie` and every `/ai-tools` page.

@@ -372,7 +372,7 @@ for (const p of pages) {
   mkdirSync(new URL('.', url), { recursive: true });
   writeFileSync(url, p.html);
 }
-// the same lists as open data (/ai-tools/radar.json): what the best-ai-tools-on-the-radar repo builds its README from
+// the same lists as open data (/ai-tools/radar.json): what the best-ai-tools repo builds its README from
 // each week, and free for anyone to use with a link back
 const pub = (t) => ({ name: t.n, url: t.u, about: t.d, plain: kept[keyFor(t)] ? undash(kept[keyFor(t)]) : undefined, category: t.c, price: t.p, from: t.src === 'pick' ? 'hand-picked' : { gh: 'github', hf: 'hugging-face', ph: 'product-hunt' }[t.src], stars: t.src === 'gh' ? t.pop : undefined, likes: t.src === 'hf' ? t.pop : undefined, upvotes: t.src === 'ph' ? t.pop : undefined, released: t.rel || undefined, rank: t.rank, mine: t.mine || undefined, page: t.page ? SITE + t.page : undefined });
 writeFileSync(at('ai-tools/radar.json'), `${JSON.stringify({
