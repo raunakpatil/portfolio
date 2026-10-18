@@ -228,6 +228,13 @@ const SOURCES = {
   hf: ['Hugging Face', '<span aria-hidden="true">🤗</span>'],
   ph: ['Product Hunt', '<span class="tl-ph" aria-hidden="true">P</span>'],
 };
+// each category's own ranked page, and what it's called there (scripts/build-seo-pages.mjs)
+const LIST_PAGES = {
+  chat: ['best-ai-chatbots', 'AI chatbots'], research: ['best-ai-research-tools', 'AI research tools'], code: ['best-ai-coding-tools', 'AI coding tools'],
+  agents: ['best-ai-agents', 'AI agents'], image: ['best-ai-image-generators', 'AI image tools'], video: ['best-ai-video-tools', 'AI video tools'],
+  voice: ['best-ai-voice-tools', 'AI voice tools'], music: ['best-ai-music-generators', 'AI music tools'], writing: ['best-ai-writing-tools', 'AI writing tools'],
+  work: ['best-ai-productivity-tools', 'AI productivity tools'], design: ['best-ai-design-tools', 'AI design tools'], build: ['best-ai-developer-tools', 'AI developer tools'],
+};
 const SORTS = { picks: 'Featured', rising: 'Rising', az: 'A–Z', new: 'Newest' };
 // Radar's mark (also in index.html, on the Ask button)
 const MARK = '<svg class="tl-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle class="in" cx="12" cy="12" r="4.6"/><path class="sweep" d="M12 12 18.4 5.6"/><circle class="blip" cx="15.6" cy="15.2" r="1.4"/></svg>';
@@ -593,6 +600,11 @@ function renderDirectory(T, catalogP) {
     count.textContent = top ? `Raunak's top ${items.length} · ${day(T.updated)}` : S.view === 'new' ? `${fmt(items.length)} new releases · newest first`
       : asking() ? `${fmt(items.length)} more tools related to “${S.q}”`
       : fixed ? `Showing ${fmt(items.length)} for “${fixed}” · you typed “${S.q}”` : `${fmt(items.length)} of ${fmt(all.length)}`;
+    // and where it fits, one quiet link to the same list as its own page (/ai-tools, scripts/build-seo-pages.mjs)
+    const page = asking() || S.q ? null : top ? ['/ai-tools/top-50', 'The Top 50 as a page'] : S.view === 'new' ? ['/ai-tools/new-ai-tools', 'New AI tools, as a page']
+      : S.cat !== 'all' && LIST_PAGES[S.cat] ? [`/ai-tools/${LIST_PAGES[S.cat][0]}`, `Best ${LIST_PAGES[S.cat][1]}, ranked`]
+      : S.price === 'free' ? ['/ai-tools/free-ai-tools', 'Free AI tools, by category'] : S.src === 'gh' || S.price === 'open' ? ['/ai-tools/open-source-ai-tools', 'Open-source AI tools, ranked'] : null;
+    if (page) count.insertAdjacentHTML('beforeend', ` · <a class="tl-count-page" href="${page[0]}">${page[1]} →</a>`);
     const n = Math.min(items.length, S.limit);
     const sig = `${S.view}|${asking()}|${items.slice(0, n).map((t) => t.i).join()}|${S.q}`;
     if (sig !== shownSig) {   // (the catalogue arriving under an unchanged first screen redraws nothing)

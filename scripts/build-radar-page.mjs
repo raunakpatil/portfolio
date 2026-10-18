@@ -36,6 +36,8 @@ const seo = `
         <div class="tl-seo">
           <h2>Latest in AI</h2>
           <ul>${feed.news.slice(0, 12).map((n) => `<li><a href="${esc(n.link)}">${esc(n.title)}</a> · ${esc(n.source)}</li>`).join('')}</ul>
+          <h2><a href="/ai-tools/">Best AI tools on the Radar</a></h2>
+          <ul><li><a href="/ai-tools/top-50">Top 50 AI tools</a></li><li><a href="/ai-tools/new-ai-tools">New AI tools</a></li><li><a href="/ai-tools/free-ai-tools">Free AI tools</a></li><li><a href="/ai-tools/open-source-ai-tools">Open-source AI tools</a></li>${['best-ai-chatbots', 'best-ai-research-tools', 'best-ai-coding-tools', 'best-ai-agents', 'best-ai-image-generators', 'best-ai-video-tools', 'best-ai-voice-tools', 'best-ai-music-generators', 'best-ai-writing-tools', 'best-ai-productivity-tools', 'best-ai-design-tools', 'best-ai-developer-tools'].map((s) => `<li><a href="/ai-tools/${s}">${esc(s.replace(/-/g, ' ').replace(/\bai\b/, 'AI').replace(/^b/, 'B'))}</a></li>`).join('')}</ul>
           <h2>Hand-picked AI tools</h2>
           ${Object.entries(cats).map(([k, v]) => `<h3>${esc(v)}</h3><ul>${picked.filter((t) => t.c === k).map((t) => `<li><a href="/ai-tools/tool/${slug(t.n)}">${esc(t.n)}</a>: ${esc(t.d)}</li>`).join('')}</ul>`).join('\n          ')}
         </div>`;
