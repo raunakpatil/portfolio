@@ -344,7 +344,7 @@
 
   /* ---------- header, nav, menu ---------- */
   function initChrome() {
-    document.title = `${D.name} · AI Quality Engineer`;
+    document.title = `${D.name} · AI Engineer`;
     $('.brand-full').textContent = D.name;
     $('.brand-short').textContent = D.shortName || D.name;
 
@@ -381,7 +381,7 @@
       moveIndicator();
       window.scrollTo(0, 0);
       document.body.dataset.route = r;
-      document.title = r === 'radar' ? 'Best AI Tools on the Radar · Raunak Patil' : `${D.name} · AI Quality Engineer`;
+      document.title = r === 'radar' ? 'Best AI Tools on the Radar · Raunak Patil' : `${D.name} · AI Engineer`;
       window.warmView?.(r);
       if (r === 'radar') loadRadar().then((m) => m.open());
       // Ronie (three.js + the robot) only loads when someone actually opens it
