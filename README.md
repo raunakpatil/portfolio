@@ -6,7 +6,7 @@ Plain HTML/CSS/JS with no build step.
 
 ## Edit your content
 Everything lives in **`js/data.js`**: name, links, skills, experience (map pins),
-projects and case studies. Values marked *estimate* (hours, skill scores) are guesses.
+projects and case studies. Values marked *estimate* (hours) are guesses.
 
 - **Real screenshots:** add `image: 'img/resrescue.png'` to a project to replace the generated mock-up.
 - **ASCII portrait:** set `hello.asciiImage` to a portrait on a plain background (e.g. `img/me.png`).
@@ -99,7 +99,8 @@ AI news, trending open models and a directory of AI tools. `radar.html` sends vi
   repo builds its README from. `deploy-prep` and the Refresh Radar Action rebuild them all, and the Action then tells
   IndexNow (Bing and others) which pages changed (`scripts/indexnow.mjs`, key file `/<key>.txt`).
 - `robots.txt` points search engines at `sitemap.xml`, which lists `/`, `/radar`, `/ronie` and every `/ai-tools` page.
-  The share image is `img/radar-og.png` (`scripts/og/radar-og.html`, rendered by `scripts/build-og.mjs`).
+  The share images (what a link shows on LinkedIn, X, WhatsApp) are `img/og.png` for the site and `img/radar-og.png`
+  for Radar (`scripts/og/home-og.html` and `radar-og.html`, rendered by `scripts/build-og.mjs`).
 
 ## Ronie's surroundings
 By default Ronie stands in front of a picture (neon mountains under a colossal moon, 3:1) behind his transparent

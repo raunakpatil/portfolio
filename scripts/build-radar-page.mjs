@@ -25,7 +25,8 @@ page = swap(page, /<meta property="og:title" content="[^"]*">/, `<meta property=
 page = swap(page, /<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${esc(DESC)}">`);
 page = swap(page, /<meta property="og:url" content="[^"]*">/, '<meta property="og:url" content="https://raunakpatil.com/radar">');
 page = swap(page, /<link rel="canonical" href="[^"]*">/, '<link rel="canonical" href="https://raunakpatil.com/radar">');
-page = swap(page, /<meta property="og:image" content="[^"]*">/, '<meta property="og:image" content="https://raunakpatil.com/img/radar-og.png">\n  <meta name="twitter:card" content="summary_large_image">');
+page = swap(page, /<meta property="og:image" content="[^"]*">/, '<meta property="og:image" content="https://raunakpatil.com/img/radar-og.png">');
+page = swap(page, /<meta property="og:image:alt" content="[^"]*">/, '<meta property="og:image:alt" content="Radar: the best AI tools on the radar">');
 // (what the page is, for search engines: a collection of AI tools that can be searched)
 const LD = { '@context': 'https://schema.org', '@type': 'WebSite', name: 'Radar', alternateName: 'Best AI Tools on the Radar', url: 'https://raunakpatil.com/radar', description: DESC, potentialAction: { '@type': 'SearchAction', target: 'https://raunakpatil.com/radar?q={q}', 'query-input': 'required name=q' } };
 page = swap(page, /<\/head>/, `  <script type="application/ld+json">${JSON.stringify(LD)}</script>\n</head>`);

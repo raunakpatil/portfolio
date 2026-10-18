@@ -344,7 +344,7 @@
 
   /* ---------- header, nav, menu ---------- */
   function initChrome() {
-    document.title = `${D.name} · Portfolio`;
+    document.title = `${D.name} · AI Quality Engineer`;
     $('.brand-full').textContent = D.name;
     $('.brand-short').textContent = D.shortName || D.name;
 
@@ -381,7 +381,7 @@
       moveIndicator();
       window.scrollTo(0, 0);
       document.body.dataset.route = r;
-      document.title = r === 'radar' ? 'Radar: AI news, trending models and AI tools · Raunak Patil' : `${D.name} · Portfolio`;
+      document.title = r === 'radar' ? 'Best AI Tools on the Radar · Raunak Patil' : `${D.name} · AI Quality Engineer`;
       window.warmView?.(r);
       if (r === 'radar') loadRadar().then((m) => m.open());
       // Ronie (three.js + the robot) only loads when someone actually opens it
@@ -731,16 +731,14 @@
     const list = $('#skill-list');
     const canvas = $('#skill-bars');
     const n = S.items.length;
-    const total = S.items.reduce((s, x) => s + x.score, 0);
     const hueOf = (i) => (((75 - i * (330 / n)) % 360) + 360) % 360;
 
     $('#skills-title').textContent = S.title;
-    list.innerHTML = S.items.map((s, i) => `<li data-i="${i}" style="--hue:hsl(${hueOf(i).toFixed(0)} 85% 65%)"><span>${esc(s.name)}</span><b class="badge">0</b></li>`).join('');
+    list.innerHTML = S.items.map((s, i) => `<li data-i="${i}" style="--hue:hsl(${hueOf(i).toFixed(0)} 85% 65%)"><span>${esc(s.name)}</span></li>`).join('');
     $('#tool-list').innerHTML = S.tools.map((t) => `<li data-tool="${esc(t)}">${esc(t)}</li>`).join('');
     $('#skills-note').innerHTML = S.notes.map((x) => `// ${esc(x)}`).join('<br>');
 
     const items = $$('li', list);
-    const badges = $$('.badge', list);
     const toolList = $('#tool-list');
     const toolEls = $$('li', toolList);
     const usesTool = (i, tool) => (S.items[i].tools || []).includes(tool);
@@ -808,14 +806,10 @@
       if (lastType !== 'mouse' && hot.size && e.target !== canvas && !e.target.closest?.('#card-skills li')) none();
     });
 
-    let start = null, t = 0, counted = false;
+    let start = null, t = 0;
     onFrame(card, (now, dt) => {
       if (start === null) start = now;
       const k = MOTION ? easeOut(clamp((now - start) / 1800, 0, 1)) : 1;
-      if (k < 1 || !counted) {   // count the badges up, then leave them be (rewriting them every frame is wasted paint)
-        badges.forEach((b, i) => { const v = String(Math.round(S.items[i].score * k)); if (b.textContent !== v) b.textContent = v; });
-        counted = k >= 1;
-      }
       t += dt * MOTION;
 
       const { ctx, w, h } = fit(canvas);
@@ -824,7 +818,7 @@
       segs = [];
       let x = 0;
       for (let i = 0; i < n; i++) {
-        const sw = (usable * S.items[i].score) / total;
+        const sw = usable / n;   // (each skill an equal band of the wave)
         segs.push({ i, x, w: sw });
         const h0 = hueOf(i), h1 = hueOf(i + 1);
         const dh = ((h1 - h0 + 540) % 360) - 180; // shortest way round the hue wheel

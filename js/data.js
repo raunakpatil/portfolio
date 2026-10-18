@@ -41,26 +41,31 @@ window.PORTFOLIO = {
     end: { year: 2026, city: 'London', region: 'the UK', lat: 51.5072, lon: -0.1276 },   // his UK years, up to 2026
   },
 
-  /* Card 3 — skill matrix. Scores are self-assessed estimates; they're shown as
-     badges and as the widths of the bar strip. `tools` lists which entries from the
-     tools column each skill uses — they light up when the skill is hovered (and vice versa). */
+  /* Card 3 — skill matrix: the skills (each an equal band of the bar strip, no scores). `tools` lists which entries
+     from the tools column each skill uses — they light up when the skill is hovered (and vice versa). */
   skills: {
     title: 'AI skill matrix',
     items: [
-      { name: 'Generative AI & LLMs', score: 15, tools: ['Hugging Face', 'LangChain', 'OpenAI / Azure AI', 'Gemini', 'PyTorch'] },
-      { name: 'RAG Pipelines', score: 13, tools: ['LangChain', 'LlamaIndex', 'OpenAI / Azure AI', 'Hugging Face'] },
-      { name: 'LLM Evaluation & RLHF', score: 12, tools: ['Hugging Face', 'PyTorch', 'MLflow', 'OpenAI / Azure AI'] },
-      { name: 'Python', score: 12, tools: ['PyTorch', 'TensorFlow', 'Scikit-learn', 'LangChain', 'LlamaIndex'] },
-      { name: 'Machine Learning', score: 10, tools: ['Scikit-learn', 'PyTorch', 'TensorFlow', 'MLflow'] },
-      { name: 'AI Agents', score: 9, tools: ['LangChain', 'Gemini', 'OpenAI / Azure AI'] },
-      { name: 'Prompt Engineering', score: 8, tools: ['OpenAI / Azure AI', 'Gemini'] },
-      { name: 'Data Quality & Analysis', score: 8, tools: ['SQL · R', 'Power BI'] },
-      { name: 'Deep Learning', score: 6, tools: ['PyTorch', 'TensorFlow', 'Hugging Face'] },
-      { name: 'Data Visualization', score: 4, tools: ['Power BI', 'SQL · R'] },
-      { name: 'Full-stack (React / Next.js)', score: 3, tools: ['React / Next.js', 'Gemini'] },
+      { name: 'Generative AI & LLMs', tools: ['Hugging Face', 'LangChain', 'OpenAI / Azure AI', 'Gemini', 'PyTorch'] },
+      { name: 'RAG Pipelines', tools: ['LangChain', 'LlamaIndex', 'OpenAI / Azure AI', 'Hugging Face'] },
+      { name: 'LLM Evaluation & RLHF', tools: ['Hugging Face', 'PyTorch', 'MLflow', 'OpenAI / Azure AI'] },
+      { name: 'Python', tools: ['PyTorch', 'TensorFlow', 'Scikit-learn', 'LangChain', 'LlamaIndex'] },
+      { name: 'Machine Learning', tools: ['Scikit-learn', 'PyTorch', 'TensorFlow', 'MLflow', 'XGBoost'] },
+      { name: 'AI Agents', tools: ['LangChain', 'Gemini', 'OpenAI / Azure AI', 'Cloudflare Workers'] },
+      { name: 'Prompt Engineering', tools: ['OpenAI / Azure AI', 'Gemini'] },
+      { name: 'Data Quality & Analysis', tools: ['SQL · R', 'Power BI'] },
+      { name: 'Deep Learning', tools: ['PyTorch', 'TensorFlow', 'Hugging Face'] },
+      { name: 'Data Visualization', tools: ['Power BI', 'SQL · R'] },
+      { name: 'Full-stack (React / Next.js)', tools: ['React / Next.js', 'Gemini', 'Firebase'] },
+      // (from the projects: Ronie, Radar, TriviaFlux and Zeul on serverless; Ronie's and YAAS's voices; the Titanic
+      // predictor's SHAP explanations; Ronie's 3D body)
+      { name: 'AI Deployment & Serverless', tools: ['Cloudflare Workers', 'Firebase', 'Gemini'] },
+      { name: 'Voice & Speech AI', tools: ['Kokoro TTS', 'Hugging Face'] },
+      { name: 'Explainable AI', tools: ['SHAP', 'XGBoost', 'Scikit-learn'] },
+      { name: '3D & WebGPU', tools: ['three.js', 'Blender'] },
     ],
-    tools: ['PyTorch', 'TensorFlow', 'Hugging Face', 'LangChain', 'LlamaIndex', 'OpenAI / Azure AI', 'Gemini', 'Scikit-learn', 'MLflow', 'Power BI', 'SQL · R', 'React / Next.js'],
-    notes: ['scores are self-assessed (total = 100)', 'the best AI system knows what it doesn\'t know'],
+    tools: ['PyTorch', 'TensorFlow', 'Hugging Face', 'LangChain', 'LlamaIndex', 'OpenAI / Azure AI', 'Gemini', 'Scikit-learn', 'MLflow', 'XGBoost', 'SHAP', 'Power BI', 'SQL · R', 'React / Next.js', 'Cloudflare Workers', 'Firebase', 'Kokoro TTS', 'three.js', 'Blender'],
+    notes: ['the best AI system knows what it doesn\'t know'],
   },
 
   /* Card 4 — 3D tunnel of floating projects (uses the projects list below).
