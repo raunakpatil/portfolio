@@ -8,6 +8,7 @@
 // already written), kept in data/explained.json so a build never depends on it. The Refresh Radar Action runs this
 // after each refresh; run it by hand after editing data/tools.json:  node scripts/build-seo-pages.mjs
 import { readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import vm from 'node:vm';
 
 const at = (p) => new URL(`../${p}`, import.meta.url);
 const read = (p, d) => { try { return JSON.parse(readFileSync(at(p), 'utf8')); } catch { return d; } };
@@ -174,6 +175,29 @@ const crumbs = (trail) => ({
   html: `<nav class="pg-crumbs" aria-label="Breadcrumb">${trail.map(([n, u], k) => (k < trail.length - 1 ? `<a href="${u}">${esc(n)}</a><i>/</i>` : `<span>${esc(n)}</span>`)).join('')}</nav>`,
   ld: { '@type': 'BreadcrumbList', itemListElement: trail.map(([n, u], k) => ({ '@type': 'ListItem', position: k + 1, name: n, item: SITE + u })) },
 });
+// the links button at the right of the bar, as on the site: the dots grow into a pill of icon links (his profile,
+// then the links in js/data.js; the icons are main.js's)
+const SOCIAL_ICONS = {
+  Profile: '<circle cx="12" cy="8" r="3.6"/><path d="M4.5 20.5c.6-3.7 3.7-6.2 7.5-6.2s6.9 2.5 7.5 6.2"/>',
+  Email: '<rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7 8.5 6 8.5-6"/>',
+  LinkedIn: '<path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/>',
+  GitHub: '<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/>',
+  YouTube: '<path d="M2.5 17a24 24 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.6 49.6 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24 24 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.6 49.6 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/>',
+  Instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/>',
+};
+const SITE_LINKS = (() => {
+  const ctx = { window: {} };
+  vm.createContext(ctx);
+  vm.runInContext(readFileSync(at('js/data.js'), 'utf8'), ctx);
+  return [{ label: 'Profile', href: '/#profile' }, ...(ctx.window.PORTFOLIO.links || [])];
+})();
+const SOCIAL = `<div class="social" id="social">
+      <nav class="social-links" id="social-links" aria-label="Elsewhere" inert>${SITE_LINKS.map((l, i) => {
+        const ext = /^https?:/.test(l.href);
+        return `<a href="${esc(l.href)}" style="--i:${SITE_LINKS.length - 1 - i}" data-label="${esc(l.label)}" aria-label="${esc(l.label)}"${ext ? ' target="_blank" rel="noopener"' : ''}><svg viewBox="0 0 24 24" aria-hidden="true">${SOCIAL_ICONS[l.label] || '<circle cx="12" cy="12" r="8"/>'}</svg></a>`;
+      }).join('')}</nav>
+      <button class="social-btn" type="button" aria-expanded="false" aria-controls="social-links" aria-label="Show links"><span class="social-dots" aria-hidden="true"><i></i><i></i><i></i><i></i></span></button>
+    </div>`;
 const pages = [];
 function page({ path, title, desc, body, ld = [], trail, prio = 0.6 }) {
   const c = crumbs(trail);
@@ -214,7 +238,7 @@ function page({ path, title, desc, body, ld = [], trail, prio = 0.6 }) {
       <a href="/#library">Library</a>
       <a href="/radar" class="active">Radar</a>
     </nav>
-    <span></span>
+    ${SOCIAL}
   </header>
   <main>
     <section class="tl pg-body">
@@ -233,6 +257,12 @@ function page({ path, title, desc, body, ld = [], trail, prio = 0.6 }) {
       // (on a phone the categories are a row you swipe along: it starts at the one this page is about)
       var on = document.querySelector('.pg-chips .chip.on');
       if (on) on.parentNode.scrollLeft = on.offsetLeft - on.parentNode.offsetLeft - 10;
+      // the links button: open and close as on the site
+      var so = document.getElementById('social'), sb = so.querySelector('.social-btn'), sl = document.getElementById('social-links');
+      function setOpen(o) { so.classList.toggle('open', o); so.closest('.topbar').classList.toggle('links-open', o); sb.setAttribute('aria-expanded', String(o)); sb.setAttribute('aria-label', o ? 'Hide links' : 'Show links'); sl.inert = !o; }
+      sb.addEventListener('click', function (e) { e.stopPropagation(); setOpen(!so.classList.contains('open')); });
+      document.addEventListener('click', function (e) { if (so.classList.contains('open') && !so.contains(e.target)) setOpen(false); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') setOpen(false); });
       document.addEventListener('click', function (e) {
         var l = e.target.closest && e.target.closest('a[data-radar]');
         if (!l || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;

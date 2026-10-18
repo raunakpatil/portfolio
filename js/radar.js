@@ -753,9 +753,22 @@ function initAsk({ all, keyFor, icon, esc: e, cats, prices, loaded, show, hide, 
     box.hidden = false;
     // (one line: the name, a few to try, and ×)
     box.classList.add('is-intro');
-    box.innerHTML = `<div class="tl-intro"><span class="tl-intro-k">${MARK}<b>Ask Radar</b></span><span class="tl-intro-try">${chips(EXAMPLES.slice(0, 5))}</span><button type="button" class="tl-answer-x" aria-label="Close Ask Radar" title="Close (Esc)">×</button></div>`;
+    box.innerHTML = `<div class="tl-intro"><span class="tl-intro-k">${MARK}<b>Ask Radar</b></span><span class="tl-intro-try">${chips(EXAMPLES)}</span><button type="button" class="tl-answer-x" aria-label="Close Ask Radar" title="Close (Esc)">×</button></div>`;
     setOpen(true);
+    fitTry();
   };
+  // as many examples as fit on the line, filling it: the ones that would spill over are left out (fewer on a narrow
+  // screen), and the rest share the width that's left, so there's no gap at the end; again whenever the width changes
+  const fitTry = () => {
+    const row = box.querySelector('.tl-intro-try');
+    if (!row) return;
+    const list = [...row.children];
+    row.classList.remove('fit');
+    list.forEach((c) => { c.hidden = false; });
+    for (let k = list.length - 1; k > 0 && row.scrollWidth > row.clientWidth + 1; k--) list[k].hidden = true;
+    row.classList.add('fit');
+  };
+  if (window.ResizeObserver) new ResizeObserver(() => { if (mode === 'intro') fitTry(); }).observe(box);
   search.addEventListener('focus', () => { if (!search.value.trim() && box.hidden) intro(false); });
   search.addEventListener('blur', () => setTimeout(() => {
     if (mode === 'intro' && !pinned && !holding && !box.contains(document.activeElement) && document.activeElement !== btn) close();

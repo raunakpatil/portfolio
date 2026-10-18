@@ -1903,12 +1903,11 @@ a.tool-go::after { content: ""; position: absolute; inset: -8px; }   /* (a bigge
 .tl-intro-k { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
 .tl-intro-k b { font-weight: 500; }
 .tl-intro-k .tl-mark { width: 15px; height: 15px; }
-.tl-intro-try {
-  flex: 1; min-width: 0; display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding: 4px 2px;
-  -webkit-mask-image: linear-gradient(90deg, #000 92%, transparent); mask-image: linear-gradient(90deg, #000 92%, transparent);
-}
-.tl-intro-try::-webkit-scrollbar { display: none; }
+.tl-intro-try { flex: 1; min-width: 0; display: flex; gap: 6px; overflow: hidden; margin: -4px -6px; padding: 8px 6px; }   /* (room for the chips' soft shadows) */
 .tl-intro-try .tl-try-chip { flex: none; white-space: nowrap; }
+.tl-intro-try .tl-try-chip[hidden] { display: none; }
+/* (once fitted, the ones that fit share the line's width) */
+.tl-intro-try.fit .tl-try-chip { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 .tl-intro .tl-answer-x { flex: none; }
 .tl-ask-now { display: inline-block; margin-top: 4px; background: #111; color: #fff; box-shadow: var(--key); }
 .tl-ask-now:hover { background: #222; box-shadow: var(--key); }
