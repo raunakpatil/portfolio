@@ -736,7 +736,6 @@
     $('#skills-title').textContent = S.title;
     list.innerHTML = S.items.map((s, i) => `<li data-i="${i}" style="--hue:hsl(${hueOf(i).toFixed(0)} 85% 65%)"><span>${esc(s.name)}</span></li>`).join('');
     $('#tool-list').innerHTML = S.tools.map((t) => `<li data-tool="${esc(t)}">${esc(t)}</li>`).join('');
-    $('#skills-note').innerHTML = S.notes.map((x) => `// ${esc(x)}`).join('<br>');
 
     const items = $$('li', list);
     const toolList = $('#tool-list');

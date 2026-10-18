@@ -65,7 +65,6 @@ window.PORTFOLIO = {
       { name: '3D & WebGPU', tools: ['three.js', 'Blender'] },
     ],
     tools: ['PyTorch', 'TensorFlow', 'Hugging Face', 'LangChain', 'LlamaIndex', 'OpenAI / Azure AI', 'Gemini', 'Scikit-learn', 'MLflow', 'XGBoost', 'SHAP', 'Power BI', 'SQL · R', 'React / Next.js', 'Cloudflare Workers', 'Firebase', 'Kokoro TTS', 'three.js', 'Blender'],
-    notes: ['the best AI system knows what it doesn\'t know'],
   },
 
   /* Card 4 — 3D tunnel of floating projects (uses the projects list below).
