@@ -116,6 +116,14 @@ window.PORTFOLIO = {
       demo: '#assistant', demoText: 'Meet Ronie →',
     },
     {
+      title: 'Radar: Best AI Tools', aka: ['Radar', 'Best AI Tools on the Radar'], category: 'Website', year: 2026, image: 'img/projects/radar.webp', imageMobile: 'img/projects/radar-mobile.webp', tunnelImage: 'img/tunnel/radar.webp', tunnelImageMobile: 'img/tunnel/radar-mobile.webp',
+      colors: ['#ff7a1a', '#7cc4ff'],
+      tags: ['JavaScript', 'Cloudflare Workers', 'Workers AI', 'GitHub Actions', 'SEO', 'Open data'],
+      description: 'The best AI tools on the radar, updated every week: 6,300+ AI tools ranked by category, a Top 50 and new releases, plus the latest AI news and the open models trending on Hugging Face. Ask it what you need in plain words and it suggests the tools that fit, even with typos. Rebuilt twice a week by GitHub Actions, with 1,200 pages for search engines and an open list on GitHub.',
+      link: 'https://github.com/raunakpatil/best-ai-tools', linkText: 'See the list on GitHub ↗',
+      demo: '#radar', demoText: 'Open Radar →',
+    },
+    {
       title: 'Zeul: Wallpaper App', aka: ['Zeul'], category: 'App', year: 2026, image: 'img/projects/zeul.webp', imageMobile: 'img/projects/zeul-mobile.webp', tunnelImage: 'img/tunnel/zeul.webp', tunnelImageMobile: 'img/tunnel/zeul-mobile.webp', colors: ['#eb6834', '#111111'],
       tags: ['Kotlin', 'Jetpack Compose', 'Supabase', 'Edge Functions', 'Android'],
       description: 'A free, open-source Android wallpaper app: hand-picked HD and AMOLED wallpapers, a For You feed that learns your style, search with colour filters, community uploads with built-in moderation, and an auto wallpaper changer, in a soft, tactile UI with a hamster mascot. Open source (GPL-3.0).',

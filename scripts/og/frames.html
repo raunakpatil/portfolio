@@ -1,0 +1,76 @@
+<!doctype html>
+<!-- Frames for Radar's pictures: screenshots in a browser window or a phone, the project covers, and the dark "tunnel"
+     picture. Rendered by scripts/build-frames.mjs, which opens this with ?mode=…&a=…&b=…&c= (screenshot paths). -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --neu-out: -10px -10px 24px rgba(255, 255, 255, .9), 14px 16px 34px rgba(150, 156, 176, .45);
+    --bg: #f2f2f2;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { overflow: hidden; }
+  body { background: var(--bg); font-family: "Inter Tight", system-ui, sans-serif; display: grid; place-items: center; }
+  img { display: block; }
+
+  /* a browser window: a light bar with three dots, the page under it */
+  .win { border-radius: 18px; overflow: hidden; background: #fff; box-shadow: var(--neu-out), 0 0 0 1px rgba(0, 0, 0, .05); }
+  .win .bar { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; background: #fafafa; border-bottom: 1px solid #ececec; }
+  .win .bar i { width: 11px; height: 11px; border-radius: 50%; background: #dcdcdc; }
+  .win .bar span { margin-left: 18px; padding: 4px 14px; border-radius: 999px; background: #f0f0f0; font-size: 12.5px; color: #8a8a8a; }
+  .win img { width: 100%; }
+
+  /* a phone: rounded black body, the screen inside */
+  .phone { padding: 11px; border-radius: 46px; background: #111; box-shadow: var(--neu-out), inset 0 0 0 2px #2a2a2a; }
+  .phone img { border-radius: 36px; width: 100%; }
+
+  /* the dark tunnel picture: a glowing radar dial */
+  .dark { position: relative; overflow: hidden; background: radial-gradient(80% 90% at 50% 50%, #12100e, #050505 70%); }
+  .dark .glow { position: absolute; left: 50%; top: 50%; translate: -50% -50%; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 122, 26, .28), rgba(124, 92, 255, .08) 60%, transparent); filter: blur(10px); }
+  .dark svg { position: absolute; left: 50%; top: 50%; translate: -50% -50%; overflow: visible; }
+</style>
+</head>
+<body>
+<script>
+  const q = new URLSearchParams(location.search);
+  const [W, H] = (q.get('size') || '1600x1000').split('x').map(Number);
+  document.documentElement.style.width = document.body.style.width = `${W}px`;
+  document.documentElement.style.height = document.body.style.height = `${H}px`;
+  const win = (src, w, url = 'raunakpatil.com/radar') => `<div class="win" style="width:${w}px"><div class="bar"><i></i><i></i><i></i><span>${url}</span></div><img src="${src}"></div>`;
+  const phone = (src, w) => `<div class="phone" style="width:${w}px"><img src="${src}"></div>`;
+  const mode = q.get('mode');
+  // (the project covers sit on the same soft grey as the site's other covers: a little darker at the top left)
+  if (mode.startsWith('cover')) document.body.style.background = 'radial-gradient(120% 110% at 70% 75%, #ebebe9, #dadad8 70%, #d2d2d2)';
+  const a = q.get('a'), b = q.get('b'), c = q.get('c'), url = q.get('url') || undefined;
+  if (mode === 'window') document.body.innerHTML = win(a, W - 120, url);
+  if (mode === 'phones') document.body.innerHTML = `<div style="display:flex;gap:${Math.round(W * .04)}px;align-items:center">${[a, b, c].filter(Boolean).map((s, k) => `<div style="translate:0 ${k === 1 ? -Math.round(H * .03) : Math.round(H * .02)}px">${phone(s, Math.round(W * .26))}</div>`).join('')}</div>`;
+  // the project cover: the site in a window, a phone in front of it at the right
+  if (mode === 'cover') document.body.innerHTML = `<div style="position:relative;width:${W}px;height:${H}px">
+      <div style="position:absolute;left:${W * .07}px;top:${H * .1}px">${win(a, W * .7)}</div>
+      <div style="position:absolute;right:${W * .07}px;top:${H * .2}px">${phone(b, W * .2)}</div></div>`;
+  if (mode === 'cover-mobile') document.body.innerHTML = `<div style="display:flex;gap:${W * .05}px;align-items:center;translate:0 ${H * .08}px">${phone(a, W * .36)}${phone(b, W * .36)}</div>`;
+  if (mode === 'tunnel') {
+    const R = Math.min(W, H) * .42;
+    const rings = [1, .72, .44, .18].map((f, k) => `<circle r="${R * f}" fill="none" stroke="rgba(255,255,255,${[.22, .16, .12, .3][k]})" stroke-width="${k === 3 ? 2 : 1.4}"/>`).join('');
+    const ticks = Array.from({ length: 72 }, (_, k) => { const t = k * 5 * Math.PI / 180, r1 = R * (k % 6 ? .97 : .93); return `<line x1="${Math.cos(t) * r1}" y1="${Math.sin(t) * r1}" x2="${Math.cos(t) * R}" y2="${Math.sin(t) * R}" stroke="rgba(255,255,255,.25)" stroke-width="1"/>`; }).join('');
+    const blips = [[.55, -40, '#ff9a4d', 7], [.8, 25, '#7cc4ff', 5], [.33, 120, '#ffffff', 4], [.68, 200, '#b18cff', 5], [.9, 290, '#ff9a4d', 4]]
+      .map(([f, d, col, s]) => { const t = d * Math.PI / 180; return `<circle cx="${Math.cos(t) * R * f}" cy="${Math.sin(t) * R * f}" r="${s}" fill="${col}" filter="url(#g)"/><circle cx="${Math.cos(t) * R * f}" cy="${Math.sin(t) * R * f}" r="${s * 3.2}" fill="none" stroke="${col}" stroke-opacity=".35"/>`; }).join('');
+    document.body.innerHTML = `<div class="dark" style="width:${W}px;height:${H}px"><div class="glow" style="width:${R * 2.6}px;height:${R * 2.6}px"></div>
+      <svg width="${R * 2}" height="${R * 2}" viewBox="${-R} ${-R} ${R * 2} ${R * 2}">
+        <defs>
+          <filter id="g" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <radialGradient id="sw" r="1"><stop offset="0" stop-color="#ff7a1a" stop-opacity=".0"/><stop offset="1" stop-color="#ff7a1a" stop-opacity=".55"/></radialGradient>
+          <linearGradient id="arm" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".2"/><stop offset="1" stop-color="#ffd2ad"/></linearGradient>
+        </defs>
+        ${ticks}${rings}
+        <line x1="${-R}" y1="0" x2="${R}" y2="0" stroke="rgba(255,255,255,.08)"/><line x1="0" y1="${-R}" x2="0" y2="${R}" stroke="rgba(255,255,255,.08)"/>
+        ${Array.from({ length: 24 }, (_, k) => { const a0 = (-60 - k * 2.2) * Math.PI / 180, a1 = (-60 - (k + 1) * 2.2) * Math.PI / 180; return `<path d="M0 0 L${Math.cos(a0) * R} ${Math.sin(a0) * R} A${R} ${R} 0 0 0 ${Math.cos(a1) * R} ${Math.sin(a1) * R} Z" fill="#ff7a1a" fill-opacity="${(.34 * (1 - k / 24)).toFixed(3)}"/>`; }).join('')}
+        <line x1="0" y1="0" x2="${Math.cos(-60 * Math.PI / 180) * R}" y2="${Math.sin(-60 * Math.PI / 180) * R}" stroke="url(#arm)" stroke-width="2.4" filter="url(#g)"/>
+        ${blips}
+        <circle r="4" fill="#fff" filter="url(#g)"/>
+      </svg></div>`;
+  }
+</script>
+</body>
+</html>
