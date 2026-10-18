@@ -1,6 +1,8 @@
 <!doctype html>
 <!-- The site's share image (img/og.png, 1200x630: what a link to raunakpatil.com shows). Rendered by
-     scripts/build-og.mjs. Edit this, then run it again. -->
+     scripts/build-og.mjs. Edit this, then run it again.
+     Everything that matters sits in the middle 630x630 square: chat apps (WhatsApp, Telegram) show only a square cut
+     from the centre, LinkedIn and X the whole card. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -14,27 +16,45 @@
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 1200px; height: 630px; overflow: hidden; }
   body { position: relative; background: #f2f2f2; color: #111; font-family: "Inter Tight", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-  .text { position: absolute; left: 76px; top: 70px; width: 640px; }
-  .eyebrow { display: flex; align-items: center; gap: 12px; font-family: "JetBrains Mono", monospace; font-size: 18px; letter-spacing: .12em; text-transform: uppercase; color: #8a8a8a; }
-  .eyebrow i { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 5px rgba(34, 197, 94, .18); }
-  h1 { margin-top: 30px; font-size: 98px; font-weight: 400; letter-spacing: -.04em; line-height: .98; }
-  h1 em { display: block; font-style: normal; color: #9a9a9a; font-size: 60px; letter-spacing: -.03em; margin-top: 10px; }
-  p { margin-top: 28px; font-size: 27px; line-height: 1.38; color: #555; }
-  .chips { position: absolute; left: 76px; bottom: 64px; display: flex; gap: 12px; }
-  .chip { padding: 13px 22px; border-radius: 999px; background: #fff; font-size: 21px; color: #333; box-shadow: var(--neu-out-sm); }
-  .chip.key { background: #111; color: #fff; box-shadow: var(--key); }
-  /* his photo, raised off the page like the site's ID card */
-  .photo { position: absolute; right: 76px; top: 70px; width: 360px; height: 490px; padding: 12px; border-radius: 34px; background: #fff; box-shadow: var(--neu-out); }
-  .photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; border-radius: 24px; }
+  /* a faint dot grid at the sides, fading toward the middle */
+  body::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(0, 0, 0, .09) 1.2px, transparent 1.7px); background-size: 22px 22px;
+    -webkit-mask-image: linear-gradient(90deg, #000, transparent 30%, transparent 70%, #000); }
+  /* the skill matrix's wave along the foot, its colours as on the dashboard */
+  canvas { position: absolute; left: 0; bottom: 0; width: 1200px; height: 74px; }
+  .col { position: absolute; left: 50%; top: 46px; width: 620px; translate: -50% 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .photo { width: 214px; height: 214px; padding: 9px; border-radius: 50%; background: #fff; box-shadow: var(--neu-out); }
+  .photo span { display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
+  .photo img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.9); transform-origin: 50% 27%; }   /* (close on the face) */
+  .open { position: absolute; top: 172px; left: calc(50% + 62px); display: flex; align-items: center; gap: 8px; padding: 9px 16px 9px 13px; border-radius: 999px; background: #111; color: #fff; font-size: 17px; box-shadow: var(--key); white-space: nowrap; }
+  .open i { width: 9px; height: 9px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 4px rgba(34, 197, 94, .25); }
+  h1 { margin-top: 26px; font-size: 74px; font-weight: 400; letter-spacing: -.035em; line-height: 1; }
+  .role { margin-top: 8px; font-size: 38px; letter-spacing: -.02em; color: #8f8f8f; }
+  .what { margin-top: 18px; font-family: "JetBrains Mono", monospace; font-size: 17px; letter-spacing: .08em; text-transform: uppercase; color: #8a8a8a; }
 </style>
 </head>
 <body>
-  <div class="text">
-    <div class="eyebrow"><i></i>Open to work</div>
-    <h1>Raunak Patil<em>AI Quality Engineer</em></h1>
-    <p>Making AI trustworthy: RAG auditing, LLM evaluation and RLHF. Builder of Ronie, a 3D AI agent, and Radar.</p>
+  <div class="col">
+    <div class="photo"><span><img src="photo.png" alt=""></span></div>
+    <span class="open"><i></i>Open to work</span>
+    <h1>Raunak Patil</h1>
+    <div class="role">AI Quality Engineer</div>
+    <div class="what">LLMs · RAG · AI agents · raunakpatil.com</div>
   </div>
-  <div class="chips"><span class="chip key">raunakpatil.com</span><span class="chip">Nagpur, India</span><span class="chip">MSc Data Science &amp; AI</span></div>
-  <div class="photo"><img src="photo.png" alt=""></div>
+  <canvas id="wave" width="2400" height="148"></canvas>
+  <script>
+    // the dashboard's wave: thin bars in bands of colour round the hue wheel
+    const c = document.getElementById('wave'), x = c.getContext('2d'), W = c.width, H = c.height, n = 15, STEP = 9;
+    const hue = (i) => (((75 - i * (330 / n)) % 360) + 360) % 360;
+    const band = (W - 10 * (n - 1)) / n;
+    for (let i = 0, left = 0; i < n; i++, left += band + 10) {
+      for (let bx = left; bx < left + band - 1; bx += STEP) {
+        const f = (bx - left) / band, wave = 0.5 + 0.5 * Math.sin(f * Math.PI * 2 + i * 1.7);
+        const h = H * (0.25 + 0.75 * wave);
+        x.fillStyle = `hsl(${hue(i) + (hue(i + 1) - hue(i)) * f} 85% 62%)`;
+        x.globalAlpha = 0.85;
+        x.fillRect(bx, H - h, 4, h);
+      }
+    }
+  </script>
 </body>
 </html>
