@@ -1,45 +1,40 @@
 <!doctype html>
 <!-- The site's share image (img/og.png, 1200x630: what a link to raunakpatil.com shows). Rendered by
-     scripts/build-og.mjs. Edit this, then run it again.
-     Everything that matters sits in the middle 630x630 square: chat apps (WhatsApp, Telegram) show only a square cut
-     from the centre, LinkedIn and X the whole card. -->
+     scripts/build-og.mjs. Edit this, then run it again. -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
+  :root {
+    --neu-out: -8px -8px 18px rgba(255, 255, 255, .95), 10px 12px 26px rgba(163, 168, 186, .55);
+    --neu-out-sm: -4px -4px 10px rgba(255, 255, 255, .95), 5px 5px 12px rgba(163, 168, 186, .5);
+    --key: inset 0 1px 1px rgba(255, 255, 255, .18), 0 4px 10px rgba(0, 0, 0, .22);
+  }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { width: 1200px; height: 630px; overflow: hidden; }
-  /* a warm paper white, lit from the middle, the corners a shade deeper */
-  body { position: relative; color: #141414; font-family: "Inter Tight", system-ui, sans-serif; -webkit-font-smoothing: antialiased;
-    background: radial-gradient(70% 95% at 50% 42%, #fbfaf7 0%, #f1efea 62%, #e6e3dc 100%); }
-  /* two fine rings behind the photo, the only ornament */
-  .ring { position: absolute; left: 50%; top: 200px; border-radius: 50%; translate: -50% -50%; border: 1px solid rgba(20, 20, 20, .07); }
-  .ring.a { width: 330px; height: 330px; }
-  .ring.b { width: 470px; height: 470px; border-color: rgba(20, 20, 20, .045); }
-  .col { position: absolute; left: 50%; top: 102px; width: 640px; translate: -50% 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
-  .photo { position: relative; width: 196px; height: 196px; border-radius: 50%; padding: 6px; background: #fff;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, .9) inset, 0 18px 40px -12px rgba(60, 50, 30, .28), 0 0 0 1px rgba(20, 20, 20, .06); }
-  .photo span { display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; }
-  .photo img { width: 100%; height: 100%; object-fit: cover; transform: scale(1.9); transform-origin: 50% 27%; }   /* (close on the face) */
-  .photo b { position: absolute; right: 14px; bottom: 14px; width: 22px; height: 22px; border-radius: 50%; background: #22c55e; border: 4px solid #fff; }   /* (open to work) */
-  h1 { margin-top: 34px; font-weight: 400; font-size: 84px; line-height: 1; letter-spacing: -.035em; }   /* (the site's own page-title type) */
-  .role { margin-top: 16px; font-size: 17px; font-weight: 500; letter-spacing: .32em; text-transform: uppercase; color: #6f6a62; }
-  .rule { width: 56px; height: 1px; margin: 26px 0 22px; background: #c9c3b8; }
-  .foot { display: flex; align-items: center; gap: 14px; font-size: 19px; color: #6f6a62; }
-  .foot i { width: 3px; height: 3px; border-radius: 50%; background: #b5aea3; }
-  .foot .on { display: inline-flex; align-items: center; gap: 8px; color: #1e7a45; }
-  .foot .on::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #22c55e; }
+  body { position: relative; background: #f2f2f2; color: #111; font-family: "Inter Tight", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .text { position: absolute; left: 76px; top: 70px; width: 640px; }
+  .eyebrow { display: flex; align-items: center; gap: 12px; font-family: "JetBrains Mono", monospace; font-size: 18px; letter-spacing: .12em; text-transform: uppercase; color: #8a8a8a; }
+  .eyebrow i { width: 10px; height: 10px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 5px rgba(34, 197, 94, .18); }
+  h1 { margin-top: 30px; font-size: 98px; font-weight: 400; letter-spacing: -.04em; line-height: .98; }
+  h1 em { display: block; font-style: normal; color: #9a9a9a; font-size: 60px; letter-spacing: -.03em; margin-top: 10px; }
+  p { margin-top: 28px; font-size: 27px; line-height: 1.38; color: #555; }
+  .chips { position: absolute; left: 76px; bottom: 64px; display: flex; gap: 12px; }
+  .chip { padding: 13px 22px; border-radius: 999px; background: #fff; font-size: 21px; color: #333; box-shadow: var(--neu-out-sm); }
+  .chip.key { background: #111; color: #fff; box-shadow: var(--key); }
+  /* his photo, raised off the page like the site's ID card */
+  .photo { position: absolute; right: 76px; top: 70px; width: 360px; height: 490px; padding: 12px; border-radius: 34px; background: #fff; box-shadow: var(--neu-out); }
+  .photo img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 20%; border-radius: 24px; }
 </style>
 </head>
 <body>
-  <div class="ring a"></div><div class="ring b"></div>
-  <div class="col">
-    <div class="photo"><span><img src="photo.png" alt=""></span><b></b></div>
-    <h1>Raunak Patil</h1>
-    <div class="role">AI Quality Engineer</div>
-    <div class="rule"></div>
-    <div class="foot"><span class="on">Open to work</span><i></i><span>LLMs, RAG &amp; AI agents</span><i></i><span>raunakpatil.com</span></div>
+  <div class="text">
+    <div class="eyebrow"><i></i>Open to work</div>
+    <h1>Raunak Patil<em>AI Quality Engineer</em></h1>
+    <p>Making AI trustworthy: RAG auditing, LLM evaluation and RLHF. Builder of Ronie, a 3D AI agent, and Radar.</p>
   </div>
+  <div class="chips"><span class="chip key">raunakpatil.com</span><span class="chip">Nagpur, India</span><span class="chip">MSc Data Science &amp; AI</span></div>
+  <div class="photo"><img src="photo.png" alt=""></div>
 </body>
 </html>
