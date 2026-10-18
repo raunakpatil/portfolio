@@ -7,6 +7,7 @@ name: Refresh Radar
 on:
   schedule:
     - cron: '17 3 * * 1,4'
+    - cron: '20 0 1 * *'   # and as each month begins, so the lists' titles carry the new month ("Best AI video tools in November 2026")
   workflow_dispatch:
 permissions:
   contents: write

@@ -26,10 +26,12 @@
       d.classList.add('js');
       var ronie = /^\/ronie\/?$/.test(location.pathname) || location.hash === '#assistant';
       var calm = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
-      d.classList.add(ronie || calm ? 'no-intro' : 'intro-on');
+      // (nor for someone sent on from one of Radar's list pages to a tool, ?open=: they go straight to it)
+      var handed = /[?&]open=/.test(location.search);
+      d.classList.add(ronie || calm || handed ? 'no-intro' : 'intro-on');
     })();
   </script>
-  <link rel="stylesheet" href="css/style.css?v=20261018093834">
+  <link rel="stylesheet" href="css/style.css?v=20261018095314">
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -423,7 +425,7 @@
     </div>
   </dialog>
 
-  <script src="js/data.js?v=20261018093834"></script>
-  <script src="js/main.js?v=20261018093834" defer></script>
+  <script src="js/data.js?v=20261018095314"></script>
+  <script src="js/main.js?v=20261018095314" defer></script>
 </body>
 </html>

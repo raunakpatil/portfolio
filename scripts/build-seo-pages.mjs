@@ -42,7 +42,7 @@ const take = (list, make) => list.map(make).filter((t) => {
   return true;
 });
 const gh = take(C.gh || [], ([n, full, d, stars, c, oid, rel]) => ({ n, u: `https://github.com/${full}`, d: undash(d), c, p: 'open', src: 'gh', pop: stars, oid, by: full.split('/')[0], full, rel }));
-const hf = take(C.hf || [], ([n, id, d, likes, c, emoji, from, to, rel]) => ({ n, u: `https://huggingface.co/spaces/${id}`, d: undash(d), c, p: 'free', src: 'hf', pop: likes, emoji, by: id.split('/')[0], full: id, rel }));
+const hf = take(C.hf || [], ([n, id, d, likes, c, emoji, from, to, rel]) => ({ n, u: `https://huggingface.co/spaces/${id}`, d: undash(d), c, p: 'free', src: 'hf', pop: likes, emoji, from, to, by: id.split('/')[0], full: id, rel }));
 const ph = take(C.ph || [], ([n, s, d, votes, c, thumb, p, link, rel]) => ({ n, u: link, d: undash(d), c, p: p || 'na', src: 'ph', pop: votes, thumb, slug: s, rel }));
 const catalogue = [...gh, ...hf, ...ph].filter((t) => CATS[t.c] && t.d);
 const all = [...curated, ...catalogue];
@@ -119,29 +119,63 @@ const catLink = (c) => `/ai-tools/${CAT_PAGE[c].s}`;
 // (a category's name inside a sentence: lower case, but AI and 3D stay as they are)
 const lowH = (c) => CAT_PAGE[c].h.toLowerCase().replace(/\bai\b/g, 'AI').replace(/\b3d\b/g, '3D');
 
-// ---------- the page around the content ----------
+// ---------- the page around the content: the site's own top bar and title, Radar's views and search bar, and its
+// tool cards (css/style.css, the same file the site uses; css/pages.css adds the little these pages need). Whatever a
+// visitor does goes on into Radar: the search asks Radar, the views open them there, and a tool opens on Radar
+// turned over to what it does, among the ones like it (search engines follow the same links to the pages here).
+const GRAD = { red: '#fda4af', yellow: '#fde68a', green: '#86efac', blue: '#93c5fd', indigo: '#a5b4fc', purple: '#d8b4fe', pink: '#f9a8d4', gray: '#e5e7eb' };
+const MARK = '<svg class="tl-mark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle class="in" cx="12" cy="12" r="4.6"/><path class="sweep" d="M12 12 18.4 5.6"/><circle class="blip" cx="15.6" cy="15.2" r="1.4"/></svg>';
+const HEART = '<svg class="tl-heart" viewBox="0 0 24 24" aria-label="love" role="img"><path d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2z"/></svg>';
 const icon = (t) => {
-  if (t.src === 'pick') return t.icon === false ? `<span class="pg-ic" data-l="${esc(t.n[0])}"></span>` : `<span class="pg-ic" data-l="${esc(t.n[0])}"><img src="/img/tools/${slug(t.n)}.webp" alt="" width="40" height="40" loading="lazy" onerror="this.remove()"${t.full ? ' class="av"' : ''}></span>`;
-  if (t.src === 'gh') return `<span class="pg-ic" data-l="${esc(t.n[0])}"><img class="av" src="https://avatars.githubusercontent.com/u/${t.oid}?s=80" alt="" width="40" height="40" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()"></span>`;
-  if (t.src === 'hf') return `<span class="pg-ic emo">${esc([...(t.emoji || '🤗')][0])}</span>`;
-  return `<span class="pg-ic" data-l="${esc(t.n[0])}">${t.thumb ? `<img class="av" src="${esc(t.thumb)}&w=80&h=80&fit=crop" alt="" width="40" height="40" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span>`;
+  if (t.src === 'gh') return `<span class="tool-icon" data-l="${esc(t.n[0])}"><img class="av" src="https://avatars.githubusercontent.com/u/${+t.oid}?s=64&amp;v=4" alt="" loading="lazy" width="64" height="64" onerror="this.remove()"></span>`;
+  if (t.src === 'hf') return `<span class="tool-icon emo" style="--g1:${GRAD[t.from] || GRAD.gray};--g2:${GRAD[t.to] || GRAD.gray}">${esc([...(t.emoji || '🤗')][0])}</span>`;
+  if (t.src === 'ph') {
+    const src = /^https:\/\//.test(t.thumb || '') ? `${t.thumb.split('?')[0]}?auto=format&fit=crop&w=96&h=96` : '';
+    return `<span class="tool-icon" data-l="${esc(t.n[0])}">${src ? `<img class="av" src="${esc(src)}" alt="" loading="lazy" width="64" height="64" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}</span>`;
+  }
+  return `<span class="tool-icon" data-l="${esc(t.n[0])}">${t.icon === false ? '' : `<img${t.full ? ' class="av"' : ''} src="/img/tools/${slug(t.n)}.webp" alt="" loading="lazy" width="64" height="64" onerror="this.remove()">`}</span>`;
 };
-const nameLink = (t) => (t.page ? `<a href="${t.page}">${esc(t.n)}</a>` : `<a href="${esc(t.u)}" rel="noopener nofollow" target="_blank">${esc(t.n)}</a>`);
-const row = (t, k) => `<li class="pg-row">${k != null ? `<span class="pg-n">${k}</span>` : ''}${icon(t)}<span class="pg-t"><b>${nameLink(t)}</b><span>${esc(t.d)}</span></span><span class="pg-m">${esc(t.src === 'pick' ? PRICE[t.p] : t.src === 'gh' ? `★ ${fmt(t.pop)}` : t.src === 'hf' ? `♥ ${fmt(t.pop)}` : `▲ ${fmt(t.pop)}`)}</span></li>`;
-const list = (items, numbered = true, from = 1) => `<ol class="pg-list">${items.map((t, k) => row(t, numbered ? from + k : null)).join('')}</ol>`;
+// (a tool on Radar: found by its name, its card turned over — radar.js reads ?open=)
+const onRadar = (t) => `/radar?q=${encodeURIComponent(t.n.toLowerCase())}&open=${encodeURIComponent(t.n)}`;
+const short = (n) => (n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(n >= 1e4 ? 0 : 1)}k` : String(n));
+const card = (t, { rank, when } = {}) => {
+  const pop = t.src === 'gh' ? `<span class="tool-pop" title="${fmt(t.pop)} stars on GitHub">★ ${short(t.pop)}</span>`
+    : t.src === 'hf' ? `<span class="tool-pop" title="${fmt(t.pop)} likes on Hugging Face">♥ ${short(t.pop)}</span>`
+    : t.src === 'ph' ? `<span class="tool-pop" title="${fmt(t.pop)} upvotes on Product Hunt">▲ ${short(t.pop)}</span>` : '';
+  const by = t.src === 'ph' ? 'Product Hunt' : t.by ? `${t.src === 'gh' ? 'GitHub' : 'Hugging Face'} · ${t.by}` : '';
+  const line = [by, when].filter(Boolean).join(' · ');
+  return `<div class="tool-card"><div class="tool tool-front${t.src === 'pick' ? '' : ' cat'}">
+      <span class="tool-top">${icon(t)}<span class="tool-flags">${rank ? `<span class="tool-rank">${String(rank).padStart(2, '0')}</span>` : ''}${t.uses ? `<span class="tool-uses">${esc(t.uses)}</span>` : ''}${t.pick ? '<span class="tool-pick" title="One of Raunak\'s picks">★</span>' : ''}${pop}<a class="tool-go" href="${esc(t.u)}" target="_blank" rel="noopener${t.src === 'pick' ? '' : ' nofollow'}" aria-label="Open ${esc(t.n)} (${esc(host(t.u))})" title="Open ${esc(host(t.u))}">↗</a></span></span>
+      <h3><a class="pg-open" href="${t.page || onRadar(t)}" data-radar="${esc(onRadar(t))}">${esc(t.n)}</a></h3>
+      ${line ? `<span class="tool-by">${esc(line)}</span>` : ''}
+      <p>${esc(t.d)}</p>
+      <span class="tool-bot"><span class="tool-cat">${esc(CATS[t.c])}</span><span class="tool-price"><span class="tl-dot p-${t.p}"></span>${PRICE_TAG[t.p] || 'Price on site'}</span></span>
+    </div></div>`;
+};
+const PRICE_TAG = { free: 'Free', freemium: 'Freemium', paid: 'Paid', open: 'Open source' };
+const grid = (items, opts = {}) => `<div class="tl-grid">${items.map((t, k) => card(t, { rank: opts.ranked ? k + 1 : 0, when: opts.when ? opts.when(t) : '' })).join('')}</div>`;
+const sec = (h, sub) => `<div class="tl-sec-head pg-sec"><h2>${h}</h2>${sub ? `<span>${sub}</span>` : ''}</div>`;
+const more = (href, text) => `<a class="tl-pill pg-more" href="${href}">${text} →</a>`;
 
-const NAV = `<header class="pg-bar"><a class="pg-brand" href="/">Raunak Patil</a><nav aria-label="Site"><a href="/">Dashboard</a><a href="/#projects">Projects</a><a href="/#library">Library</a><a class="on" href="/radar">Radar</a></nav></header>`;
-const FOOT = `<footer class="pg-foot">
-  <nav aria-label="AI tools by category"><b>Best AI tools by category</b>${Object.keys(CATS).map((c) => `<a href="${catLink(c)}">${esc(CAT_PAGE[c].h)}</a>`).join('')}</nav>
-  <nav aria-label="Collections"><b>Collections</b><a href="/ai-tools/top-50">Top 50 AI tools</a><a href="/ai-tools/new-ai-tools">New AI tools</a><a href="/ai-tools/free-ai-tools">Free AI tools</a><a href="/ai-tools/open-source-ai-tools">Open-source AI tools</a><a href="/ai-tools/">All of Radar's lists</a></nav>
-  <p>Radar is kept by <a href="/">Raunak Patil</a> and updated every week from his hand-picked list, GitHub, Hugging Face and Product Hunt. Last updated ${day(TODAY)}.</p>
-</footer>`;
+// the views and the search box, as on Radar: each goes on to Radar itself
+const VIEWS = [['all', 'Browse all tools', `Search all ${fmt(all.length)} in the directory`, '/radar'], ['top', 'Top 50 AI tools', 'What Raunak recommends right now', '/radar?view=top'], ['new', 'New releases', 'The latest releases', '/radar?view=new']];
+const head = (title, view) => `<div class="tl-dir-head pg-head">
+      <h1 class="page-title">${title}</h1>
+      <nav class="tl-views" aria-label="Radar's views">${VIEWS.map(([k, t, s, u]) => `<a href="${u}"${k === view ? ' class="on" aria-current="page"' : ''}><span class="tl-view-t">${t}</span><small>${s}</small></a>`).join('')}</nav>
+    </div>`;
+const searchBar = (placeholder = `Search ${fmt(all.length)} AI tools, or ask Radar what you need`) => `<form class="tl-search pg-search" action="/radar" method="get" role="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>
+      <input name="q" type="search" placeholder="${esc(placeholder)}" aria-label="Search AI tools, or describe what you need and ask Radar" autocomplete="off" spellcheck="false" required>
+      <button type="submit" class="tl-ask" name="ask" value="1" aria-label="Ask Radar" title="Ask Radar: describe what you need">${MARK}<span>Ask Radar</span></button>
+    </form>`;
+// (the categories as raised chips, the one this page is about pressed in)
+const catChips = (on) => `<nav class="chips pg-chips" aria-label="AI tools by category"><a class="chip${on === 'hub' ? ' on' : ''}" href="/ai-tools/"${on === 'hub' ? ' aria-current="page"' : ''}>All lists</a>${Object.keys(CATS).map((c) => `<a class="chip${on === c ? ' on' : ''}" href="${catLink(c)}"${on === c ? ' aria-current="page"' : ''}>${esc(CATS[c])}<b>${fmt(catSize(c))}</b></a>`).join('')}</nav>`;
 const crumbs = (trail) => ({
   html: `<nav class="pg-crumbs" aria-label="Breadcrumb">${trail.map(([n, u], k) => (k < trail.length - 1 ? `<a href="${u}">${esc(n)}</a><i>/</i>` : `<span>${esc(n)}</span>`)).join('')}</nav>`,
   ld: { '@type': 'BreadcrumbList', itemListElement: trail.map(([n, u], k) => ({ '@type': 'ListItem', position: k + 1, name: n, item: SITE + u })) },
 });
 const pages = [];
-function page({ path, title, desc, h1, sub, body, ld = [], trail, prio = 0.6 }) {
+function page({ path, title, desc, body, ld = [], trail, prio = 0.6 }) {
   const c = crumbs(trail);
   const graph = { '@context': 'https://schema.org', '@graph': [c.ld, ...ld] };
   const html = `<!doctype html>
@@ -162,54 +196,84 @@ function page({ path, title, desc, h1, sub, body, ld = [], trail, prio = 0.6 }) 
   <meta name="twitter:card" content="summary_large_image">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
   <link rel="icon" href="/favicon.svg?v=2" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico?v=2" sizes="32x32">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2">
+  <link rel="stylesheet" href="/css/style.css${V ? `?v=${V}` : ''}">
   <link rel="stylesheet" href="/css/pages.css${V ? `?v=${V}` : ''}">
   <script type="application/ld+json">${JSON.stringify(graph).replace(/</g, '\\u003c')}</script>
 </head>
-<body>
-${NAV}
-<main class="pg">
-  ${c.html}
-  <h1>${h1}</h1>
-  ${sub ? `<p class="pg-sub">${sub}</p>` : ''}
-  ${body}
-</main>
-${FOOT}
+<body class="pg-page">
+  <header class="topbar">
+    <a class="brand" href="/"><span class="brand-full">Raunak Patil</span><span class="brand-short">RP</span></a>
+    <nav class="tabs" aria-label="Main">
+      <span class="tabs-indicator" aria-hidden="true"></span>
+      <a href="/#dashboard">Dashboard</a>
+      <a href="/#projects">Projects</a>
+      <a href="/#library">Library</a>
+      <a href="/radar" class="active">Radar</a>
+    </nav>
+    <span></span>
+  </header>
+  <main>
+    <section class="tl pg-body">
+      ${c.html}
+      ${body}
+      <p class="tl-foot">Built with ${HEART} by Raunak Patil · updated ${esc(day(TODAY))}</p>
+    </section>
+  </main>
+  <script>
+    // the black pill under the Radar tab, as on the site; and a tool opens on Radar itself, turned over
+    (function () {
+      var a = document.querySelector('.tabs a.active'), i = document.querySelector('.tabs-indicator');
+      function place() { i.style.width = a.offsetWidth + 'px'; i.style.transform = 'translateX(' + a.offsetLeft + 'px)'; }
+      i.style.transition = 'none'; place(); addEventListener('resize', place);
+      if (document.fonts) document.fonts.ready.then(place);
+      // (on a phone the categories are a row you swipe along: it starts at the one this page is about)
+      var on = document.querySelector('.pg-chips .chip.on');
+      if (on) on.parentNode.scrollLeft = on.offsetLeft - on.parentNode.offsetLeft - 10;
+      document.addEventListener('click', function (e) {
+        var l = e.target.closest && e.target.closest('a[data-radar]');
+        if (!l || e.defaultPrevented || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        e.preventDefault(); location.href = l.getAttribute('data-radar');
+      });
+    })();
+  </script>
 </body>
 </html>
 `;
   pages.push({ path, html, prio });
 }
 const itemList = (name, items) => ({ '@type': 'ItemList', name, numberOfItems: items.length, itemListElement: items.map((t, k) => ({ '@type': 'ListItem', position: k + 1, name: t.n, url: t.page ? SITE + t.page : t.u })) });
-const cta = (href, text) => `<a class="pg-btn" href="${href}">${text}</a>`;
+const intro = (html) => `<p class="pg-sub">${html}</p>`;
+const count = (html) => `<p class="tl-count">${html}</p>`;
 const HUB = ['Radar', '/radar'], AT = ['AI tools', '/ai-tools/'];
 
 // ---------- category pages ----------
 for (const c of Object.keys(CATS)) {
   const P = CAT_PAGE[c], list1 = ranked[c].filter((t) => t.src === 'pick');
-  const extra = (s) => ranked[c].filter((t) => t.src === s).slice(0, 10);
-  const freeOnes = list1.filter((t) => ['free', 'freemium', 'open'].includes(t.p)).slice(0, 3);
+  const extra = (s) => ranked[c].filter((t) => t.src === s).slice(0, 8);
   const sections = [
-    ['gh', `Popular open-source ${lowH(c)} on GitHub`, 'By stars on GitHub.'],
-    ['hf', 'Apps to try in the browser, on Hugging Face Spaces', 'By likes on Hugging Face.'],
-    ['ph', 'Launched on Product Hunt', 'By upvotes on Product Hunt.'],
+    ['gh', `Popular open-source ${lowH(c)}`, 'on GitHub, by stars'],
+    ['hf', 'To try in the browser', 'on Hugging Face Spaces, by likes'],
+    ['ph', 'Launched on Product Hunt', 'by upvotes'],
   ].filter(([s]) => extra(s).length);
   page({
     path: catLink(c),
     title: `Best ${P.h} in ${YEAR}, ranked | Radar`,
     desc: `The best ${lowH(c)} in ${MONTH}: ${list1.slice(0, 4).map((t) => t.n).join(', ')} and more, ranked, with prices. ${P.intro}`,
-    h1: `Best ${esc(P.h)} <em>in ${esc(MONTH)}</em>`,
-    sub: `${esc(P.intro)} Below are the ${list1.length} that Raunak picked, in Radar's order, then the most popular of the other ${fmt(catSize(c) - list1.length)} in this category on Radar.`,
     trail: [HUB, AT, [P.h, catLink(c)]],
     prio: 0.9,
     ld: [itemList(`Best ${P.h}`, list1)],
-    body: `${list(list1)}
-  ${freeOnes.length ? `<p class="pg-note">Free to start: ${freeOnes.map(nameLink).join(', ')}${freeOnes.length > 1 ? ' all have' : ' has'} a free plan or ${freeOnes.length > 1 ? 'are' : 'is'} free outright.</p>` : ''}
-  ${sections.map(([s, h, by]) => `<h2>${esc(h)}</h2><p class="pg-by">${by}</p>${list(extra(s), false)}`).join('\n  ')}
-  <div class="pg-ctas">${cta(`/radar?cat=${c}`, `Browse all ${fmt(catSize(c))} on Radar`)}${cta('/radar?ask=1', 'Ask Radar what you need')}</div>`,
+    body: `${head(`Best ${esc(lowH(c))}`, '')}
+      ${intro(`${esc(P.intro)} The ${list1.length} Raunak picked, in Radar's order, then the most popular of the other ${fmt(catSize(c) - list1.length)}. Updated for ${esc(MONTH)}.`)}
+      <div class="tl-bar pg-bar">${searchBar(`Search ${fmt(catSize(c))} ${lowH(c)}, or ask Radar what you need`)}</div>
+      ${catChips(c)}
+      ${count(`${list1.length} hand-picked · ${fmt(catSize(c))} on Radar · <a class="tl-count-page" href="/radar?cat=${c}">See them all on Radar →</a>`)}
+      ${grid(list1, { ranked: true })}
+      ${sections.map(([s, h, by]) => `${sec(esc(h), by)}${grid(extra(s))}`).join('\n      ')}
+      ${more(`/radar?cat=${c}`, `Browse all ${fmt(catSize(c))} ${lowH(c)} on Radar`)}`,
   });
 }
 
@@ -218,24 +282,31 @@ page({
   path: '/ai-tools/top-50',
   title: `Top 50 AI tools right now (${MONTH}) | Radar`,
   desc: `The 50 AI tools worth knowing in ${MONTH}, from ${top.slice(0, 5).map((t) => t.n).join(', ')} to the best for video, voice, music and code. Picked by hand and kept current.`,
-  h1: `Top 50 AI tools <em>right now</em>`,
-  sub: 'The fifty Raunak recommends, across every kind of work, in his order. Each links to what it does, what it costs and its alternatives.',
   trail: [HUB, AT, ['Top 50', '/ai-tools/top-50']],
   prio: 0.9,
   ld: [itemList('Top 50 AI tools', top)],
-  body: `${list(top.map((t) => paged.find((x) => x.src === 'pick' && x.i === t.i)))}<div class="pg-ctas">${cta('/radar?view=top', 'See the Top 50 on Radar')}</div>`,
+  body: `${head('Top 50 AI tools', 'top')}
+      ${intro(`The fifty Raunak recommends in ${esc(MONTH)}, across every kind of work, in his order.`)}
+      <div class="tl-bar pg-bar">${searchBar()}</div>
+      ${catChips('')}
+      ${count(`Raunak's top ${top.length} · ${esc(day(TODAY))} · <a class="tl-count-page" href="/radar?view=top">See the Top 50 on Radar →</a>`)}
+      ${grid(top, { ranked: true })}
+      ${more('/radar?view=top', 'Open the Top 50 on Radar')}`,
 });
 const freeCur = curated.filter((t) => ['free', 'freemium', 'open'].includes(t.p));
 page({
   path: '/ai-tools/free-ai-tools',
   title: `Free AI tools: ${freeCur.length} that cost nothing to start (${YEAR}) | Radar`,
   desc: `${freeCur.length} hand-picked AI tools that are free, have a free plan, or are open source, in every category: chat, coding, images, video, voice, music and more.`,
-  h1: 'Free AI tools <em>by category</em>',
-  sub: `${freeCur.length} of Radar's hand-picked tools you can start with for free: free outright, with a free plan, or open source.`,
   trail: [HUB, AT, ['Free AI tools', '/ai-tools/free-ai-tools']],
   prio: 0.8,
   ld: [itemList('Free AI tools', freeCur)],
-  body: Object.keys(CATS).map((c) => { const l = ranked[c].filter((t) => t.src === 'pick' && freeCur.includes(curated[t.i])); return l.length ? `<h2><a href="${catLink(c)}">${esc(CAT_PAGE[c].h)}</a></h2>${list(l, false)}` : ''; }).join('\n  ') + `<div class="pg-ctas">${cta('/radar?price=free', 'Free tools on Radar')}</div>`,
+  body: `${head('Free AI tools', '')}
+      ${intro(`${freeCur.length} of Radar's hand-picked tools you can start with for free: free outright, with a free plan, or open source. Updated for ${esc(MONTH)}.`)}
+      <div class="tl-bar pg-bar">${searchBar('Search free AI tools, or ask Radar what you need')}</div>
+      ${catChips('')}
+      ${Object.keys(CATS).map((c) => { const l = ranked[c].filter((t) => t.src === 'pick' && freeCur.includes(t)); return l.length ? `${sec(`<a href="${catLink(c)}">${esc(CATS[c])}</a>`, `${l.length} free to start`)}${grid(l)}` : ''; }).join('\n      ')}
+      ${more('/radar?price=free', 'All the free tools on Radar')}`,
 });
 const openCur = curated.filter((t) => t.p === 'open');
 const openGh = gh.filter((t) => CATS[t.c]).sort((a, b) => b.pop - a.pop).slice(0, 60);
@@ -243,48 +314,57 @@ page({
   path: '/ai-tools/open-source-ai-tools',
   title: `Open-source AI tools: the best on GitHub (${MONTH}) | Radar`,
   desc: `Open-source AI you can run, read and change: ${openCur.slice(0, 4).map((t) => t.n).join(', ')}, and the ${openGh.length} most-starred AI projects on GitHub right now.`,
-  h1: 'Open-source AI tools',
-  sub: `The open-source tools Raunak picked, then the ${openGh.length} most-starred AI projects on GitHub, refreshed every week.`,
   trail: [HUB, AT, ['Open-source AI tools', '/ai-tools/open-source-ai-tools']],
   prio: 0.8,
   ld: [itemList('Open-source AI tools', [...openCur, ...openGh])],
-  body: `<h2>Hand-picked</h2>${list(openCur.map((t) => paged.find((x) => x.src === 'pick' && x.i === t.i)), false)}<h2>Most-starred on GitHub</h2>${list(openGh)}<div class="pg-ctas">${cta('/radar?src=gh', 'All open-source projects on Radar')}</div>`,
+  body: `${head('Open-source AI tools', '')}
+      ${intro(`The open-source tools Raunak picked, then the ${openGh.length} most-starred AI projects on GitHub in ${esc(MONTH)}, refreshed every week.`)}
+      <div class="tl-bar pg-bar">${searchBar('Search open-source AI, or ask Radar what you need')}</div>
+      ${catChips('')}
+      ${sec('Hand-picked', `${openCur.length} open source`)}${grid(openCur)}
+      ${sec('Most-starred on GitHub', 'right now')}${grid(openGh, { ranked: true })}
+      ${more('/radar?src=gh', `All ${fmt(gh.length)} open-source projects on Radar`)}`,
 });
 const AI_WORDS = /\b(ai|llms?|gpt[\w.-]*|agents?|agentic|models?|neural|ml|machine learning|deep learning|diffusion|transformers?|rag|embeddings?|chatbots?|vision|speech|tts|asr|stt|generative|prompts?|copilot|openai|anthropic|claude|gemini|llama|mistral|qwen|deepseek|ollama|langchain|inference|nlp|mcp|ocr|text-to-\w+|image-to-\w+|voice|lora|fine-?tun\w*|multimodal|reasoning|semantic)\b/i;
 const fresh = catalogue.filter((t) => t.rel && NOW - Date.parse(t.rel) < 90 * 864e5 && t.d.length >= 24 && (t.src === 'gh' ? AI_WORDS.test(`${t.n} ${t.d}`) : t.src === 'hf' ? t.pop >= 50 : true))
   .sort((a, b) => b.rel.localeCompare(a.rel) || b.pop - a.pop).slice(0, 80);
+const relDay = (t) => new Date(t.rel).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 page({
   path: '/ai-tools/new-ai-tools',
   title: `New AI tools: the latest releases (${MONTH}) | Radar`,
   desc: `The newest AI tools, newest first: open-source projects, Hugging Face apps and Product Hunt launches from the last 90 days, refreshed every week. Latest: ${fresh.slice(0, 3).map((t) => t.n).join(', ')}.`,
-  h1: `New AI tools <em>this week</em>`,
-  sub: `The ${fresh.length} newest on Radar from the last 90 days, newest first, from GitHub, Hugging Face and Product Hunt. Updated ${day(TODAY)}.`,
   trail: [HUB, AT, ['New AI tools', '/ai-tools/new-ai-tools']],
   prio: 0.9,
   ld: [itemList('New AI tools', fresh)],
-  body: `<ol class="pg-list">${fresh.map((t) => row(t, null).replace('<span class="pg-m">', `<span class="pg-m"><time datetime="${t.rel}">${esc(new Date(t.rel).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }))}</time> · `)).join('')}</ol><div class="pg-ctas">${cta('/radar?view=new', 'New releases on Radar')}</div>`,
+  body: `${head('New AI tools', 'new')}
+      ${intro(`The ${fresh.length} newest on Radar from the last 90 days, newest first, from GitHub, Hugging Face and Product Hunt. Updated ${esc(day(TODAY))}.`)}
+      <div class="tl-bar pg-bar">${searchBar()}</div>
+      ${catChips('')}
+      ${count(`${fresh.length} new · newest first · <a class="tl-count-page" href="/radar?view=new">All new releases on Radar →</a>`)}
+      ${grid(fresh, { when: relDay })}
+      ${more('/radar?view=new', 'Open the new releases on Radar')}`,
 });
 
 // ---------- alternatives to each of the Top 50 (not to his own projects) ----------
 const altOf = new Map();
-for (const t0 of top.filter((t) => !t.mine)) {
-  const t = paged.find((x) => x.src === 'pick' && x.i === t0.i);
-  const alts = ranked[t.c].filter((x) => x !== t && !x.mine).slice(0, 14);
+for (const t of top.filter((x) => !x.mine)) {
+  const alts = ranked[t.c].filter((x) => x !== t && !x.mine).slice(0, 16);
   const path = `/ai-tools/alternatives/${slug(t.n)}`;
   altOf.set(t, path);
-  const freeAlts = alts.filter((x) => ['free', 'freemium', 'open'].includes(x.p)).slice(0, 3);
   page({
     path,
     title: `Best ${t.n} alternatives in ${YEAR} (${alts.length} compared) | Radar`,
     desc: `Looking for something other than ${t.n}? ${alts.slice(0, 4).map((x) => x.n).join(', ')} and more ${lowH(t.c)}, compared by what they do and what they cost.`,
-    h1: `${esc(t.n)} alternatives`,
-    sub: `${esc(t.n)}: ${esc(t.d)} If it isn't quite right, here are ${alts.length} other ${esc(lowH(t.c))} from Radar, in Radar's order.`,
     trail: [HUB, AT, [CAT_PAGE[t.c].h, catLink(t.c)], [`${t.n} alternatives`, path]],
     prio: 0.8,
     ld: [itemList(`${t.n} alternatives`, alts)],
-    body: `${list(alts)}
-  ${freeAlts.length ? `<p class="pg-note">Free to start: ${freeAlts.map(nameLink).join(', ')}.</p>` : ''}
-  <div class="pg-ctas">${cta(t.page, `About ${esc(t.n)}`)}${cta(catLink(t.c), `All ${esc(lowH(t.c))}`)}</div>`,
+    body: `${head(`${esc(t.n)} alternatives`, '')}
+      ${intro(`${esc(t.n)}: ${esc(t.d)} If it isn't quite right, here are ${alts.length} other ${esc(lowH(t.c))}, in Radar's order, for ${esc(MONTH)}.`)}
+      <div class="tl-bar pg-bar">${searchBar(`Tools like ${t.n}: describe what you need, and ask Radar`)}</div>
+      ${catChips(t.c)}
+      ${count(`${alts.length} alternatives · <a class="tl-count-page" href="${esc(onRadar(t))}" data-radar="${esc(onRadar(t))}">${esc(t.n)} on Radar →</a>`)}
+      ${grid(alts, { ranked: true })}
+      ${more(`/radar?cat=${t.c}`, `All ${fmt(catSize(t.c))} ${lowH(t.c)} on Radar`)}`,
   });
 }
 
@@ -292,28 +372,31 @@ for (const t0 of top.filter((t) => !t.mine)) {
 const badge = (t) => {
   const snip = `<a href="${SITE}${t.page}"><img src="${SITE}/img/badges/listed-on-radar.svg" alt="${esc(t.n)} is listed on Radar" height="40"></a>`;
   return `<details class="pg-own"><summary>Make ${esc(t.n)}? Show it's listed on Radar</summary>
-    <p>Add this badge to your site or README. It links to this page.</p>
-    <img src="/img/badges/listed-on-radar.svg" alt="Listed on Radar" width="168" height="40">
-    <pre><code>${esc(snip)}</code></pre>
-    <pre><code>${esc(`[![Listed on Radar](${SITE}/img/badges/listed-on-radar.svg)](${SITE}${t.page})`)}</code></pre>
-  </details>`;
+        <p>Add this badge to your site or README. It links to this page.</p>
+        <img src="/img/badges/listed-on-radar.svg" alt="Listed on Radar" width="168" height="40">
+        <pre><code>${esc(snip)}</code></pre>
+        <pre><code>${esc(`[![Listed on Radar](${SITE}/img/badges/listed-on-radar.svg)](${SITE}${t.page})`)}</code></pre>
+      </details>`;
 };
 
-// ---------- a page per tool ----------
+// ---------- a page per tool: its card turned over, big, then the ones like it ----------
 const APP_CAT = { chat: 'CommunicationApplication', research: 'ReferenceApplication', code: 'DeveloperApplication', agents: 'BusinessApplication', image: 'MultimediaApplication', video: 'MultimediaApplication', voice: 'MultimediaApplication', music: 'MultimediaApplication', writing: 'BusinessApplication', work: 'BusinessApplication', design: 'DesignApplication', build: 'DeveloperApplication' };
+const KICK = (t) => (t.mine ? 'Built by Raunak' : t.src === 'pick' ? (t.pick ? `★ Raunak's top ${top.length} · No. ${top.indexOf(t) + 1}` : 'Hand-picked by Raunak')
+  : t.src === 'gh' ? 'Open-source project' : t.src === 'ph' ? `Product Hunt launch · ▲ ${fmt(t.pop)}` : 'Hugging Face Space');
 function toolPages() {
   for (const t of paged) {
     const list0 = ranked[t.c], at0 = t.rank - 1;
-    const from = Math.max(0, Math.min(at0 - 3, list0.length - 7));
-    const like = list0.slice(from, from + 7).filter((x) => x !== t).slice(0, 6);
+    const from = Math.max(0, Math.min(at0 - 4, list0.length - 9));
+    const like = list0.slice(from, from + 9).filter((x) => x !== t).slice(0, 8);
     const plain = kept[keyFor(t)] ? undash(kept[keyFor(t)]) : '';
+    const rel = t.src === 'pick' ? '' : ' nofollow';
     const facts = [
-      ['What it costs', esc(PRICE_LONG[t.p] || PRICE_LONG.na)],
+      ['Get it', esc(PRICE_LONG[t.p] || PRICE_LONG.na)],
       ['Category', `<a href="${catLink(t.c)}">${esc(CATS[t.c])}</a>`],
-      ['On Radar', esc(FROM(t))],
       ['Ranks', `No. ${fmt(t.rank)} of ${fmt(catSize(t.c))} in ${esc(CATS[t.c])}`],
       t.rel ? ['Released', esc(day(t.rel))] : null,
-      ['Website', `<a href="${esc(t.u)}" rel="noopener${t.src === 'pick' ? '' : ' nofollow'}" target="_blank">${esc(host(t.u))}${t.full ? ` · ${esc(t.full)}` : ''} ↗</a>`],
+      ['On Radar', esc(FROM(t))],
+      ['Website', `<a href="${esc(t.u)}" rel="noopener${rel}" target="_blank">${esc(host(t.u))}${t.full ? ` · ${esc(t.full)}` : ''}</a>`],
     ].filter(Boolean);
     const alt = altOf.get(t);
     const ld = { '@type': 'SoftwareApplication', name: t.n, description: plain || t.d, applicationCategory: APP_CAT[t.c] || 'Application', url: t.u, ...(['free', 'open'].includes(t.p) ? { offers: { '@type': 'Offer', price: 0, priceCurrency: 'USD' } } : {}) };
@@ -321,43 +404,62 @@ function toolPages() {
       path: t.page,
       title: `${t.n}: what it is, price and alternatives | Radar`,
       desc: `${plain || t.d} ${PRICE_LONG[t.p] || ''}. Similar: ${like.slice(0, 3).map((x) => x.n).join(', ')}.`,
-      h1: `${icon(t)}${esc(t.n)}`,
-      sub: esc(t.d),
       trail: [HUB, AT, [CAT_PAGE[t.c].h, catLink(t.c)], [t.n, t.page]],
       prio: t.src === 'pick' ? 0.7 : 0.5,
       ld: [ld],
-      body: `${plain ? `<p class="pg-plain"><b>In plain words</b>${esc(plain)}</p>` : ''}
-  <dl class="pg-facts">${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
-  <div class="pg-ctas"><a class="pg-btn key" href="${esc(t.u)}" rel="noopener${t.src === 'pick' ? '' : ' nofollow'}" target="_blank">Open ${esc(host(t.u))} ↗</a>${cta(`/radar?q=${encodeURIComponent(t.n.toLowerCase())}`, 'See it on Radar')}${alt ? cta(alt, `${esc(t.n)} alternatives`) : ''}</div>
-  <h2>Similar ${esc(lowH(t.c))}</h2>
-  ${list(like, false)}
-  ${badge(t)}`,
+      body: `${head(`${icon(t)}<span>${esc(t.n)}</span>`, '').replace('class="page-title"', 'class="page-title pg-tool-title"')}
+      <article class="card tl-lead pg-turned">
+        <span class="tool-back-kicker">${esc(KICK(t))}</span>
+        <p class="pg-turned-d">${esc(t.d)}</p>
+        ${plain ? `<p class="pg-turned-plain"><b>In plain words</b>${esc(plain)}</p>` : ''}
+        <dl>${facts.map(([k, v]) => `<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+        <div class="pg-turned-go">
+          <a class="tl-read" href="${esc(onRadar(t))}" data-radar="${esc(onRadar(t))}">See it on Radar <b>→</b></a>
+          <a class="pg-dark-pill" href="${esc(t.u)}" rel="noopener${rel}" target="_blank">Open ${esc(host(t.u))} ↗</a>
+          ${alt ? `<a class="pg-dark-pill" href="${alt}">${esc(t.n)} alternatives</a>` : ''}
+        </div>
+      </article>
+      <div class="tl-bar pg-bar">${searchBar(`Tools like ${t.n}: describe what you need, and ask Radar`)}</div>
+      ${sec(`Like ${esc(t.n)}`, `${esc(lowH(t.c))} near it on Radar`)}
+      ${grid(like)}
+      ${more(`/radar?cat=${t.c}`, `All ${fmt(catSize(t.c))} ${lowH(t.c)} on Radar`)}
+      ${badge(t)}`,
     });
   }
 }
 
 // ---------- the hub ----------
 function hub() {
+  const tile = (href, title, sub, items, n) => `<a class="tool tool-front pg-tile" href="${href}">
+        <span class="tool-top"><span class="pg-tile-ics">${items.slice(0, 3).map(icon).join('')}</span>${n ? `<span class="tool-pop">${n}</span>` : ''}</span>
+        <h3>${title}</h3>
+        <p>${sub}</p>
+      </a>`;
   page({
     path: '/ai-tools/',
     title: `Best AI Tools on the Radar: ${fmt(all.length)} AI tools, ranked and updated weekly`,
     desc: `The best AI tools by category, the Top 50, new releases, free and open-source tools: ${fmt(all.length)} AI tools hand-picked or gathered from GitHub, Hugging Face and Product Hunt, updated every week.`,
-    h1: 'Best AI tools <em>on the Radar</em>',
-    sub: `${fmt(all.length)} AI tools: ${curated.length} hand-picked by Raunak, and the best of GitHub, Hugging Face and Product Hunt, updated every week. Pick a list, or <a href="/radar">search them all on Radar</a>.`,
     trail: [HUB, AT],
     prio: 1,
     ld: [{ '@type': 'CollectionPage', name: 'Best AI Tools on the Radar', url: `${SITE}/ai-tools/` }],
-    body: `<h2>By category</h2>
-  <ul class="pg-cats">${Object.keys(CATS).map((c) => `<li><a href="${catLink(c)}"><b>${esc(CAT_PAGE[c].h)}</b><span>${ranked[c].filter((t) => t.src === 'pick').slice(0, 3).map((t) => esc(t.n)).join(', ')} and ${fmt(catSize(c) - 3)} more</span></a></li>`).join('')}</ul>
-  <h2>Collections</h2>
-  <ul class="pg-cats">
-    <li><a href="/ai-tools/top-50"><b>Top 50 AI tools</b><span>The fifty worth knowing right now</span></a></li>
-    <li><a href="/ai-tools/new-ai-tools"><b>New AI tools</b><span>The latest releases, newest first</span></a></li>
-    <li><a href="/ai-tools/free-ai-tools"><b>Free AI tools</b><span>${freeCur.length} that cost nothing to start</span></a></li>
-    <li><a href="/ai-tools/open-source-ai-tools"><b>Open-source AI tools</b><span>The most-starred on GitHub</span></a></li>
-  </ul>
-  <h2>Alternatives</h2>
-  <ul class="pg-tags">${[...altOf].map(([t, p]) => `<li><a href="${p}">${esc(t.n)} alternatives</a></li>`).join('')}</ul>`,
+    body: `${head('Best AI tools <em>on the Radar</em>', '')}
+      ${intro(`${fmt(all.length)} AI tools: ${curated.length} hand-picked by Raunak, and the best of GitHub, Hugging Face and Product Hunt, updated every week. Pick a list, or search them all on <a href="/radar">Radar</a>.`)}
+      <div class="tl-bar pg-bar">${searchBar()}</div>
+      ${catChips('hub')}
+      ${sec('Lists', `for ${esc(MONTH)}`)}
+      <div class="tl-grid">
+      ${tile('/ai-tools/top-50', 'Top 50 AI tools', 'The fifty worth knowing right now, in Raunak\'s order.', top, '50')}
+      ${tile('/ai-tools/new-ai-tools', 'New AI tools', 'The latest releases from GitHub, Hugging Face and Product Hunt, newest first.', fresh, fmt(fresh.length))}
+      ${tile('/ai-tools/free-ai-tools', 'Free AI tools', 'Free outright, with a free plan, or open source, by category.', freeCur, fmt(freeCur.length))}
+      ${tile('/ai-tools/open-source-ai-tools', 'Open-source AI tools', 'The ones Raunak picked, and the most-starred on GitHub.', openCur, fmt(openCur.length + openGh.length))}
+      </div>
+      ${sec('By category', 'ranked')}
+      <div class="tl-grid">
+      ${Object.keys(CATS).map((c) => { const l = ranked[c].filter((t) => t.src === 'pick'); return tile(catLink(c), `Best ${esc(lowH(c))}`, `${l.slice(0, 3).map((t) => esc(t.n)).join(', ')} and ${fmt(catSize(c) - 3)} more.`, l, fmt(catSize(c))); }).join('\n      ')}
+      </div>
+      ${sec('Alternatives', 'to the Top 50')}
+      <nav class="chips pg-chips">${[...altOf].map(([t, p]) => `<a class="chip" href="${p}">${esc(t.n)} alternatives</a>`).join('')}</nav>
+      ${more('/radar', `Search all ${fmt(all.length)} on Radar`)}`,
   });
 }
 

@@ -1,114 +1,89 @@
-/* Radar's pages for search engines (/ai-tools, scripts/build-seo-pages.mjs): plain, fast pages in the site's look,
-   the same tokens as style.css; everything not chosen stands raised, the chosen one is pressed in */
-:root {
-  --bg: #f2f2f2; --surface: #fff; --ink: #111; --ink-2: #6b6b6b; --line: #e7e7e7;
-  --font: "Inter Tight", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
-  --neu-hi: rgba(255, 255, 255, .95); --neu-lo: rgba(163, 168, 186, .55);
-  --neu-out: -5px -5px 12px var(--neu-hi), 5px 5px 12px var(--neu-lo);
-  --neu-out-sm: -3px -3px 8px var(--neu-hi), 3px 3px 8px var(--neu-lo);
-  --neu-in: inset 3px 3px 6px var(--neu-lo), inset -3px -3px 6px var(--neu-hi);
-  --neu-in-sm: inset 2px 2px 4px var(--neu-lo), inset -2px -2px 4px var(--neu-hi);
-  --key: inset 0 1px 1px rgba(255, 255, 255, .18), 0 3px 8px rgba(0, 0, 0, .22);
-  --radius: 16px; --pad: 24px;
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
-a { color: inherit; text-decoration: none; }
-img { display: block; }
-:focus-visible { outline: 2px solid #7c5cff; outline-offset: 2px; }
+/* Radar's pages for search engines (/ai-tools, scripts/build-seo-pages.mjs): they're made of the site's own parts
+   (css/style.css: the top bar, the page title, Radar's views, search box, chips and tool cards); this adds only what
+   those parts need outside the site's page, and the turned-over card on a tool's own page. As everywhere on the
+   site, what isn't chosen stands raised and the chosen one is pressed in. */
 
-/* the bar: the name, and the site's four pages as raised pills, Radar pressed in */
-.pg-bar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 58px; padding: 0 var(--pad); background: color-mix(in srgb, var(--bg) 85%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
-.pg-brand { font-size: 14px; font-weight: 500; letter-spacing: .02em; text-transform: uppercase; white-space: nowrap; }
-.pg-bar nav { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface); box-shadow: var(--neu-out-sm); }
-.pg-bar nav a { padding: 6px 14px; border-radius: 999px; font-size: 13.5px; color: #444; transition: color .25s; }
-.pg-bar nav a:hover { color: #111; }
-.pg-bar nav a.on { background: #111; color: #fff; box-shadow: var(--key); }
-
-.pg { max-width: 920px; margin: 0 auto; padding: 18px var(--pad) 40px; }
-.pg-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 18px; font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: #9a9a9a; }
+.pg-body { display: block; padding-bottom: 8px; }
+.pg-crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 18px 10px 0; font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #9a9a9a; }
+.pg-crumbs a { transition: color .25s; }
 .pg-crumbs a:hover { color: #111; }
 .pg-crumbs i { font-style: normal; color: #c4c4c4; }
-.pg h1 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: clamp(32px, 5vw, 50px); font-weight: 400; letter-spacing: -.03em; line-height: 1.06; text-wrap: balance; }
-.pg h1 em { font-style: normal; color: #9a9a9a; }
-.pg h1 .pg-ic { width: 52px; height: 52px; border-radius: 14px; }
-.pg h1 .pg-ic img { inset: 9px; width: 34px; height: 34px; }
-.pg h1 .pg-ic img.av { inset: 0; width: 100%; height: 100%; }
-.pg-sub { max-width: 68ch; margin-top: 14px; font-size: 16.5px; line-height: 1.55; color: var(--ink-2); }
-.pg-sub a { color: #111; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #ccc; }
-.pg h2 { margin: 40px 0 6px; font-size: 13px; font-weight: 500; letter-spacing: .07em; text-transform: uppercase; color: #8a8a8a; }
-.pg h2 a:hover { color: #111; }
-.pg-by { font-size: 13px; color: #9a9a9a; }
+.pg-head { padding-top: 10px; }
+.pg-head .page-title em { font-style: normal; color: #9a9a9a; }
+.pg-sub { max-width: 74ch; padding: 0 10px; font-size: 15.5px; line-height: 1.55; color: var(--ink-2); }
+.pg-sub a { color: #111; text-decoration: underline; text-decoration-color: #ccc; text-underline-offset: 3px; }
 
-/* a list of tools: number, icon, name and what it does, its price or popularity */
-.pg-list { list-style: none; display: grid; gap: 8px; margin-top: 14px; }
-.pg-row { display: flex; align-items: center; gap: 14px; padding: 12px 16px; border-radius: var(--radius); background: #fafafa; box-shadow: 0 0 0 1px rgba(0, 0, 0, .05); transition: background .3s, box-shadow .3s; }
-.pg-row:hover { background: var(--surface); box-shadow: var(--neu-out-sm); }
-.pg-n { flex: none; width: 24px; font-family: var(--mono); font-size: 12px; color: #9a9a9a; text-align: right; }
-.pg-ic { position: relative; flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 11px; overflow: hidden; background: var(--surface); box-shadow: var(--neu-out-sm); }
-.pg-ic::before { content: attr(data-l); font-size: 15px; font-weight: 500; color: #9a9a9a; }
-.pg-ic img { position: absolute; inset: 8px; width: 24px; height: 24px; border-radius: 5px; object-fit: cover; }
-.pg-ic img.av { inset: 0; width: 100%; height: 100%; border-radius: 0; }
-.pg-ic.emo { font-size: 20px; }
-.pg-ic.emo::before { content: none; }
-.pg-t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.pg-t b { font-size: 15.5px; font-weight: 500; }
-.pg-t b a { background: linear-gradient(currentColor, currentColor) 0 100% / 0 1px no-repeat; transition: background-size .35s; }
-.pg-row:hover .pg-t b a { background-size: 100% 1px; }
-.pg-t > span { font-size: 13.5px; line-height: 1.45; color: var(--ink-2); }
-.pg-m { flex: none; font-family: var(--mono); font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: #9a9a9a; white-space: nowrap; }
-.pg-note { margin-top: 16px; font-size: 14px; color: var(--ink-2); }
-.pg-note a { color: #111; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #ccc; }
+/* Radar's three views, here as links into Radar */
+.tl-views a {
+  display: flex; flex-direction: column; gap: 2px; min-width: 196px; padding: 11px 16px 12px; border-radius: 14px; text-align: left;
+  background: var(--surface); box-shadow: var(--neu-out-sm); transition: box-shadow .3s;
+}
+.tl-views a:hover { box-shadow: var(--neu-out); }
+.tl-views a.on, .tl-views a:active { box-shadow: var(--neu-in); }
 
-/* a tool's page */
-.pg-plain { max-width: 68ch; margin-top: 22px; padding: 16px 18px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--neu-out-sm); font-size: 15.5px; }
-.pg-plain b { display: block; margin-bottom: 4px; font-family: var(--mono); font-size: 10.5px; font-weight: 400; letter-spacing: .1em; text-transform: uppercase; color: #9a9a9a; }
-.pg-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 8px; margin-top: 14px; }
-.pg-facts div { padding: 12px 16px; border-radius: 14px; background: #fafafa; box-shadow: 0 0 0 1px rgba(0, 0, 0, .05); }
-.pg-facts dt { font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #9a9a9a; }
-.pg-facts dd { margin-top: 2px; font-size: 14px; overflow-wrap: anywhere; }
-.pg-facts dd a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #ccc; }
+/* the search box (a form that asks Radar) and the categories */
+.pg-bar { margin: 18px 0 0; padding: 0 10px; }
+.pg-search { cursor: text; }
+.pg-search .tl-ask { cursor: pointer; }
+.pg-chips { margin: 14px 10px 0; }
+.pg-chips .chip:not(:has(b)) { padding-right: 13px; }
+.pg-chips .chip.on { box-shadow: var(--neu-in); }
+.pg-chips .chip.on b { background: #111; color: #fff; box-shadow: var(--key); }
+.pg-body .tl-count { padding-top: 22px; }
+.pg-sec { margin-top: 34px; }
+.pg-sec h2 a:hover { color: #111; }
+
+/* a card is one link (its name stretched over it); its ↗ still opens the tool's own site */
+.pg-body .tool { cursor: pointer; }
+.pg-body .tool h3 a::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.pg-body .tool-flags { position: relative; z-index: 2; }
+.pg-more { width: fit-content; margin: 28px auto 0; text-align: center; }
+.pg-body .tl-foot { margin-top: 40px; }
+
+/* the hub's tiles: a few of the list's tools, overlapping, then its name */
+.pg-tile { min-height: 0; color: inherit; }
+.pg-tile-ics { display: flex; }
+.pg-tile-ics .tool-icon { width: 40px; height: 40px; border-radius: 12px; }
+.pg-tile-ics .tool-icon + .tool-icon { margin-left: -10px; }
+.pg-tile-ics .tool-icon img { inset: 7px; width: 26px; height: 26px; }
+.pg-tile-ics .tool-icon img.av { inset: 0; width: 100%; height: 100%; border-radius: 12px; }
+
+/* a tool's page: its icon by its name, and its card turned over: dark, as on Radar */
+.pg-tool-title { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.pg-tool-title .tool-icon { flex: none; width: 60px; height: 60px; border-radius: 17px; }
+.pg-tool-title .tool-icon img { inset: 11px; width: 38px; height: 38px; }
+.pg-tool-title .tool-icon img.av { inset: 0; width: 100%; height: 100%; border-radius: 17px; }
+.pg-tool-title .tool-icon::before { font-size: 24px; }
+.pg-tool-title span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.pg-turned { height: auto; gap: 14px; margin: 6px 0 0; padding: 26px 28px 26px; }
+.pg-turned-d { max-width: 52ch; font-size: clamp(20px, 2vw, 27px); line-height: 1.25; letter-spacing: -.015em; color: #fff; text-wrap: balance; }
+.pg-turned-plain { max-width: 70ch; font-size: 15px; line-height: 1.55; color: #d6d6d6; }
+.pg-turned-plain b { display: block; margin-bottom: 3px; font-family: var(--mono); font-size: 10px; font-weight: 400; letter-spacing: .1em; text-transform: uppercase; color: #7d7d7d; }
+.pg-turned dl { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px 28px; margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--card-line); }
+.pg-turned dt { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: #7d7d7d; }
+.pg-turned dd { margin-top: 3px; font-size: 14px; color: #e8e8e8; overflow-wrap: anywhere; }
+.pg-turned dd a { text-decoration: underline; text-decoration-color: #555; text-underline-offset: 3px; transition: text-decoration-color .25s; }
+.pg-turned dd a:hover { text-decoration-color: currentColor; }
+.pg-turned-go { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 8px; }
+.pg-turned-go .tl-read:active { box-shadow: var(--dneu-in); }
+.pg-dark-pill { display: inline-flex; align-items: center; padding: 8px 15px; border-radius: 999px; background: #1d1d1d; color: var(--on-card); font-size: 13px; white-space: nowrap; box-shadow: var(--dneu-out); transition: box-shadow .25s; }
+.pg-dark-pill:active { box-shadow: var(--dneu-in); }
 
 /* for the tool's makers: the badge and its snippet, folded away */
-.pg-own { margin-top: 36px; padding: 14px 18px; border-radius: var(--radius); background: #fafafa; box-shadow: 0 0 0 1px rgba(0, 0, 0, .05); font-size: 14px; color: var(--ink-2); }
+.pg-own { margin: 34px 10px 0; padding: 14px 18px; border-radius: var(--radius); background: #fafafa; box-shadow: 0 0 0 1px rgba(0, 0, 0, .05); font-size: 13.5px; color: var(--ink-2); }
 .pg-own summary { cursor: pointer; color: #111; }
 .pg-own p { margin: 10px 0; }
 .pg-own img { margin: 4px 0 10px; }
 .pg-own pre { margin-top: 8px; padding: 10px 12px; border-radius: 10px; background: var(--surface); box-shadow: var(--neu-in-sm); overflow-x: auto; font-family: var(--mono); font-size: 11.5px; color: #333; white-space: pre-wrap; word-break: break-all; }
 
-/* buttons: raised, pressed in while clicked; the main one a black key */
-.pg-ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 24px; }
-.pg-btn { display: inline-flex; align-items: center; height: 42px; padding: 0 18px; border-radius: 999px; background: var(--surface); font-size: 14px; box-shadow: var(--neu-out-sm); transition: box-shadow .3s; }
-.pg-btn:hover { box-shadow: var(--neu-out); }
-.pg-btn:active { box-shadow: var(--neu-in-sm); }
-.pg-btn.key { background: #111; color: #fff; box-shadow: var(--key); }
-.pg-btn.key:hover { background: #222; }
-
-/* the hub's tiles and tags */
-.pg-cats { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 14px; }
-.pg-cats a { display: flex; flex-direction: column; gap: 4px; height: 100%; padding: 16px 18px; border-radius: var(--radius); background: var(--surface); box-shadow: var(--neu-out-sm); transition: box-shadow .3s, transform .35s cubic-bezier(.7, 0, .2, 1); }
-.pg-cats a:hover { box-shadow: var(--neu-out); transform: translateY(-2px); }
-.pg-cats a:active { box-shadow: var(--neu-in-sm); transform: none; }
-.pg-cats b { font-size: 16px; font-weight: 500; }
-.pg-cats span { font-size: 13px; color: var(--ink-2); }
-.pg-tags { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-.pg-tags a { display: inline-block; padding: 7px 14px; border-radius: 999px; background: var(--surface); font-size: 13px; box-shadow: var(--neu-out-sm); transition: box-shadow .3s; }
-.pg-tags a:hover { box-shadow: var(--neu-out); }
-.pg-tags a:active { box-shadow: var(--neu-in-sm); }
-
-.pg-foot { max-width: 920px; margin: 0 auto; padding: 28px var(--pad) 48px; border-top: 1px solid var(--line); display: grid; gap: 18px; font-size: 13px; color: var(--ink-2); }
-.pg-foot nav { display: flex; flex-wrap: wrap; gap: 6px 16px; }
-.pg-foot nav b { flex-basis: 100%; font-family: var(--mono); font-size: 10.5px; font-weight: 400; letter-spacing: .1em; text-transform: uppercase; color: #9a9a9a; }
-.pg-foot a:hover { color: #111; }
-.pg-foot p a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #ccc; }
-
-@media (max-width: 640px) {
-  :root { --pad: 16px; }
-  .pg-bar nav a:not(.on) { display: none; }
-  .pg-row { align-items: flex-start; gap: 12px; padding: 12px; }
-  .pg-n { display: none; }
-  .pg-m { display: none; }
-  .pg-sub { font-size: 15.5px; }
+@media (max-width: 760px) {
+  .tl-views a { flex: 1 0 auto; min-width: 0; padding: 9px 12px; align-items: center; border-radius: 999px; }
+  .pg-sub { font-size: 15px; }
+  .pg-chips { flex-wrap: nowrap; width: auto; margin: 14px 0 0; padding: 4px 10px 8px; overflow-x: auto; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, #000 88%, transparent); mask-image: linear-gradient(90deg, #000 88%, transparent); }
+  .pg-chips::-webkit-scrollbar { display: none; }
+  .pg-chips .chip { flex: none; }
+  .pg-turned { padding: 20px 18px; }
+  .pg-tool-title .tool-icon { width: 48px; height: 48px; border-radius: 14px; }
+  .pg-tool-title .tool-icon img { inset: 9px; width: 30px; height: 30px; }
+  .pg-tile { display: flex; }   /* (not the phone's compact tool row: a tile is short already) */
 }

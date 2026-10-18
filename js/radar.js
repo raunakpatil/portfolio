@@ -683,6 +683,24 @@ function renderDirectory(T, catalogP) {
     clear() { askRest = null; askQ = ''; S.ask = ''; search.value = ''; set('q', ''); },
   });
   if (S.ask && askable(S.q)) askApi.ask(); else S.ask = '';
+  // arriving from one of the /ai-tools pages with ?open=<a tool's name> (and ?q= to find it): that tool's card in view,
+  // turned over to what it does, among the ones like it (the address keeps only the search)
+  const opening = (new URLSearchParams(location.search).get('open') || '').toLowerCase();
+  if (opening) {
+    const show = () => {
+      const t = all.find((x) => x.n.toLowerCase() === opening);
+      const c = t && grid.querySelector(`.tool-card[data-i="${t.i}"]`);
+      if (!c) return false;
+      setTimeout(() => {
+        c.scrollIntoView({ block: 'center', behavior: MOTION ? 'smooth' : 'auto' });
+        setTimeout(() => turn(c, true), MOTION ? 500 : 0);
+      }, 300);
+      return true;
+    };
+    // (once the catalogue has joined: its arrival redraws the cards)
+    catalogP.then(() => setTimeout(show, 120), () => show());
+    toURL(false);
+  }
 }
 
 /* ---------- Ask Radar ---------- */
